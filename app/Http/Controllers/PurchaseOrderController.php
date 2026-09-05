@@ -1,0 +1,108 @@
+<?php
+
+namespace App\Http\Controllers;
+use App\Http\Controllers\Concerns\AppliesDataScope;
+
+use App\Models\Company;
+use App\Models\Site;
+use App\Models\Warehouse;
+use App\Models\VendorBill;
+use App\Models\PurchaseOrder;
+use App\Models\PurchaseRequest;
+use App\Models\GoodsReceipt;
+use App\Services\AuditService;
+use App\Services\ApprovalService;
+use App\Services\OperationsService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+
+class PurchaseOrderController extends Controller
+{
+    use AppliesDataScope;
+
+    public function index(Request $request)
+    {
+        $items = PurchaseOrder::with(['supplier', 'items', 'company'])
+            ->when($request->status, fn ($q) => $q->where('status', $request->status))
+            ->when($request->q, fn ($q) => $q->where('number', 'like', "%{$request->q}%"))
+
+            ->when(!is_null($companies = auth()->user()?->accessibleCompanyIds()), fn ($w) => $w->whereIn('company_id', $companies))
+            ->orderByDesc('id')->paginate(20)->withQueryString();
+        return view('procurement.po.index', ['items' => $items, 'po' => null, 'statuses' => ['DRAFT', 'SUBMITTED', 'APPROVED', 'PARTIALLY_RECEIVED', 'COMPLETED', 'CANCELLED']]);
+    }
+
+    public function create()
+    {
+        return view('procurement.po.form', [
+            'po' => null,
+            'suppliers' => \App\Models\Supplier::where('status', true)->get(),
+            'companies' => Company::pluck('name', 'id')->all(),
+            'sites' => Site::pluck('name', 'id')->all(),
+            'items' => \App\Models\Item::orderBy('name')->get(),
+            'paymentTerms' => \App\Models\PaymentTerm::all(),
+            'prs' => PurchaseRequest::where('status', 'APPROVED')->get(),
+            'taxCode' => (float) \App\Models\Setting::get('tax.default_sales_tax_rate', 11),
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $this->validateInput($request);
+        $po = DB::transaction(function () use ($validated, $request) {
+            $po = PurchaseOrder::create($validated + [
+                'number' => \App\Services\NumberingService::generate('PO', $validated['company_id']),
+                'status' => 'DRAFT',
+                'created_by' => auth()->id(),
+            ]);
+            $this->syncLines($po, $request);
+            return $po;
+        });
+        AuditService::created('PROCUREMENT', $po);
+        return redirect()->route('purchase-orders.index')->with('success', 'PO dibuat.');
+    }
+
+    public function show(PurchaseOrder $purchase_order)
+    {
+        return view('procurement.po.index', ['po' => $purchase_order->load(['items.item', 'supplier']), 'items' => PurchaseOrder::orderByDesc('id')->paginate(20), 'statuses' => ['DRAFT', 'SUBMITTED', 'APPROVED', 'PARTIALLY_RECEIVED', 'COMPLETED', 'CANCELLED']]);
+    }
+
+    public function approve(PurchaseOrder $purchase_order)
+    {
+        if (!auth()->user()->hasPermission('purchase_order.approve')) {
+            abort(403);
+        }
+        $purchase_order->update(['status' => 'APPROVED', 'approved_by' => auth()->id()]);
+        AuditService::log('APPROVE', 'PROCUREMENT', $purchase_order->id, PurchaseOrder::class);
+        return back()->with('success', 'PO disetujui.');
+    }
+
+    protected function syncLines(PurchaseOrder $po, Request $request): void
+    {
+        $po->items()->delete();
+        $subtotal = 0;
+        foreach ($request->input('lines', []) as $line) {
+            if (!empty($line['item_id']) && $line['qty'] > 0) {
+                $total = round((float) $line['qty'] * (float) $line['unit_price'], 2);
+                $subtotal += $total;
+                $po->items()->create(['item_id' => $line['item_id'], 'qty' => $line['qty'], 'unit_price' => $line['unit_price'], 'total_price' => $total, 'remark' => $line['remark'] ?? null]);
+            }
+        }
+        $tax = round($subtotal * (float) \App\Models\Setting::get('tax.default_sales_tax_rate', 11) / 100, 2);
+        $po->update(['subtotal' => $subtotal, 'tax_amount' => $tax, 'total' => $subtotal + $tax + (float) ($request->other_cost ?? 0)]);
+    }
+
+    protected function validateInput(Request $request): array
+    {
+        return $request->validate([
+            'company_id' => 'required|exists:companies,id',
+            'site_id' => 'nullable|exists:sites,id',
+            'supplier_id' => 'required|exists:suppliers,id',
+            'purchase_request_id' => 'nullable|exists:purchase_requests,id',
+            'order_date' => 'required|date',
+            'expected_date' => 'nullable|date',
+            'payment_term_id' => 'nullable|exists:payment_terms,id',
+            'other_cost' => 'nullable|numeric|min:0',
+            'notes' => 'nullable|max:2000',
+        ]);
+    }
+}
