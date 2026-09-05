@@ -15,7 +15,13 @@
         <tr class="hover:bg-slate-50">
             <td class="px-4 py-2.5 font-medium">{{ $item->number }}</td>
             <td class="px-4 py-2.5">{{ $item->date?->format('d/m/Y') }}</td>
-            <td class="px-4 py-2.5">{{ $item->equipment?->name ?? $item->asset?->name }}</td>
+            <td class="px-4 py-2.5">
+                @if ($item->equipment)
+                    <a href="{{ route('equipment.show', $item->equipment) }}" class="text-amber-600 hover:underline">{{ $item->equipment?->name }}</a>
+                @else
+                    {{ $item->asset?->name }}
+                @endif
+            </td>
             <td class="px-4 py-2.5 text-xs">{{ $item->type }}</td>
             <td class="px-4 py-2.5 text-xs">{{ $item->priority }}</td>
             <td class="px-4 py-2.5 text-right">Rp {{ number_format($item->actual_cost, 0, ',', '.') }}</td>

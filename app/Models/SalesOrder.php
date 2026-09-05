@@ -28,5 +28,6 @@ class SalesOrder extends BaseModel
     public function company() { return $this->belongsTo(Company::class); }
     public function site() { return $this->belongsTo(Site::class); }
     public function deliveryOrders() { return $this->hasMany(DeliveryOrder::class); }
+    public function invoice() { return $this->hasOne(Invoice::class); }
 
 }

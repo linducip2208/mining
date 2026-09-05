@@ -61,6 +61,21 @@ Asset register (status lifecycle), peralatan, jadwal pemeliharaan (interval jam/
 ## 16. Laporan
 Mining (per site/shift/operator/peralatan + ton/jam), Produksi (batch + loss rekap), Inventory (saldo + kritis + nilai), Penjualan (per customer + produk + outstanding), HR (absensi + payroll), Maintenance (biaya + downtime + WO). Semua dengan filter periode + cetak/PDF + **export CSV** + audit export.
 
+## 19. Konektivitas Antar Modul (Cross-Link UI + Audit Keterhubungan)
+
+Setiap rantai bisnis dapat ditelusuri maju-mundur dari UI maupun database:
+
+| Rantai | Tautan UI | Kunci Database |
+|---|---|---|
+| SO → DO → Timbang → Invoice → Payment | SO↔Faktur, DO↔SO, DO↔Tiket, Faktur↔SO | `qty_delivered`, `weighbridge_ticket_id`, `sales_order_id`, alokasi FIFO |
+| Invoice → Jurnal → Sumber | Kolom Sumber di Jurnal link ke dokumen asal (`JournalEntry::sourceLink()`) | `source_type` + `source_id` |
+| Deposit → Invoice → Sisa | Statement deposit; auto-alokasi + jurnal | ledger `DEPOSIT_USED` + jurnal `DEPOSIT_ALLOCATION` |
+| PO → GRN → Bill → Bayar | Bill↔PO | `purchase_order_id`, `goods_receipt_id` |
+| WO → Sparepart → Stok/Biaya | WO↔Equipment | ledger `MAINTENANCE_USAGE` + `maintenance_costs` |
+| Mining → Stok → Produksi → Produk | Kartu stok per `ref_number` | ledger `ref_type` + `ref_id` |
+
+Skrip `audit_link.php` (dijalankan saat verifikasi, tidak di-commit) memeriksa 12 titik konektivitas: semua OK, 0 orphan (faktur/payment/bill tanpa jurnal = 0, DO tanpa tiket = 0, approval tanpa action = 0, reservasi macet = 0).
+
 ## 17. Proactive Alerts (Scheduler)
 Perintah `php artisan alert:scan` memindai 6 kondisi (konfigurable via `alert_rules`): stok minimum, faktur overdue, dokumen/permit kadaluarsa, maintenance jatuh tempo, selisih harga abnormal, approval tertunda >3 hari. Hasilnya menjadi notifikasi in-app untuk admin; dijadwalkan harian 07:00 via `routes/console.php`. Integrasi WhatsApp siap: isi `Settings → notification.whatsapp_webhook_url` dan alert otomatis terkirim ke webhook (`SystemAlert::toWhatsApp`).
 

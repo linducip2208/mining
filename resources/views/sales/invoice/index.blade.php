@@ -12,7 +12,7 @@
 </x-filter-bar>
 <x-table>
     <x-slot:head>
-        <th class="px-4 py-2.5">Nomor</th><th class="px-4 py-2.5">Tanggal</th><th class="px-4 py-2.5">Customer</th>
+        <th class="px-4 py-2.5">Nomor</th><th class="px-4 py-2.5">SO</th><th class="px-4 py-2.5">Tanggal</th><th class="px-4 py-2.5">Customer</th>
         <th class="px-4 py-2.5 text-right">Subtotal</th><th class="px-4 py-2.5 text-right">PPN</th><th class="px-4 py-2.5 text-right">Total</th>
         <th class="px-4 py-2.5 text-right">Dibayar</th><th class="px-4 py-2.5">Status</th><th></th>
     </x-slot:head>
@@ -20,6 +20,13 @@
         @forelse ($items as $item)
         <tr class="hover:bg-slate-50">
             <td class="px-4 py-2.5 font-medium">{{ $item->number }}</td>
+            <td class="px-4 py-2.5 text-xs">
+                @if ($item->salesOrder)
+                    <a href="{{ route('sales-orders.show', $item->salesOrder) }}" class="text-amber-600 hover:underline">{{ $item->salesOrder->number }}</a>
+                @else
+                    <span class="text-slate-300">-</span>
+                @endif
+            </td>
             <td class="px-4 py-2.5">{{ $item->invoice_date?->format('d/m/Y') }}</td>
             <td class="px-4 py-2.5">{{ $item->customer?->name }}</td>
             <td class="px-4 py-2.5 text-right">{{ number_format($item->subtotal, 0, ',', '.') }}</td>
@@ -30,7 +37,7 @@
             <td class="px-4 py-2.5"><a href="{{ route('invoices.show', $item) }}" class="text-amber-600 text-xs hover:underline">Detail</a></td>
         </tr>
         @empty
-        <tr><td colspan="9" class="px-4 py-10 text-center text-slate-400">Belum ada faktur</td></tr>
+        <tr><td colspan="10" class="px-4 py-10 text-center text-slate-400">Belum ada faktur</td></tr>
         @endforelse
     </tbody>
     <x-slot:footer>{{ $items->links('components.pagination') }}</x-slot:footer>

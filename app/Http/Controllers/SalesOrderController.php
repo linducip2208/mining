@@ -23,7 +23,7 @@ class SalesOrderController extends Controller
 
     public function index(Request $request)
     {
-        $items = SalesOrder::with(['customer', 'items', 'company'])
+        $items = SalesOrder::with(['customer', 'items', 'company', 'invoice', 'deliveryOrders'])
             ->when($request->status, fn ($q) => $q->where('status', $request->status))
             ->when($request->q, fn ($q) => $q->where('number', 'like', "%{$request->q}%"))
             ->when($request->customer_id, fn ($q) => $q->where('customer_id', $request->customer_id))

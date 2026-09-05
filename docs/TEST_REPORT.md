@@ -6,10 +6,10 @@ Tanggal: 2026-09-06 · Runner: `php artisan test` (PHPUnit 12, SQLite in-memory)
 
 | Metrik | Hasil |
 |---|---|
-| Total tests | 35 |
-| Passed | 35 |
+| Total tests | 39 |
+| Passed | 39 |
 | Failed | 0 |
-| Assertions | 127 |
+| Assertions | 146 |
 | Smoke HTTP (miningerp.test) | 39/39 endpoint 200 |
 | Trial Balance (data demo) | BALANCED |
 | Stok negatif | 0 baris |

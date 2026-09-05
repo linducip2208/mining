@@ -56,7 +56,14 @@
         <tr class="hover:bg-slate-50">
             <td class="px-4 py-2.5 font-medium">{{ $item->number }}</td>
             <td class="px-4 py-2.5">{{ $item->journal_date?->format('d/m/Y') }}</td>
-            <td class="px-4 py-2.5 text-xs">{{ $item->source_number ?? 'Manual' }}</td>
+            <td class="px-4 py-2.5 text-xs">
+                @php $link = $item->sourceLink(); @endphp
+                @if ($link)
+                    <a href="{{ route($link[0], $link[1]) }}" class="text-amber-600 hover:underline">{{ $item->source_number ?? $item->source_type }}</a>
+                @else
+                    {{ $item->source_number ?? 'Manual' }}
+                @endif
+            </td>
             <td class="px-4 py-2.5 text-right">{{ number_format($item->total_debit, 0, ',', '.') }}</td>
             <td class="px-4 py-2.5 text-right">{{ number_format($item->total_credit, 0, ',', '.') }}</td>
             <td class="px-4 py-2.5"><x-status-badge :status="$item->status" /></td>

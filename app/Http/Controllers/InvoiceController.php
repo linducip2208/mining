@@ -17,7 +17,7 @@ class InvoiceController extends Controller
 
     public function index(Request $request)
     {
-        $items = Invoice::with(['customer', 'items'])
+        $items = Invoice::with(['customer', 'items', 'salesOrder'])
             ->when($request->status, fn ($q) => $q->where('status', $request->status))
             ->when($request->q, fn ($q) => $q->where('number', 'like', "%{$request->q}%"))
             ->when($request->customer_id, fn ($q) => $q->where('customer_id', $request->customer_id))

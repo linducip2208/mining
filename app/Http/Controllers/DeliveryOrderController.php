@@ -20,7 +20,7 @@ class DeliveryOrderController extends Controller
 
     public function index(Request $request)
     {
-        $items = DeliveryOrder::with(['salesOrder.customer', 'warehouse'])
+        $items = DeliveryOrder::with(['salesOrder.customer', 'salesOrder.invoice', 'warehouse', 'ticket'])
             ->when($request->status, fn ($q) => $q->where('status', $request->status))
             ->when($request->q, fn ($q) => $q->where('number', 'like', "%{$request->q}%"))
             ->orderByDesc('id')->paginate(20)->withQueryString();
