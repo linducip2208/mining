@@ -70,7 +70,7 @@ class StockAdjustmentController extends Controller
         });
 
         AuditService::created('STOCK', $adjustment);
-        return redirect()->route('stock.adjustment.index')->with('success', 'Penyesuaian dibuat.');
+        return redirect()->route('stock-adjustments.index')->with('success', 'Penyesuaian dibuat.');
     }
 
     public function show(StockAdjustment $stock_adjustment)

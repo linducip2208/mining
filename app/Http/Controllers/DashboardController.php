@@ -62,13 +62,21 @@ class DashboardController extends Controller
             ->whereMonth('invoice_date', now()->month)
             ->groupBy('customers.id', 'customers.name')->orderByDesc('total')->limit(5)->get();
 
-        // FINANCE
-        $revenue = -AccountingService::balance(AccountingService::map('SALES_REVENUE'), $from, $to);
-        $expense = AccountingService::balance(AccountingService::map('ADMIN_EXPENSE'), $from, $to)
-            + AccountingService::balance(AccountingService::map('SALARY_EXPENSE'), $from, $to)
-            + AccountingService::balance(AccountingService::map('MAINTENANCE_EXPENSE'), $from, $to);
-        $cash = AccountingService::balance(AccountingService::map('CASH_MAIN'));
-        $kas = $cash;
+        // FINANCE (tahan terhadap mapping yang belum dikonfigurasi)
+        $mapOrNull = function (string $code) {
+            try {
+                return AccountingService::map($code);
+            } catch (\InvalidArgumentException $e) {
+                return null;
+            }
+        };
+        $balOrZero = fn ($code, $from = null, $to = null) => $code ? AccountingService::balance($code, $from, $to) : 0;
+
+        $revenue = -$balOrZero($mapOrNull('SALES_REVENUE'), $from, $to);
+        $expense = $balOrZero($mapOrNull('ADMIN_EXPENSE'), $from, $to)
+            + $balOrZero($mapOrNull('SALARY_EXPENSE'), $from, $to)
+            + $balOrZero($mapOrNull('MAINTENANCE_EXPENSE'), $from, $to);
+        $kas = $balOrZero($mapOrNull('CASH_MAIN'));
 
         // HR
         $employeeActive = Employee::where('status', 'ACTIVE')->count();

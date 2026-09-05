@@ -63,7 +63,7 @@ class StockTransferController extends Controller
         });
 
         AuditService::created('STOCK', $transfer);
-        return redirect()->route('stock.transfer.index')->with('success', 'Transfer dibuat.');
+        return redirect()->route('stock-transfers.index')->with('success', 'Transfer dibuat.');
     }
 
     public function show(StockTransfer $stock_transfer)
