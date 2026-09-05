@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
+use App\Http\Controllers\Concerns\AppliesDataScope;
 
 use App\Models\AccountingMapping;
 use App\Models\ChartOfAccount;
@@ -14,6 +15,8 @@ use Illuminate\Support\Facades\DB;
 
 class CashAccountController extends Controller
 {
+    use AppliesDataScope;
+
     public function index(Request $request)
     {
         $items = CashAccount::with('coa')
@@ -41,6 +44,7 @@ class CashAccountController extends Controller
             'status' => 'boolean',
         ]);
         $acc = CashAccount::create($validated);
+        $this->ensureCompanyInScope($validated['company_id'] ?? null);
         AuditService::created('FINANCE', $acc);
         return redirect()->route('cash-accounts.index')->with('success', 'Kas/bank ditambahkan.');
     }

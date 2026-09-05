@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
+use App\Http\Controllers\Concerns\AppliesDataScope;
 
 use App\Models\Attendance;
 use App\Models\Employee;
@@ -12,6 +13,8 @@ use Illuminate\Support\Facades\DB;
 
 class AttendanceController extends Controller
 {
+    use AppliesDataScope;
+
     public function index(Request $request)
     {
         $items = Attendance::with(['employee'])
@@ -36,6 +39,8 @@ class AttendanceController extends Controller
             'status' => 'required|in:PRESENT,LATE,ABSENT,LEAVE,SICK,HOLIDAY,OFF',
             'notes' => 'nullable|max:500',
         ]);
+
+        $this->ensureInScope(\App\Models\Employee::find($validated['employee_id']));
 
         Attendance::updateOrCreate(
             ['employee_id' => $validated['employee_id'], 'date' => $validated['date']],

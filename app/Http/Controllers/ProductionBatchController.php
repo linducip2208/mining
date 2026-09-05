@@ -48,6 +48,8 @@ class ProductionBatchController extends Controller
     public function store(Request $request)
     {
         $validated = $this->validateInput($request);
+        $this->ensureCompanyInScope($validated['company_id'] ?? null);
+        $this->ensureSiteInScope($validated['site_id'] ?? null);
 
         $batch = DB::transaction(function () use ($validated, $request) {
             $validated['number'] = \App\Services\NumberingService::generate('PB', $validated['company_id']);
@@ -85,6 +87,8 @@ class ProductionBatchController extends Controller
             return back()->with('error', 'Hanya DRAFT yang dapat diubah.');
         }
         $validated = $this->validateInput($request);
+        $this->ensureCompanyInScope($validated['company_id'] ?? null);
+        $this->ensureSiteInScope($validated['site_id'] ?? null);
 
         DB::transaction(function () use ($production_batch, $validated, $request) {
             $production_batch->update($validated + ['updated_by' => auth()->id()]);

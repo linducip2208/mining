@@ -32,6 +32,10 @@ class DemoSeeder extends Seeder
 
     public function run(): void
     {
+        if (app()->environment('production')) {
+            $this->command?->warn('Production: demo master diblokir.');
+            return;
+        }
         // idempotency guard: skip if demo master already seeded
         if (Site::where('code', 'S-BJM')->exists() && Warehouse::where('code', 'WST1')->exists()) {
             $this->command?->info('Demo data sudah ada — seeding master dilewati.');

@@ -48,6 +48,7 @@ class InvoiceController extends Controller
         ]);
 
         $so = SalesOrder::with('items')->find($validated['sales_order_id']);
+        $this->ensureInScope($so);
 
         try {
             $invoice = SalesService::createInvoice($so, \Carbon\Carbon::parse($validated['invoice_date']), null, $request->boolean('use_deposit'));

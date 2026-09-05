@@ -45,6 +45,7 @@ class PayrollViewController extends Controller
             'period' => 'required|date_format:Y-m',
         ]);
         $exists = PayrollRun::where('company_id', $validated['company_id'])->where('period', $validated['period'])->exists();
+        $this->ensureCompanyInScope($validated['company_id'] ?? null);
         if ($exists) {
             return back()->with('error', 'Payroll periode tersebut sudah ada.');
         }

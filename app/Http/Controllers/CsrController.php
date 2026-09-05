@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
+use App\Http\Controllers\Concerns\AppliesDataScope;
 
 use App\Models\Company;
 use App\Models\CsrActivity;
@@ -15,6 +16,8 @@ use Illuminate\Support\Facades\Storage;
 
 class CsrController extends Controller
 {
+    use AppliesDataScope;
+
     public function index(Request $request)
     {
         $items = CsrProgram::with(['activities', 'approvedBy'])
@@ -48,6 +51,8 @@ class CsrController extends Controller
         $validated['status'] = 'PROPOSAL';
         $validated['created_by'] = auth()->id();
         $program = CsrProgram::create($validated);
+        $this->ensureCompanyInScope($validated['company_id'] ?? null);
+        $this->ensureSiteInScope($validated['site_id'] ?? null);
         AuditService::created('CSR', $program);
         return redirect()->route('csr.index')->with('success', 'Proposal CSR dibuat.');
     }

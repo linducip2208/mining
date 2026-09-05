@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
+use App\Http\Controllers\Concerns\AppliesDataScope;
 
 use App\Models\Company;
 use App\Models\Site;
@@ -14,6 +15,8 @@ use Illuminate\Database\Eloquent\Builder;
  */
 abstract class BaseCrudController extends Controller
 {
+    use AppliesDataScope;
+
     protected string $model;
     protected string $viewPrefix;
     protected string $module;
@@ -99,6 +102,7 @@ abstract class BaseCrudController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate($this->rules());
+        $this->ensureCompanyInScope($validated['company_id'] ?? null);
         $item = $this->model::create($validated + ['created_by' => auth()->id()]);
         AuditService::created($this->module, $item);
         return redirect()->route("{$this->viewPrefix}.index")->with('success', 'Data berhasil disimpan.');
@@ -107,12 +111,14 @@ abstract class BaseCrudController extends Controller
     public function show($id)
     {
         $item = $this->model::with($this->with)->findOrFail($id);
+        $this->ensureInScope($item);
         return view("{$this->viewPrefix}.show", ['item' => $item] + $this->formData($item));
     }
 
     public function edit($id)
     {
         $item = $this->model::findOrFail($id);
+        $this->ensureInScope($item);
         return view("{$this->viewPrefix}.form", ['item' => $item] + $this->formData($item));
     }
 
@@ -121,6 +127,8 @@ abstract class BaseCrudController extends Controller
         $item = $this->model::findOrFail($id);
         $old = $item->toArray();
         $validated = $request->validate($this->rules($item));
+        $this->ensureInScope($item);
+        $this->ensureCompanyInScope($validated['company_id'] ?? null);
         $item->update($validated + ['updated_by' => auth()->id()]);
         AuditService::updated($this->module, $item, $old);
         return redirect()->route("{$this->viewPrefix}.index")->with('success', 'Data berhasil diperbarui.');
@@ -129,6 +137,7 @@ abstract class BaseCrudController extends Controller
     public function destroy($id)
     {
         $item = $this->model::findOrFail($id);
+        $this->ensureInScope($item);
         AuditService::deleted($this->module, $item);
         $item->delete();
         return redirect()->route("{$this->viewPrefix}.index")->with('success', 'Data berhasil dihapus.');

@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
+use App\Http\Controllers\Concerns\AppliesDataScope;
 
 use App\Models\Company;
 use App\Models\Customer;
@@ -14,6 +15,8 @@ use Illuminate\Support\Facades\DB;
 
 class PriceListController extends Controller
 {
+    use AppliesDataScope;
+
     public function index(Request $request)
     {
         $items = PriceList::with(['items', 'customer', 'site', 'approvedBy'])
@@ -38,6 +41,7 @@ class PriceListController extends Controller
     public function store(Request $request)
     {
         $validated = $this->validateInput($request);
+        $this->ensureCompanyInScope($validated['company_id'] ?? null);
         $priceList = DB::transaction(function () use ($validated, $request) {
             $priceList = PriceList::create($validated + ['status' => 'DRAFT', 'created_by' => auth()->id()]);
             foreach ($request->input('lines', []) as $line) {

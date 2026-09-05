@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
+use App\Http\Controllers\Concerns\AppliesDataScope;
 
 use App\Models\Attendance;
 use App\Models\Employee;
@@ -12,6 +13,8 @@ use Illuminate\Support\Facades\DB;
 
 class LeaveController extends Controller
 {
+    use AppliesDataScope;
+
     public function index(Request $request)
     {
         $items = Leave::with(['employee', 'approvedBy'])
@@ -39,6 +42,7 @@ class LeaveController extends Controller
         $validated['status'] = 'DRAFT';
         $validated['created_by'] = auth()->id();
         $leave = Leave::create($validated);
+        $this->ensureInScope(\App\Models\Employee::find($validated['employee_id']));
         AuditService::created('HR', $leave);
         return redirect()->route('leaves.index')->with('success', 'Pengajuan cuti dibuat.');
     }

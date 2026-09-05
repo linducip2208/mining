@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
+use App\Http\Controllers\Concerns\AppliesDataScope;
 
 use App\Models\AccountingMapping;
 use App\Models\ChartOfAccount;
@@ -14,6 +15,8 @@ use Illuminate\Support\Facades\DB;
 
 class JournalController extends Controller
 {
+    use AppliesDataScope;
+
     public function index(Request $request)
     {
         $items = JournalEntry::with(['lines.chartOfAccount', 'creator'])
@@ -54,6 +57,7 @@ class JournalController extends Controller
 
         try {
             $lines = collect($validated['lines'])->map(function ($l) {
+        $this->ensureCompanyInScope($validated['company_id'] ?? null);
                 $coa = ChartOfAccount::find($l['chart_of_account_id']);
                 return [
                     'code' => $coa->code,

@@ -219,18 +219,23 @@ class CoreSeeder extends Seeder
             Permission::whereIn('module', ['dashboard', 'csr', 'approval', 'report'])->get()
         );
 
-        // super admin user (demo credential, local only)
-        $admin = User::updateOrCreate(
-            ['username' => 'superadmin'],
-            [
-                'name' => 'Super Admin',
-                'email' => 'admin@miningerp.local',
-                'password' => Hash::make('Admin!2345'),
-                'status' => 'ACTIVE',
-                'password_changed_at' => now(),
-            ]
-        );
-        $admin->roles()->sync([Role::where('code', 'SUPER_ADMIN')->first()->id]);
+        // super admin user — DEMO CREDENTIAL, never seed in production.
+        // Structural seeds above (roles/permissions) are production-safe.
+        if (!app()->environment('production')) {
+            $admin = User::updateOrCreate(
+                ['username' => 'superadmin'],
+                [
+                    'name' => 'Super Admin',
+                    'email' => 'admin@miningerp.local',
+                    'password' => Hash::make('Admin!2345'),
+                    'status' => 'ACTIVE',
+                    'password_changed_at' => now(),
+                ]
+            );
+            $admin->roles()->sync([Role::where('code', 'SUPER_ADMIN')->first()->id]);
+        } else {
+            $this->command?->warn('Production: demo superadmin dilewati. Buat admin via tinker dengan password kuat.');
+        }
 
         $this->command?->info('Core seeded: ' . Permission::count() . ' permissions, ' . Role::count() . ' roles, superadmin/admin@miningerp.local');
     }

@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
+use App\Http\Controllers\Concerns\AppliesDataScope;
 
 use App\Models\CashAccount;
 use App\Models\Company;
@@ -13,6 +14,8 @@ use Illuminate\Http\Request;
 
 class PaymentController extends Controller
 {
+    use AppliesDataScope;
+
     public function index(Request $request)
     {
         $items = Payment::with(['customer', 'supplier', 'cashAccount'])
@@ -48,6 +51,9 @@ class PaymentController extends Controller
             'invoice_ids' => 'array',
             'invoice_ids.*' => 'exists:invoices,id',
         ]);
+
+        $this->ensureCompanyInScope($validated['company_id'] ?? null);
+        $this->ensureInScope(\App\Models\Customer::find($validated['customer_id']));
 
         try {
             $payment = SalesService::receivePayment(

@@ -58,6 +58,8 @@ class WeighbridgeTicketController extends Controller
         ]);
 
         $ticket = DB::transaction(function () use ($validated) {
+        $this->ensureCompanyInScope($validated['company_id'] ?? null);
+        $this->ensureSiteInScope($validated['site_id'] ?? null);
             $wb = Weighbridge::with('calibrations')->find($validated['weighbridge_id']);
             $active = $wb->calibrations()->orderByDesc('calibration_date')->first();
 

@@ -51,7 +51,7 @@ class UserController extends Controller
         unset($validated['roles']);
 
         $user = User::create($validated);
-        $user->roles()->sync($request->input('roles', []));
+        $this->syncRolesGuarded($user, $request->input('roles', []));
         AuditService::created('USER', $user);
 
         return redirect()->route('users.index')->with('success', 'Pengguna berhasil dibuat.');
@@ -74,9 +74,10 @@ class UserController extends Controller
             'roles' => 'array',
         ]);
         unset($validated['roles']);
+        $this->guardSelfEdit($user, $validated, $request->input('roles', []));
         $validated['updated_by'] = auth()->id();
         $user->update($validated);
-        $user->roles()->sync($request->input('roles', []));
+        $this->syncRolesGuarded($user, $request->input('roles', []));
         AuditService::updated('USER', $user, $old);
 
         return redirect()->route('users.index')->with('success', 'Pengguna berhasil diperbarui.');
@@ -87,6 +88,9 @@ class UserController extends Controller
         if ($user->isSuperAdmin()) {
             return back()->with('error', 'Super Admin tidak dapat dihapus.');
         }
+        if ($user->id === auth()->id()) {
+            return back()->with('error', 'Anda tidak dapat menghapus akun sendiri.');
+        }
         AuditService::deleted('USER', $user);
         $user->delete();
         return redirect()->route('users.index')->with('success', 'Pengguna berhasil dihapus.');
@@ -95,6 +99,7 @@ class UserController extends Controller
     public function toggle(User $user)
     {
         $this->authorizeAdmin();
+        $this->guardNotSelf($user, 'menonaktifkan akun sendiri');
         $user->status = $user->status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
         $user->save();
         AuditService::log($user->status === 'ACTIVE' ? 'UPDATE' : 'UPDATE', 'USER', $user->id, User::class, null, ['status' => $user->status]);
@@ -104,6 +109,7 @@ class UserController extends Controller
     public function unlock(User $user)
     {
         $this->authorizeAdmin();
+        $this->guardNotSelf($user, 'membuka kunci akun sendiri');
         $user->update(['status' => 'ACTIVE', 'failed_login_count' => 0, 'locked_until' => null]);
         return back()->with('success', 'Akun dibuka kunci.');
     }
@@ -111,6 +117,7 @@ class UserController extends Controller
     public function resetPassword(User $user)
     {
         $this->authorizeAdmin();
+        $this->guardNotSelf($user, 'mereset password sendiri (gunakan menu Ganti Password)');
         $temp = 'Temp!' . substr(str_shuffle('abcdefghjkmnpqrstuvwxyz23456789'), 0, 8);
         $user->update([
             'password' => Hash::make($temp),
@@ -137,9 +144,43 @@ class UserController extends Controller
     public function assignRoles(Request $request, User $user)
     {
         $this->authorizeAdmin();
-        $user->roles()->sync($request->input('roles', []));
+        $this->syncRolesGuarded($user, $request->input('roles', []));
         AuditService::log('UPDATE', 'USER', $user->id, User::class, null, ['roles' => $request->input('roles', [])]);
         return back()->with('success', 'Peran pengguna diperbarui.');
+    }
+
+    protected function guardNotSelf(User $user, string $action): void
+    {
+        if ($user->id === auth()->id()) {
+            abort(403, 'Anda tidak dapat ' . $action . '.');
+        }
+    }
+
+    protected function guardSelfEdit(User $user, array $validated, array $roles): void
+    {
+        if ($user->id !== auth()->id()) {
+            return;
+        }
+        if (isset($validated['status']) && $validated['status'] !== 'ACTIVE') {
+            abort(403, 'Anda tidak dapat menonaktifkan akun sendiri.');
+        }
+        $current = $user->roles->pluck('id')->sort()->values()->all();
+        $incoming = collect($roles)->map(fn ($r) => (int) $r)->sort()->values()->all();
+        if ($current !== $incoming) {
+            abort(403, 'Anda tidak dapat mengubah peran akun sendiri.');
+        }
+    }
+
+    protected function syncRolesGuarded(User $user, array $roles): void
+    {
+        if (empty($roles)) {
+            $user->roles()->sync([]);
+            return;
+        }
+        if (!auth()->user()->hasPermission('role.update') && !auth()->user()->isSuperAdmin()) {
+            abort(403, 'Menetapkan peran memerlukan izin role.update.');
+        }
+        $user->roles()->sync($roles);
     }
 
     protected function authorizeAdmin(): void

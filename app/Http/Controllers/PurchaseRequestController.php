@@ -45,6 +45,8 @@ class PurchaseRequestController extends Controller
     public function store(Request $request)
     {
         $validated = $this->validateInput($request);
+        $this->ensureCompanyInScope($validated['company_id'] ?? null);
+        $this->ensureSiteInScope($validated['site_id'] ?? null);
         $pr = DB::transaction(function () use ($validated, $request) {
             $pr = PurchaseRequest::create([
                 'number' => \App\Services\NumberingService::generate('PR', $validated['company_id']),
@@ -87,6 +89,8 @@ class PurchaseRequestController extends Controller
             return back()->with('error', 'Hanya DRAFT yang dapat diubah.');
         }
         $validated = $this->validateInput($request);
+        $this->ensureCompanyInScope($validated['company_id'] ?? null);
+        $this->ensureSiteInScope($validated['site_id'] ?? null);
         DB::transaction(function () use ($purchase_request, $validated, $request) {
             $purchase_request->update($validated + ['updated_by' => auth()->id()]);
             $purchase_request->items()->delete();

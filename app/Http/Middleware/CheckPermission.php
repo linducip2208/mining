@@ -31,7 +31,57 @@ class CheckPermission
             abort(403, 'Anda tidak memiliki izin untuk mengakses halaman ini.');
         }
 
+        // data scope on route-bound records (IDOR protection)
+        $this->enforceDataScope($request, $user);
+
         return $next($request);
+    }
+
+    /**
+     * Abort 403 when a route-bound record (or its scope parent) lies
+     * outside the user's company/site scope. Central IDOR guard.
+     */
+    protected function enforceDataScope(Request $request, $user): void
+    {
+        $route = $request->route();
+        if (!$route) {
+            return;
+        }
+        foreach ($route->parameters() as $param) {
+            if (!$param instanceof \Illuminate\Database\Eloquent\Model) {
+                continue;
+            }
+            $record = $this->scopeTarget($param);
+            if (!$record) {
+                continue;
+            }
+            $siteId = $record->getAttribute('site_id');
+            if ($siteId !== null && !$user->canSeeSite($siteId)) {
+                abort(403, 'Data di luar scope akses Anda.');
+            }
+            $companyId = $record->getAttribute('company_id');
+            if ($companyId !== null) {
+                $companies = $user->accessibleCompanyIds();
+                if ($companies !== null && !in_array($companyId, $companies)) {
+                    abort(403, 'Data di luar scope akses Anda.');
+                }
+            }
+        }
+    }
+
+    protected function scopeTarget($record)
+    {
+        return match (true) {
+            $record instanceof \App\Models\DeliveryOrder => $record->salesOrder,
+            $record instanceof \App\Models\GoodsReceipt => $record->purchaseOrder,
+            $record instanceof \App\Models\VendorBill => $record->supplier,
+            $record instanceof \App\Models\Leave => $record->employee,
+            $record instanceof \App\Models\Attendance => $record->employee,
+            $record instanceof \App\Models\PayrollDetail => $record->run,
+            $record instanceof \App\Models\MaintenancePart => $record->workOrder,
+            $record instanceof \App\Models\CustomerDeposit => $record->customer,
+            default => $record,
+        };
     }
 
     protected function authorized($user, string $required): bool

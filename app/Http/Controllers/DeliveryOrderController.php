@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
+use App\Http\Controllers\Concerns\AppliesDataScope;
 
 use App\Models\DeliveryOrder;
 use App\Models\Equipment;
@@ -15,6 +16,8 @@ use Illuminate\Support\Facades\DB;
 
 class DeliveryOrderController extends Controller
 {
+    use AppliesDataScope;
+
     public function index(Request $request)
     {
         $items = DeliveryOrder::with(['salesOrder.customer', 'warehouse'])
@@ -51,6 +54,7 @@ class DeliveryOrderController extends Controller
         ]);
 
         $so = SalesOrder::with('items')->find($validated['sales_order_id']);
+        $this->ensureInScope($so);
         if (!in_array($so->status, ['APPROVED', 'PARTIALLY_DELIVERED'])) {
             return back()->with('error', 'SO belum disetujui.');
         }

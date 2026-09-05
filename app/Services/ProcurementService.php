@@ -117,7 +117,9 @@ class ProcurementService
                 throw new \DomainException('Pembayaran melebihi outstanding tagihan.');
             }
 
-            $journal = AccountingService::post($bill->company_id ?? 1, $date instanceof \DateTimeInterface ? $date->format('Y-m-d') : $date, [
+            $companyId = $bill->purchaseOrder->company_id ?? $bill->supplier->company_id ?? 1;
+
+            $journal = AccountingService::post($companyId, $date instanceof \DateTimeInterface ? $date->format('Y-m-d') : $date, [
                 ['code' => AccountingService::map('AP_TRADE'), 'debit' => $amount, 'memo' => 'Pembayaran supplier'],
                 ['code' => self::cashCoa($cashAccountId), 'credit' => $amount, 'memo' => 'Pembayaran supplier'],
             ], 'PAYMENT', $bill->id, $bill->number, 'Pembayaran supplier');
@@ -126,5 +128,16 @@ class ProcurementService
             $bill->status = $bill->paid_amount >= $bill->total - 0.001 ? 'PAID' : 'PARTIALLY_PAID';
             $bill->save();
         });
+    }
+
+    protected static function cashCoa(?int $cashAccountId): string
+    {
+        if ($cashAccountId) {
+            $acc = \App\Models\CashAccount::find($cashAccountId);
+            if ($acc?->coa_id && $acc->coa) {
+                return $acc->coa->code;
+            }
+        }
+        return AccountingService::map('CASH_MAIN');
     }
 }

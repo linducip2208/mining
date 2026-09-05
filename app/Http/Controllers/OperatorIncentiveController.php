@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
+use App\Http\Controllers\Concerns\AppliesDataScope;
 
 use App\Models\OperatorIncentive;
 use App\Models\PayrollRun;
@@ -16,6 +17,8 @@ use Illuminate\Support\Facades\DB;
 
 class OperatorIncentiveController extends Controller
 {
+    use AppliesDataScope;
+
     public function index(Request $request)
     {
         $items = OperatorIncentive::with(['employee', 'site', 'approvedBy'])
@@ -52,6 +55,8 @@ class OperatorIncentiveController extends Controller
         $validated['created_by'] = auth()->id();
 
         $incentive = OperatorIncentive::create($validated);
+        $this->ensureInScope(\App\Models\Employee::find($validated['employee_id']));
+        $this->ensureSiteInScope($validated['site_id'] ?? null);
         AuditService::created('PAYROLL', $incentive);
         return redirect()->route('operator-incentives.index')->with('success', 'Insentif dibuat. Wajib di-approve sebelum masuk payroll.');
     }

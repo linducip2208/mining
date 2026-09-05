@@ -48,6 +48,8 @@ class PurchaseOrderController extends Controller
     public function store(Request $request)
     {
         $validated = $this->validateInput($request);
+        $this->ensureCompanyInScope($validated['company_id'] ?? null);
+        $this->ensureSiteInScope($validated['site_id'] ?? null);
         $po = DB::transaction(function () use ($validated, $request) {
             $po = PurchaseOrder::create($validated + [
                 'number' => \App\Services\NumberingService::generate('PO', $validated['company_id']),

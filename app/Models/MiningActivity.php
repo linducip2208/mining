@@ -19,5 +19,6 @@ class MiningActivity extends BaseModel
     public function operator() { return $this->belongsTo(Employee::class, 'operator_id'); }
     public function item() { return $this->belongsTo(Item::class); }
     public function company() { return $this->belongsTo(Company::class); }
+    public function haulings() { return $this->hasMany(Hauling::class); }
 
 }

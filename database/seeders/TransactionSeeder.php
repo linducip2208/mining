@@ -38,6 +38,10 @@ class TransactionSeeder extends Seeder
 {
     public function run(): void
     {
+        if (app()->environment('production')) {
+            $this->command?->warn('Production: demo transaksi diblokir.');
+            return;
+        }
         if (SalesOrder::count() > 0) {
             $this->command?->info('Transaksi demo sudah ada — dilewati.');
             return;

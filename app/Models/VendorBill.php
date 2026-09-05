@@ -26,5 +26,6 @@ class VendorBill extends BaseModel
     public function updater() { return $this->belongsTo(User::class, 'updated_by'); }
     public function supplier() { return $this->belongsTo(Supplier::class); }
     public function purchaseOrder() { return $this->belongsTo(PurchaseOrder::class); }
+    public function journalEntry() { return $this->belongsTo(JournalEntry::class); }
 
 }

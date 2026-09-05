@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
+use App\Http\Controllers\Concerns\AppliesDataScope;
 
 use App\Models\Company;
 use App\Models\Site;
@@ -17,6 +18,8 @@ use Illuminate\Support\Facades\DB;
 
 class VendorBillController extends Controller
 {
+    use AppliesDataScope;
+
     public function index(Request $request)
     {
         $items = VendorBill::with(['supplier', 'purchaseOrder'])
@@ -53,7 +56,10 @@ class VendorBillController extends Controller
             'lines.*.unit_price' => 'required|numeric|min:0',
         ]);
 
-        $bill = DB::transaction(function () use ($validated, $request) {
+        $this->ensureInScope(\App\Models\Supplier::find($validated['supplier_id']));
+
+        try {
+            $bill = DB::transaction(function () use ($validated, $request) {
             $subtotal = 0;
             $bill = VendorBill::create([
                 'number' => \App\Services\NumberingService::generate('BILL'),
@@ -78,9 +84,19 @@ class VendorBillController extends Controller
                 ]);
             }
             $tax = round($subtotal * (float) \App\Models\Setting::get('tax.default_purchase_tax_rate', 11) / 100, 2);
+            // over-billing prevention when linked to a PO (other costs belong on PO.other_cost)
+            if (!empty($validated['purchase_order_id'])) {
+                $poTotal = (float) PurchaseOrder::where('id', $validated['purchase_order_id'])->value('subtotal');
+                if ($subtotal > $poTotal + 0.01) {
+                    throw new \DomainException('Subtotal tagihan (Rp ' . number_format($subtotal, 0, ',', '.') . ') melebihi subtotal PO (Rp ' . number_format($poTotal, 0, ',', '.') . ').');
+                }
+            }
             $bill->update(['subtotal' => $subtotal, 'tax_amount' => $tax, 'total' => $subtotal + $tax]);
             return $bill;
         });
+        } catch (\DomainException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
 
         AuditService::created('PROCUREMENT', $bill);
         return redirect()->route('vendor-bills.index')->with('success', 'Tagihan vendor dibuat.');

@@ -55,8 +55,7 @@ class DataScopeTest extends TestCase
     }
 
     public function test_company_scope_filters_sales_orders(): void
-    {
-        $customer = \App\Models\Customer::create(['company_id' => $this->c1->id, 'code' => 'DSC-A', 'name' => 'Scope Customer A']);
+    {        $customer = \App\Models\Customer::create(['company_id' => $this->c1->id, 'code' => 'DSC-A', 'name' => 'Scope Customer A']);
         SalesOrder::create(['number' => 'SO-SCOPE-A', 'company_id' => $this->c1->id, 'customer_id' => $customer->id, 'order_date' => today(), 'status' => 'APPROVED', 'created_by' => 1]);
         SalesOrder::create(['number' => 'SO-SCOPE-B', 'company_id' => $this->c2->id, 'customer_id' => $customer->id, 'order_date' => today(), 'status' => 'APPROVED', 'created_by' => 1]);
 
@@ -66,5 +65,45 @@ class DataScopeTest extends TestCase
         $resp->assertStatus(200);
         $resp->assertSee('SO-SCOPE-A');
         $resp->assertDontSee('SO-SCOPE-B');
+    }
+
+    public function test_idor_blocked_on_direct_record_urls(): void
+    {
+        $a = MiningActivity::create(['number' => 'MA-IDOR-A', 'company_id' => $this->c1->id, 'site_id' => $this->siteA->id, 'date' => today(), 'tonnage' => 50, 'status' => 'APPROVED']);
+        $b = MiningActivity::create(['number' => 'MA-IDOR-B', 'company_id' => $this->c1->id, 'site_id' => $this->siteB->id, 'date' => today(), 'tonnage' => 50, 'status' => 'APPROVED']);
+
+        $user = $this->makeScopedUser('MINE_MANAGER', 'SITE', $this->c1->id, $this->siteA->id);
+
+        // own site: allowed
+        $this->actingAs($user)->get('/mining-activities/' . $a->id)->assertStatus(200);
+        // other site by direct ID: forbidden
+        $this->actingAs($user)->get('/mining-activities/' . $b->id)->assertStatus(403);
+    }
+
+    public function test_idor_blocked_on_invoice_and_so_urls(): void
+    {
+        $customer = \App\Models\Customer::create(['company_id' => $this->c1->id, 'code' => 'DSC-IDOR', 'name' => 'IDOR Customer']);
+        $soA = SalesOrder::create(['number' => 'SO-IDOR-A', 'company_id' => $this->c1->id, 'customer_id' => $customer->id, 'order_date' => today(), 'status' => 'APPROVED', 'created_by' => 1]);
+        $soB = SalesOrder::create(['number' => 'SO-IDOR-B', 'company_id' => $this->c2->id, 'customer_id' => $customer->id, 'order_date' => today(), 'status' => 'APPROVED', 'created_by' => 1]);
+
+        $user = $this->makeScopedUser('SALES_MANAGER', 'COMPANY', $this->c1->id, null);
+
+        $this->actingAs($user)->get('/sales-orders/' . $soA->id)->assertStatus(200);
+        $this->actingAs($user)->get('/sales-orders/' . $soB->id)->assertStatus(403);
+    }
+
+    public function test_cross_scope_create_blocked(): void
+    {
+        $user = $this->makeScopedUser('MINE_MANAGER', 'SITE', $this->c1->id, $this->siteA->id);
+
+        // attempt to create mining activity in another site
+        $resp = $this->actingAs($user)->post('/mining-activities', [
+            'company_id' => $this->c1->id,
+            'site_id' => $this->siteB->id,
+            'date' => today()->toDateString(),
+            'activity_type' => 'MINING',
+            'tonnage' => 10,
+        ]);
+        $this->assertEquals(403, $resp->status());
     }
 }

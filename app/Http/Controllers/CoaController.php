@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
+use App\Http\Controllers\Concerns\AppliesDataScope;
 
 use App\Models\AccountingMapping;
 use App\Models\ChartOfAccount;
@@ -14,6 +15,8 @@ use Illuminate\Support\Facades\DB;
 
 class CoaController extends Controller
 {
+    use AppliesDataScope;
+
     public function index(Request $request)
     {
         $items = ChartOfAccount::withCount('journalLines')
@@ -39,6 +42,7 @@ class CoaController extends Controller
             'status' => 'boolean',
         ]);
         $coa = ChartOfAccount::create($validated);
+        $this->ensureCompanyInScope($validated['company_id'] ?? null);
         AuditService::created('FINANCE', $coa);
         return redirect()->route('coa.index')->with('success', 'Akun ditambahkan.');
     }

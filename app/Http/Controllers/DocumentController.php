@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
+use App\Http\Controllers\Concerns\AppliesDataScope;
 
 use App\Models\Company;
 use App\Models\CsrActivity;
@@ -15,6 +16,8 @@ use Illuminate\Support\Facades\Storage;
 
 class DocumentController extends Controller
 {
+    use AppliesDataScope;
+
     public function index(Request $request)
     {
         $items = Document::with(['division', 'creator'])
@@ -44,6 +47,7 @@ class DocumentController extends Controller
     public function store(Request $request)
     {
         $validated = $this->validateInput($request);
+        $this->ensureCompanyInScope($validated['company_id'] ?? null);
 
         $document = DB::transaction(function () use ($validated, $request) {
             $division = isset($validated['division_id']) ? \App\Models\Division::find($validated['division_id']) : null;

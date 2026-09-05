@@ -48,6 +48,8 @@ class SalesOrderController extends Controller
     public function store(Request $request)
     {
         $validated = $this->validateInput($request);
+        $this->ensureCompanyInScope($validated['company_id'] ?? null);
+        $this->ensureSiteInScope($validated['site_id'] ?? null);
 
         $so = DB::transaction(function () use ($validated, $request) {
             $so = SalesOrder::create($validated + [

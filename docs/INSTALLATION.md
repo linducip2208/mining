@@ -41,6 +41,13 @@ php artisan db:seed --class=UserSeeder          # 20 user demo lintas peran & sc
 php artisan db:seed --class=ApprovalWorkflowSeeder  # 6 workflow approval + 1 PR demo SUBMITTED
 
 npm run build
+
+# Akses lokal via Laragon: http://miningerp.test/login
+# (vhost: D:\laragon\etc\apache2\sites-enabled\auto.miningerp.test.conf
+#  → DocumentRoot ke folder public project. Jika tampil daftar file,
+#  pastikan DocumentRoot menunjuk ke .../miningerp/public lalu restart Apache)
+
+# Alternatif tanpa Laragon:
 php artisan serve
 ```
 

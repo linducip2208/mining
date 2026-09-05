@@ -47,6 +47,8 @@ class WorkOrderController extends Controller
     public function store(Request $request)
     {
         $validated = $this->validateInput($request);
+        $this->ensureCompanyInScope($validated['company_id'] ?? null);
+        $this->ensureSiteInScope($validated['site_id'] ?? null);
 
         $wo = DB::transaction(function () use ($validated, $request) {
             $wo = WorkOrder::create($validated + [

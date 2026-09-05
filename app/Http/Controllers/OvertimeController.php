@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
+use App\Http\Controllers\Concerns\AppliesDataScope;
 
 use App\Models\Attendance;
 use App\Models\Employee;
@@ -12,6 +13,8 @@ use Illuminate\Support\Facades\DB;
 
 class OvertimeController extends Controller
 {
+    use AppliesDataScope;
+
     public function index(Request $request)
     {
         $items = Overtime::with(['employee', 'approvedBy'])
@@ -39,6 +42,8 @@ class OvertimeController extends Controller
         $validated['status'] = 'DRAFT';
         $validated['created_by'] = auth()->id();
         $ot = Overtime::create($validated);
+        $this->ensureInScope(\App\Models\Employee::find($validated['employee_id']));
+        $this->ensureSiteInScope($validated['site_id'] ?? null);
         AuditService::created('HR', $ot);
         return redirect()->route('overtimes.index')->with('success', 'Lembur dicatat.');
     }

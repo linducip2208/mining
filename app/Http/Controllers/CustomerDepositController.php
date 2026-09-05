@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
+use App\Http\Controllers\Concerns\AppliesDataScope;
 
 use App\Models\CashAccount;
 use App\Models\Company;
@@ -12,6 +13,8 @@ use Illuminate\Http\Request;
 
 class CustomerDepositController extends Controller
 {
+    use AppliesDataScope;
+
     public function index(Request $request)
     {
         $balances = Customer::where('status', true)
@@ -43,6 +46,9 @@ class CustomerDepositController extends Controller
             'notes' => 'nullable|max:500',
         ]);
 
+        $this->ensureCompanyInScope($validated['company_id'] ?? null);
+        $this->ensureInScope(\App\Models\Customer::find($validated['customer_id']));
+
         try {
             $deposit = DepositService::depositIn(
                 (int) $validated['company_id'],
@@ -70,6 +76,9 @@ class CustomerDepositController extends Controller
             'deposit_date' => 'required|date',
             'cash_account_id' => 'required|exists:cash_accounts,id',
         ]);
+
+        $this->ensureCompanyInScope($validated['company_id'] ?? null);
+        $this->ensureInScope(\App\Models\Customer::find($validated['customer_id']));
 
         try {
             DepositService::refund(

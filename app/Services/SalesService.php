@@ -18,6 +18,10 @@ class SalesService
     public static function completeDelivery($deliveryOrder, WeighbridgeTicket $ticket): void
     {
         DB::transaction(function () use ($deliveryOrder, $ticket) {
+            // idempotency: a completed DO can never post stock twice
+            if (in_array($deliveryOrder->status, ['COMPLETED', 'CANCELLED'])) {
+                throw new \DomainException('Surat jalan sudah ' . strtolower($deliveryOrder->status) . ' — posting ganda ditolak.');
+            }
             $so = $deliveryOrder->salesOrder;
 
             foreach ($deliveryOrder->items as $line) {
@@ -77,6 +81,13 @@ class SalesService
     public static function createInvoice($so, $invoiceDate, ?int $cashAccountId = null, bool $useDeposit = false): Invoice
     {
         return DB::transaction(function () use ($so, $invoiceDate, $cashAccountId, $useDeposit) {
+            // idempotency: one sales order produces at most one active invoice
+            $existing = Invoice::where('sales_order_id', $so->id)
+                ->whereNotIn('status', ['CANCELLED', 'VOID'])
+                ->first();
+            if ($existing) {
+                throw new \DomainException('SO ini sudah memiliki faktur ' . $existing->number . ' — faktur ganda ditolak.');
+            }
             $undelivered = $so->items->sum('qty_delivered') <= 0;
             if ($undelivered) {
                 throw new \DomainException('Tidak dapat membuat invoice: belum ada pengiriman.');
@@ -142,12 +153,16 @@ class SalesService
             // price variance tracking (retail vs realization)
             PriceService::recordInvoiceVariance($invoice);
 
-            // auto allocate deposit
+            // auto allocate deposit: Dr Customer Deposit Liability / Cr AR
             if ($useDeposit) {
                 $depositBalance = DepositService::balance($so->customer_id);
                 if ($depositBalance > 0) {
                     $alloc = min($depositBalance, $invoice->total);
                     DepositService::allocate($so->company_id, $so->customer_id, $alloc, $invoiceDate, $invoice->id, $invoice->number);
+                    AccountingService::post($so->company_id, $invoiceDate instanceof \DateTimeInterface ? $invoiceDate->format('Y-m-d') : $invoiceDate, [
+                        ['code' => AccountingService::map('CUSTOMER_DEPOSIT'), 'debit' => $alloc, 'memo' => 'Alokasi deposit ke ' . $invoice->number],
+                        ['code' => AccountingService::map('AR_TRADE'), 'credit' => $alloc, 'memo' => 'Alokasi deposit ke ' . $invoice->number],
+                    ], 'DEPOSIT_ALLOCATION', $invoice->id, $invoice->number, 'Alokasi deposit ' . $invoice->number, 'INV');
                     $invoice->paid_amount += $alloc;
                     self::checkInvoicePaid($invoice);
                 }
@@ -222,12 +237,12 @@ class SalesService
         });
     }
 
-    protected static function cashCoa(?int $cashAccountId): string
+    public static function cashCoa(?int $cashAccountId): string
     {
         if ($cashAccountId) {
             $acc = \App\Models\CashAccount::find($cashAccountId);
             if ($acc?->coa_id) {
-                return $acc->coa->code;
+                return $acc->coa?->code ?? AccountingService::map('CASH_MAIN');
             }
         }
         return AccountingService::map('CASH_MAIN');

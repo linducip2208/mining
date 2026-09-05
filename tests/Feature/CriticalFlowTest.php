@@ -9,6 +9,7 @@ use App\Models\Unit;
 use App\Models\Warehouse;
 use App\Models\Company;
 use App\Models\Customer;
+use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\AccountingService;
@@ -205,14 +206,67 @@ class CriticalFlowTest extends TestCase
         $this->actingAs($this->admin);
         $request = \App\Services\ApprovalService::submit('PROCUREMENT', 'PURCHASE_REQUEST', $pr);
 
-        if ($request) {
-            // HR user (non-approver) tries to approve via action id
-            $action = $request->actions()->first();
-            $ok = \App\Services\ApprovalService::actOnActionId($action->id, $hr, 'APPROVE');
-            $this->assertFalse($ok);
-        } else {
-            // no workflow configured => auto approved; still valid behavior
-            $this->assertEquals('APPROVED', $pr->fresh()->status);
-        }
+            if ($request) {
+                // HR user (non-approver) tries to approve via action id
+                $action = $request->actions()->first();
+                $ok = \App\Services\ApprovalService::actOnActionId($action->id, $hr, 'APPROVE');
+                $this->assertFalse($ok);
+            } else {
+                // no workflow configured => auto approved; still valid behavior
+                $this->assertEquals('APPROVED', $pr->fresh()->status);
+            }
+    }
+
+    public function test_role_assignment_requires_role_update_permission(): void
+    {
+        $role = Role::create(['code' => 'USR_OPS', 'name' => 'User Operator']);
+        $role->permissions()->sync(Permission::whereIn('code', ['user.view', 'user.create', 'user.update'])->pluck('id'));
+        $actor = User::create([
+            'name' => 'Actor', 'username' => 'actor1', 'email' => 'actor@test.local',
+            'password' => bcrypt('Actor!2345'), 'status' => 'ACTIVE',
+        ]);
+        $actor->roles()->sync([$role->id]);
+
+        // actor may manage users but NOT assign roles
+        $resp = $this->actingAs($actor)->post('/users', [
+            'name' => 'Target', 'username' => 'target1', 'email' => 'target@test.local',
+            'password' => 'Secret!123', 'password_confirmation' => 'Secret!123',
+            'status' => 'ACTIVE',
+            'roles' => [Role::where('code', 'VIEWER')->first()->id],
+        ]);
+        $this->assertEquals(403, $resp->status());
+
+        // without roles payload it is allowed
+        $resp2 = $this->actingAs($actor)->post('/users', [
+            'name' => 'Target2', 'username' => 'target2', 'email' => 'target2@test.local',
+            'password' => 'Secret!123', 'password_confirmation' => 'Secret!123',
+            'status' => 'ACTIVE',
+        ]);
+        $resp2->assertRedirect('/users');
+    }
+
+    public function test_cannot_deactivate_or_elevate_self(): void
+    {
+        $role = Role::create(['code' => 'USR_OPS2', 'name' => 'User Operator 2']);
+        $role->permissions()->sync(Permission::whereIn('code', ['user.view', 'user.update'])->pluck('id'));
+        $actor = User::create([
+            'name' => 'Actor2', 'username' => 'actor2', 'email' => 'actor2@test.local',
+            'password' => bcrypt('Actor!2345'), 'status' => 'ACTIVE',
+        ]);
+        $actor->roles()->sync([$role->id]);
+
+        // self deactivation blocked
+        $resp = $this->actingAs($actor)->put('/users/' . $actor->id, [
+            'name' => 'Actor2', 'username' => 'actor2', 'email' => 'actor2@test.local',
+            'status' => 'INACTIVE', 'roles' => [$role->id],
+        ]);
+        $this->assertEquals(403, $resp->status());
+
+        // self role change blocked
+        $resp2 = $this->actingAs($actor)->put('/users/' . $actor->id, [
+            'name' => 'Actor2', 'username' => 'actor2', 'email' => 'actor2@test.local',
+            'status' => 'ACTIVE', 'roles' => [Role::where('code', 'VIEWER')->first()->id],
+        ]);
+        $this->assertEquals(403, $resp2->status());
     }
 }

@@ -49,7 +49,7 @@ php artisan serve
 ### Kredensial Demo (HANYA untuk local/demo — password user: `Demo!2345`)
 
 ```
-URL      : http://127.0.0.1:8000/login
+URL      : http://miningerp.test/login   (Laragon vhost → folder project/public)
 Username : superadmin          (Super Admin, full access)
 Password : Admin!2345
 ```

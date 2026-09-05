@@ -11,6 +11,10 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
+        if (app()->environment('production')) {
+            $this->command?->warn('Production: demo users diblokir.');
+            return;
+        }
         if (User::where('username', 'gm')->exists()) {
             $this->command?->info('Demo users sudah ada — dilewati.');
             return;

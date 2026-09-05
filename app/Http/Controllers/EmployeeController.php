@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
+use App\Http\Controllers\Concerns\AppliesDataScope;
 
 use App\Models\Company;
 use App\Models\Division;
@@ -14,6 +15,8 @@ use Illuminate\Http\Request;
 
 class EmployeeController extends Controller
 {
+    use AppliesDataScope;
+
     public function index(Request $request)
     {
         $items = Employee::with(['company', 'site', 'division', 'department'])
@@ -44,6 +47,8 @@ class EmployeeController extends Controller
     public function store(Request $request)
     {
         $validated = $this->validateInput($request);
+        $this->ensureCompanyInScope($validated['company_id'] ?? null);
+        $this->ensureSiteInScope($validated['site_id'] ?? null);
         $employee = Employee::create($validated + ['created_by' => auth()->id()]);
         AuditService::created('HR', $employee);
         return redirect()->route('employees.index')->with('success', 'Karyawan ditambahkan.');
@@ -63,6 +68,8 @@ class EmployeeController extends Controller
     {
         $old = $employee->toArray();
         $validated = $this->validateInput($employee->id);
+        $this->ensureCompanyInScope($validated['company_id'] ?? null);
+        $this->ensureSiteInScope($validated['site_id'] ?? null);
         $employee->update($validated + ['updated_by' => auth()->id()]);
         AuditService::updated('HR', $employee, $old);
         return redirect()->route('employees.index')->with('success', 'Karyawan diperbarui.');

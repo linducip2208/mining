@@ -16,7 +16,7 @@ class DepositService
         if ($cashAccountId) {
             $acc = CashAccount::find($cashAccountId);
             if ($acc?->coa_id) {
-                return $acc->coa->code;
+                return $acc->coa?->code ?? AccountingService::map('CASH_MAIN');
             }
         }
         return AccountingService::map('CASH_MAIN');

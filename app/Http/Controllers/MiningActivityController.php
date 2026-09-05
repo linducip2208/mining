@@ -49,6 +49,8 @@ class MiningActivityController extends Controller
     public function store(Request $request)
     {
         $validated = $this->validateInput($request);
+        $this->ensureCompanyInScope($validated['company_id'] ?? null);
+        $this->ensureSiteInScope($validated['site_id'] ?? null);
         $item = DB::transaction(function () use ($validated) {
             $validated['number'] = \App\Services\NumberingService::generate('MA', $validated['company_id']);
             $validated['status'] = 'DRAFT';
@@ -79,6 +81,8 @@ class MiningActivityController extends Controller
             return back()->with('error', 'Hanya status DRAFT yang dapat diubah.');
         }
         $validated = $this->validateInput($request);
+        $this->ensureCompanyInScope($validated['company_id'] ?? null);
+        $this->ensureSiteInScope($validated['site_id'] ?? null);
         $mining_activity->update($validated + ['updated_by' => auth()->id()]);
         AuditService::updated('MINING', $mining_activity);
         return redirect()->route('mining-activities.index')->with('success', 'Aktivitas berhasil diperbarui.');
