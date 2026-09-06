@@ -24,12 +24,12 @@
         </x-slot:head>
         @foreach ($permissions as $module => $perms)
         <tr class="hover:bg-slate-50 dark:hover:bg-white/5 perm-row" data-module="{{ strtolower($module) }}">
-            <td class="px-4 py-2 font-medium sticky left-0 bg-white dark:bg-navy-800">{{ $module }}</td>
+            <td class="px-4 py-2 font-medium sticky left-0 bg-white dark:bg-navy-800">{{ \App\Support\PermissionLabel::moduleLabel($module) }}</td>
             @foreach (['view', 'create', 'update', 'delete', 'approve', 'reject', 'post', 'print', 'export', 'void'] as $group)
                 @php $perm = $perms->firstWhere('group', $group); @endphp
                 <td class="px-2 py-2 text-center">
                     @if ($perm)
-                    <input type="checkbox" name="permissions[]" value="{{ $perm->id }}" @checked($role->permissions->contains('id', $perm->id)) class="rounded text-amber-500 perm-cb" data-group="{{ $group }}" aria-label="{{ $module }} {{ $group }}">
+                    <input type="checkbox" name="permissions[]" value="{{ $perm->id }}" @checked($role->permissions->contains('id', $perm->id)) class="rounded text-amber-500 perm-cb" data-group="{{ $group }}" aria-label="{{ \App\Support\PermissionLabel::label($perm->code) }}">
                     @else
                     <span class="text-slate-200 dark:text-slate-700" aria-hidden="true">—</span>
                     @endif

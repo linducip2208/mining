@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@php use App\Support\HumanLabel; @endphp
 @section('title', ' - Daftar Harga')
 @section('content')
 <div class="flex items-center justify-between mb-4">
@@ -19,7 +20,7 @@
         <tr class="hover:bg-slate-50">
             <td class="px-4 py-2.5 font-medium">{{ $item->code }}</td>
             <td class="px-4 py-2.5">{{ $item->name }}</td>
-            <td class="px-4 py-2.5 text-xs">{{ $item->type }}</td>
+            <td class="px-4 py-2.5 text-xs">{{ HumanLabel::label($item->type) }}</td>
             <td class="px-4 py-2.5">{{ $item->customer?->name ?? $item->site?->name ?? 'Semua' }}</td>
             <td class="px-4 py-2.5">{{ $item->effective_date?->format('d/m/Y') }}{{ $item->expiry_date ? ' - ' . $item->expiry_date->format('d/m/Y') : '' }}</td>
             <td class="px-4 py-2.5"><x-status-badge :status="$item->status" /></td>

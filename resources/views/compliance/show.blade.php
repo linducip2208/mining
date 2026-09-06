@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@php use App\Support\HumanLabel; @endphp
 
 @section('title', ' - ' . $item->number)
 
@@ -11,7 +12,7 @@
 
 <div class="bg-white rounded-xl border border-slate-200 p-4 max-w-4xl">
     <div class="grid md:grid-cols-3 gap-3 text-sm">
-        <div><div class="text-[11px] uppercase text-slate-500">Tipe</div><div class="font-semibold">{{ $item->type }}</div></div>
+        <div><div class="text-[11px] uppercase text-slate-500">Tipe</div><div class="font-semibold">{{ HumanLabel::label($item->type) }}</div></div>
         <div><div class="text-[11px] uppercase text-slate-500">Perusahaan / Site</div><div class="font-semibold">{{ $item->company?->name ?? '—' }} / {{ $item->site?->name ?? '—' }}</div></div>
         <div><div class="text-[11px] uppercase text-slate-500">Karyawan / Unit</div><div class="font-semibold">{{ $item->employee?->name ?? '—' }} / {{ $item->equipment?->code ?? '—' }}</div></div>
         <div><div class="text-[11px] uppercase text-slate-500">Terbit</div><div class="font-semibold">{{ $item->issued_date ?? '—' }}</div></div>

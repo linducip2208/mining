@@ -19,7 +19,7 @@
 @endphp
 <div id="sbOverlay" class="fixed inset-0 z-20 bg-slate-950/60 hidden md:hidden"></div>
 <aside id="sidebar" aria-label="Navigasi utama" class="fixed inset-y-0 left-0 z-30 flex flex-col bg-[#101923] text-slate-300 transition-[width,transform] duration-200 w-60 -translate-x-full md:translate-x-0">
-    <div class="h-16 flex items-center gap-3 px-4 border-b border-white/10 shrink-0"><div class="w-9 h-9 flex-none rounded-xl bg-amber-400 text-[#101923] flex items-center justify-center font-black">M</div><div class="sb-label min-w-0"><div class="font-bold text-white text-sm tracking-wide">Mining ERP</div><div class="text-[10px] text-slate-500">Operations cockpit</div></div><button type="button" id="sbCollapse" title="Ciutkan sidebar" aria-label="Ciutkan sidebar" class="sb-label ml-auto hidden md:flex p-1.5 rounded-md text-slate-500 hover:text-white hover:bg-white/10"><x-ui.icon name="menu" class="w-4 h-4" /></button></div>
+    <div class="h-16 flex items-center gap-3 px-4 border-b border-white/10 shrink-0"><div class="w-9 h-9 flex-none rounded-xl bg-amber-400 text-[#101923] flex items-center justify-center font-black">{{ mb_substr(\App\Services\BrandingService::appName(), 0, 1) }}</div><div class="sb-label min-w-0"><div class="font-bold text-white text-sm tracking-wide">{{ \App\Services\BrandingService::appName() }}</div><div class="text-[10px] text-slate-500">{{ \App\Services\BrandingService::companyName() }}</div></div><button type="button" id="sbCollapse" title="Ciutkan sidebar" aria-label="Ciutkan sidebar" class="sb-label ml-auto hidden md:flex p-1.5 rounded-md text-slate-500 hover:text-white hover:bg-white/10"><x-ui.icon name="menu" class="w-4 h-4" /></button></div>
     <div class="sb-label px-4 pt-4 pb-2 text-[10px] text-slate-500">WORKSPACE</div>
     <nav class="flex-1 overflow-y-auto nice-scroll px-2 pb-4 text-[13px]" aria-label="Menu modul">
         <a href="{{ route('dashboard') }}" class="flex items-center gap-3 px-3 py-2.5 mb-2 rounded-lg {{ request()->routeIs('dashboard') ? 'bg-white/10 text-white' : 'hover:bg-white/5' }}"><x-ui.icon name="dashboard" class="w-[18px] h-[18px] {{ request()->routeIs('dashboard') ? 'text-amber-400' : 'text-slate-500' }}" /><span class="sb-label">Command Center</span></a>
@@ -42,7 +42,7 @@
             @endif
         @endforeach
     </nav>
-    <div class="sb-label px-4 py-3 border-t border-white/10 text-[11px] text-slate-500">Mining ERP · v1.0</div>
+    <div class="sb-label px-4 py-3 border-t border-white/10 text-[11px] text-slate-500">{{ \App\Services\BrandingService::appName() }} · v1.0</div>
 </aside>
 <script>
 (function () { var sb = document.getElementById('sidebar'), ov = document.getElementById('sbOverlay'); function closeMobile(){ if(window.innerWidth < 768){sb.classList.add('-translate-x-full');ov.classList.add('hidden');} } window.toggleSidebar=function(){ if(window.innerWidth < 768){var hidden=sb.classList.toggle('-translate-x-full');ov.classList.toggle('hidden',hidden);} else {var c=document.documentElement.classList.toggle('sb-collapsed');try{localStorage.setItem('sb-collapsed',c?'1':'0')}catch(e){}} }; ov.addEventListener('click',closeMobile); document.getElementById('sbCollapse').addEventListener('click',window.toggleSidebar); }());

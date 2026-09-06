@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@php use App\Support\HumanLabel; @endphp
 
 @section('title', ' - Aset')
 
@@ -34,7 +35,7 @@
                         <td class="px-4 py-2.5">{{ $item->site?->name }}</td>
                         <td class="px-4 py-2.5">{{ $item->code }}</td>
                         <td class="px-4 py-2.5">{{ $item->name }}</td>
-                        <td class="px-4 py-2.5">{{ $item->type }}</td>
+                        <td class="px-4 py-2.5">{{ HumanLabel::label($item->type) }}</td>
                         <td class="px-4 py-2.5">{{ $item->serial_no }}</td>
                         <td class="px-4 py-2.5 text-right whitespace-nowrap">
                             @can('assets.update')<a href="{{ route('assets.edit', $item) }}" class="text-indigo-600 hover:underline text-xs">Edit</a>@endcan

@@ -2,7 +2,7 @@ import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 
 const base = 'http://127.0.0.1:8765';
-const pages = [['dashboard','/dashboard'],['users','/users'],['roles','/roles'],['mining','/mining-dashboard'],['fuel','/fuel'],['fleet','/fleet'],['finance','/finance/pl'],['approval','/approvals']];
+const pages = [['dashboard','/dashboard'],['settings','/settings'],['users','/users'],['roles','/roles'],['mining','/mining-dashboard'],['fuel','/fuel'],['fleet','/fleet'],['finance','/finance/pl'],['approval','/approvals']];
 const before = {dashboard:'public/docs-assets/screenshots/dashboard/dashboard.png',users:'public/docs-assets/screenshots/administration/users.png',roles:'public/docs-assets/screenshots/administration/roles.png',mining:'public/docs-assets/screenshots/mining/activity.png',fuel:'public/docs-assets/screenshots/fuel/dashboard.png',fleet:'public/docs-assets/screenshots/fleet/dashboard.png',finance:'public/docs-assets/screenshots/accounting/pl.png',approval:'public/docs-assets/screenshots/approval/center.png'};
 await fs.mkdir('docs/ui-before-after/before', {recursive:true});
 for (const [name, source] of Object.entries(before)) {

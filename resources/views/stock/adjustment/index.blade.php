@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@php use App\Support\HumanLabel; @endphp
 @section('title', ' - Penyesuaian Stok')
 @section('content')
 <div class="flex items-center justify-between mb-4">
@@ -17,7 +18,7 @@
         <tr class="hover:bg-slate-50">
             <td class="px-4 py-2.5 font-medium">{{ $item->number }}</td>
             <td class="px-4 py-2.5">{{ $item->adjustment_date?->format("d/m/Y") }}</td>
-            <td class="px-4 py-2.5">{{ $item->type }}</td>
+            <td class="px-4 py-2.5">{{ HumanLabel::label($item->type) }}</td>
             <td class="px-4 py-2.5">{{ $item->warehouse?->name }}</td>
             <td class="px-4 py-2.5 text-xs">{{ Str::limit($item->reason, 50) }}</td>
             <td class="px-4 py-2.5"><x-status-badge :status="$item->status" /></td>

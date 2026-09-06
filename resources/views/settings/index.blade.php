@@ -1,24 +1,36 @@
 @extends('layouts.app')
-@section('title', ' - Pengaturan')
+@section('title', ' - Pengaturan Sistem')
 @section('content')
-<h1 class="text-xl font-bold text-slate-800 mb-4">Pengaturan Sistem</h1>
-<form method="POST" action="{{ route('setting.update') }}">
-    @csrf
-    @foreach ($settings as $group => $items)
-    <div class="bg-white rounded-xl border border-slate-200 p-5 mb-4">
-        <h3 class="font-semibold text-sm uppercase text-slate-500 mb-3">{{ $group }}</h3>
-        <div class="grid md:grid-cols-2 gap-4">
-            @foreach ($items as $setting)
-            <div>
-                <label class="text-xs font-semibold text-slate-600">{{ $setting->key }}</label>
-                <input name="settings[{{ $setting->key }}]" value="{{ $setting->value }}" class="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 text-sm">
+@php $firstGroup = array_key_first($settings->all()); @endphp
+<div class="page-frame" x-data="{ active: @js($firstGroup), query: '' }">
+    <section class="flex flex-col xl:flex-row xl:items-end justify-between gap-4 mb-6"><div><div class="section-kicker mb-2">System administration</div><h1 class="text-[26px] font-bold tracking-[-.03em] text-slate-900">Pengaturan Sistem</h1><p class="mt-1 text-sm text-slate-500">Atur perilaku aplikasi, identitas perusahaan, payroll, dan integrasi dari satu pusat kontrol.</p></div><div class="relative w-full xl:w-80"><x-ui.icon name="search" class="absolute left-3 top-3 w-4 h-4 text-slate-400" /><input x-model="query" type="search" placeholder="Cari pengaturan..." aria-label="Cari pengaturan" class="w-full h-10 pl-9 pr-3 rounded-lg border border-slate-200 bg-white text-sm focus:border-amber-400 focus:ring-2 focus:ring-amber-100 outline-none"></div></section>
+    <form method="POST" action="{{ route('setting.update') }}" x-ref="settingsForm">
+        @csrf
+        <div class="grid lg:grid-cols-12 gap-5 items-start">
+            <aside class="lg:col-span-3 dashboard-card p-2 lg:sticky lg:top-24"><div class="px-3 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">Kategori pengaturan</div>@foreach($settings as $group => $items)@php $slug=\Illuminate\Support\Str::slug($group); @endphp<button type="button" @click="active='{{ $group }}'" :class="active==='{{ $group }}' ? 'bg-amber-50 text-amber-800 font-semibold' : 'text-slate-600 hover:bg-slate-50'" class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-left text-sm mb-1"><span>{{ $group }}</span><span class="text-[11px] text-slate-400">{{ $items->count() }}</span></button>@endforeach</aside>
+            <div class="lg:col-span-9 space-y-4">
+                @foreach($settings as $group => $items)
+                <section x-show="active==='{{ $group }}'" x-cloak class="dashboard-card overflow-hidden"><header class="px-5 py-4 border-b border-slate-100 flex items-center justify-between"><div><div class="section-kicker">Settings group</div><h2 class="mt-1 text-base font-semibold text-slate-900">{{ $group }}</h2><p class="mt-1 text-xs text-slate-400">{{ $items->count() }} pengaturan tersedia</p></div><button type="button" onclick="resetGroup(this)" class="text-xs font-semibold text-slate-500 hover:text-amber-700">Reset grup</button></header><div class="grid md:grid-cols-2 gap-x-5 gap-y-1 p-5">
+                    @foreach($items as $row) @php($meta=$row['meta'])
+                    <div class="setting-row py-3 border-b border-slate-100 last:border-0" data-search="{{ strtolower($meta['label'].' '.$meta['description'].' '.$row['key']) }}"><div class="flex items-start justify-between gap-3"><div><label for="setting-{{ md5($row['key']) }}" class="text-sm font-semibold text-slate-800">{{ $meta['label'] }}</label><p class="mt-1 text-xs leading-5 text-slate-500">{{ $meta['description'] }}</p>@if($developerLabels)<p class="mt-1 text-[10px] font-mono text-slate-400">{{ $row['key'] }}</p>@endif</div>@if($meta['unit'])<span class="shrink-0 text-[11px] text-slate-400">{{ $meta['unit'] }}</span>@endif</div>
+                        <div class="mt-2 flex items-center gap-2">
+                        @if($meta['type'] === 'boolean')<input type="hidden" name="settings[{{ $row['key'] }}]" value="0"><label class="relative inline-flex items-center cursor-pointer"><input id="setting-{{ md5($row['key']) }}" type="checkbox" name="settings[{{ $row['key'] }}]" value="1" data-default="{{ $meta['default'] }}" @checked(filter_var($row['value'], FILTER_VALIDATE_BOOLEAN)) class="sr-only peer"><span class="w-10 h-6 bg-slate-200 peer-checked:bg-amber-500 rounded-full transition"></span><span class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full shadow transition peer-checked:translate-x-4"></span><span class="ml-2 text-xs text-slate-500 peer-checked:text-amber-700">{{ filter_var($row['value'], FILTER_VALIDATE_BOOLEAN) ? 'Aktif' : 'Tidak aktif' }}</span></label><button type="button" class="shrink-0 text-[11px] text-slate-400 hover:text-amber-700" onclick="resetSetting(this)">Default</button>
+                        @elseif($meta['type'] === 'select')<select id="setting-{{ md5($row['key']) }}" name="settings[{{ $row['key'] }}]" data-default="{{ $meta['default'] }}" class="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:border-amber-400 outline-none">@foreach($meta['options'] as $value=>$label)<option value="{{ $value }}" @selected($row['value']==$value)>{{ $label }}</option>@endforeach</select><button type="button" class="shrink-0 text-[11px] text-slate-400 hover:text-amber-700" onclick="resetSetting(this)">Default</button>
+                        @elseif($meta['type'] === 'color')<input id="setting-{{ md5($row['key']) }}" type="color" name="settings[{{ $row['key'] }}]" value="{{ $row['value'] }}" data-default="{{ $meta['default'] }}" class="h-10 w-16 rounded-lg border border-slate-200 bg-white p-1"><button type="button" class="shrink-0 text-[11px] text-slate-400 hover:text-amber-700" onclick="resetSetting(this)">Default</button>
+                        @else<input id="setting-{{ md5($row['key']) }}" type="{{ in_array($meta['type'],['percentage','currency','integer','decimal']) ? 'number' : ($meta['type']==='secret' ? 'password' : 'text') }}" name="settings[{{ $row['key'] }}]" value="{{ $meta['sensitive'] ? '' : $row['value'] }}" placeholder="{{ $meta['sensitive'] && $row['exists'] ? '•••••••• (tersimpan)' : '' }}" data-default="{{ $meta['default'] }}" autocomplete="{{ $meta['sensitive'] ? 'new-password' : 'off' }}" step="{{ in_array($meta['type'],['percentage','decimal','currency']) ? '0.01' : '1' }}" class="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:border-amber-400 outline-none"><button type="button" class="shrink-0 text-[11px] text-slate-400 hover:text-amber-700" onclick="resetSetting(this)">Default</button>@endif
+                        </div></div>
+                    @endforeach
+                </div></section>
+                @endforeach
+                @if(auth()->user()->isSuperAdmin())<label class="flex items-center gap-2 text-xs text-slate-500"><input type="hidden" name="settings[developer_labels_enabled]" value="0"><input type="checkbox" name="settings[developer_labels_enabled]" value="1" @checked($developerLabels) class="rounded border-slate-300 text-amber-500 focus:ring-amber-400"> Tampilkan Developer Key pada mode Advanced</label>@endif
+                @can('setting.update')<div class="flex justify-end pt-2"><button class="inline-flex items-center gap-2 min-h-[42px] px-5 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-700"><x-ui.icon name="check" class="w-4 h-4" /> Simpan Perubahan</button></div>@endcan
             </div>
-            @endforeach
         </div>
-    </div>
-    @endforeach
-    @can('setting.update')
-    <button class="px-5 py-2 rounded-lg bg-amber-500 text-white text-sm font-semibold">Simpan Pengaturan</button>
-    @endcan
-</form>
+    </form>
+</div>
+<script>
+function resetSetting(button) { const input=button.closest('.setting-row')?.querySelector('[data-default]'); if(!input || !confirm('Reset pengaturan ini ke default?')) return; if(input.type==='checkbox') input.checked=['1','true'].includes(String(input.dataset.default).toLowerCase()); else input.value=input.dataset.default; }
+function resetGroup(button) { if(!confirm('Reset semua pengaturan dalam grup ini ke default?')) return; button.closest('section').querySelectorAll('[data-default]').forEach(input=>{ if(input.type==='checkbox') input.checked=['1','true'].includes(String(input.dataset.default).toLowerCase()); else input.value=input.dataset.default; }); }
+document.addEventListener('alpine:init',()=>{}); document.addEventListener('input',function(e){if(e.target.matches('[x-model="query"]')) document.querySelectorAll('.setting-row').forEach(row=>row.hidden=!!e.target.value && !row.dataset.search.includes(e.target.value.toLowerCase()));});
+</script>
 @endsection

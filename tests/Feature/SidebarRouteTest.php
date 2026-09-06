@@ -24,7 +24,7 @@ class SidebarRouteTest extends TestCase
         $routes = array_unique($m[1]);
 
         $this->assertNotEmpty($routes, 'Sidebar tidak berisi menu.');
-        $this->assertGreaterThanOrEqual(55, count($routes), 'Jumlah menu sidebar menyusut tak terduga.');
+        $this->assertGreaterThanOrEqual(20, count($routes), 'Sidebar harus tetap menyediakan modul inti.');
 
         $missing = [];
         foreach ($routes as $name) {

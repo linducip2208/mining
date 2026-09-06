@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@php use App\Support\HumanLabel; @endphp
 
 @section('title', ' - Budget')
 
@@ -32,7 +33,7 @@
     <tr class="hover:bg-slate-50">
         <td class="px-4 py-2.5"><a href="{{ route('budgets.show', $item) }}" class="font-mono text-indigo-600 hover:underline">{{ $item->number }}</a></td>
         <td class="px-4 py-2.5">{{ $item->year }}</td>
-        <td class="px-4 py-2.5">{{ $item->type }}</td>
+        <td class="px-4 py-2.5">{{ HumanLabel::label($item->type) }}</td>
         <td class="px-4 py-2.5 text-xs">{{ $item->company?->name }} / {{ $item->site?->name ?? 'Pusat' }}</td>
         <td class="px-4 py-2.5 text-right">v{{ $item->version }}</td>
         <td class="px-4 py-2.5"><x-status-badge :status="$item->status" /></td>

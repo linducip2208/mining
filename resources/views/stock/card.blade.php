@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@php use App\Support\HumanLabel; @endphp
 @section('title', ' - Kartu Stok')
 @section('content')
 <h1 class="text-xl font-bold text-slate-800 mb-4">Kartu Stok</h1>
@@ -22,7 +23,7 @@
         @foreach ($rows as $row)
         <tr class="hover:bg-slate-50">
             <td class="px-4 py-2.5">{{ $row->trx_date?->format('d/m/Y') }}</td>
-            <td class="px-4 py-2.5 text-xs">{{ str_replace('_', ' ', $row->movement_type) }}</td>
+            <td class="px-4 py-2.5 text-xs">{{ HumanLabel::label($row->movement_type) }}</td>
             <td class="px-4 py-2.5 text-xs">{{ $row->ref_number ?? '-' }}</td>
             <td class="px-4 py-2.5 text-right text-green-600">{{ $row->qty_in > 0 ? number_format($row->qty_in, 2) : '' }}</td>
             <td class="px-4 py-2.5 text-right text-red-600">{{ $row->qty_out > 0 ? number_format($row->qty_out, 2) : '' }}</td>

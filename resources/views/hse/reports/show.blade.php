@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@php use App\Support\HumanLabel; @endphp
 
 @section('title', ' - ' . $report->number)
 
@@ -6,7 +7,7 @@
 <div class="mb-4">
     <a href="{{ route('hse.reports.index') }}" class="text-xs text-indigo-600 hover:underline">← Kembali ke daftar</a>
     <h1 class="text-xl font-bold text-slate-800 mt-1">{{ $report->number }} <x-status-badge :status="$report->status" /></h1>
-    <p class="text-sm text-slate-500">{{ $report->kind }} · {{ $report->occurred_at }} · {{ $report->location }} · Severity {{ $report->severity }}</p>
+    <p class="text-sm text-slate-500">{{ HumanLabel::label($report->kind) }} · {{ $report->occurred_at }} · {{ $report->location ?? '—' }} · Tingkat {{ HumanLabel::label($report->severity) }}</p>
 </div>
 
 <div class="bg-white rounded-xl border border-slate-200 p-4 mb-4 text-sm space-y-2">

@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title>{{ config('app.name', 'Mining ERP') }}@yield('title')</title>
+        <title>{{ \App\Services\BrandingService::appName() }}@yield('title')</title>
         <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛏️</text></svg>">
         <script>
             try {
@@ -24,11 +24,11 @@
         <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-slate-100 dark:bg-navy-950 relative">
             <div class="absolute inset-0 pointer-events-none opacity-[0.07] dark:opacity-[0.12]" aria-hidden="true" style="background-image: radial-gradient(circle at 80% 15%, #f59e0b 0, transparent 40%), radial-gradient(circle at 12% 85%, #f59e0b66 0, transparent 35%);"></div>
             <div class="relative">
-                <a href="/" class="flex items-center gap-3" aria-label="Beranda Mining ERP">
-                    <span class="w-11 h-11 rounded-xl bg-amber-500 flex items-center justify-center font-black text-xl text-slate-900">M</span>
+                <a href="/" class="flex items-center gap-3" aria-label="Beranda {{ \App\Services\BrandingService::appName() }}">
+                    <span class="w-11 h-11 rounded-xl bg-amber-500 flex items-center justify-center font-black text-xl text-slate-900">{{ mb_substr(\App\Services\BrandingService::appName(), 0, 1) }}</span>
                     <span>
-                        <span class="block font-bold tracking-wide text-slate-800 dark:text-slate-100">MINING ERP</span>
-                        <span class="block text-[11px] text-slate-500 dark:text-slate-400">Enterprise Operations</span>
+                        <span class="block font-bold tracking-wide text-slate-800 dark:text-slate-100">{{ \App\Services\BrandingService::appName() }}</span>
+                        <span class="block text-[11px] text-slate-500 dark:text-slate-400">{{ \App\Services\BrandingService::tagline() }}</span>
                     </span>
                 </a>
             </div>

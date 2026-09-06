@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@php use App\Support\HumanLabel; @endphp
 
 @section('title', ' - Kategori Alat')
 
@@ -31,7 +32,7 @@
     <tr class="hover:bg-slate-50">
         <td class="px-4 py-2.5 font-mono">{{ $item->code }}</td>
         <td class="px-4 py-2.5">{{ $item->name }}</td>
-        <td class="px-4 py-2.5">{{ $item->type }}</td>
+        <td class="px-4 py-2.5">{{ HumanLabel::label($item->type) }}</td>
         <td class="px-4 py-2.5 text-right">{{ $item->standard_fuel_lph }}</td>
         <td class="px-4 py-2.5 text-right">{{ $item->fuel_warning_pct }}</td>
         <td class="px-4 py-2.5"><x-status-badge :status="$item->status ? 'ACTIVE' : 'INACTIVE'" /></td>

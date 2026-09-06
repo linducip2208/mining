@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@php use App\Support\HumanLabel; @endphp
 
 @section('title', ' - Bagan Akun')
 
@@ -30,7 +31,7 @@
         <tr class="hover:bg-slate-50">
                         <td class="px-4 py-2.5">{{ $item->code }}</td>
                         <td class="px-4 py-2.5">{{ $item->name }}</td>
-                        <td class="px-4 py-2.5">{{ $item->type }}</td>
+                        <td class="px-4 py-2.5">{{ HumanLabel::label($item->type) }}</td>
                         <td class="px-4 py-2.5">{{ $item->subtype }}</td>
                         <td class="px-4 py-2.5 text-right whitespace-nowrap">
                             @can('coa.update')<a href="{{ route('coa.edit', $item) }}" class="text-indigo-600 hover:underline text-xs">Edit</a>@endcan

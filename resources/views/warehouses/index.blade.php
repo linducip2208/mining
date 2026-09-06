@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@php use App\Support\HumanLabel; @endphp
 
 @section('title', ' - Gudang & Stockpile')
 
@@ -33,7 +34,7 @@
                         <td class="px-4 py-2.5">{{ $item->site?->name }}</td>
                         <td class="px-4 py-2.5">{{ $item->code }}</td>
                         <td class="px-4 py-2.5">{{ $item->name }}</td>
-                        <td class="px-4 py-2.5">{{ $item->type }}</td>
+                        <td class="px-4 py-2.5">{{ HumanLabel::label($item->type) }}</td>
                         <td class="px-4 py-2.5 text-right whitespace-nowrap">
                             @can('warehouses.update')<a href="{{ route('warehouses.edit', $item) }}" class="text-indigo-600 hover:underline text-xs">Edit</a>@endcan
                             @can('warehouses.delete')

@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@php use App\Support\HumanLabel; @endphp
 
 @section('title', ' - Kas & Bank')
 
@@ -33,7 +34,7 @@
                         <td class="px-4 py-2.5">{{ $item->company?->name }}</td>
                         <td class="px-4 py-2.5">{{ $item->code }}</td>
                         <td class="px-4 py-2.5">{{ $item->name }}</td>
-                        <td class="px-4 py-2.5">{{ $item->type }}</td>
+                        <td class="px-4 py-2.5">{{ HumanLabel::label($item->type) }}</td>
                         <td class="px-4 py-2.5">{{ $item->bank_name }}</td>
                         <td class="px-4 py-2.5">{{ $item->account_no }}</td>
                         <td class="px-4 py-2.5 text-right whitespace-nowrap">

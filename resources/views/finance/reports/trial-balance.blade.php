@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@php use App\Support\HumanLabel; @endphp
 @section('title', ' - Neraca Saldo')
 @section('content')
 <div class="flex items-center justify-between mb-4">
@@ -26,7 +27,7 @@
             <tr class="hover:bg-slate-50">
                 <td class="py-1.5">{{ $row->code }}</td>
                 <td class="py-1.5">{{ $row->name }}</td>
-                <td class="py-1.5 text-xs text-slate-400">{{ $row->type }}</td>
+                <td class="py-1.5 text-xs text-slate-400">{{ HumanLabel::label($row->type) }}</td>
                 <td class="py-1.5 text-right">{{ number_format($row->debit, 2, ',', '.') }}</td>
                 <td class="py-1.5 text-right">{{ number_format($row->credit, 2, ',', '.') }}</td>
             </tr>

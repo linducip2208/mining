@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@php use App\Support\StatusLabel; @endphp
 
 @section('title', ' - Konsumsi BBM')
 
@@ -33,7 +34,7 @@
         <td class="px-4 py-2.5 text-right">{{ number_format($i->liter, 1) }}</td>
         <td class="px-4 py-2.5 text-right">Rp {{ number_format($i->total_cost, 0) }}</td>
         <td class="px-4 py-2.5 text-right">{{ $i->liter_per_hour }}</td>
-        <td class="px-4 py-2.5">{{ $i->variance_status ?? '—' }}</td>
+        <td class="px-4 py-2.5">{{ $i->variance_status ? StatusLabel::label($i->variance_status) : '—' }}</td>
     </tr>
     @empty
     <tr><td colspan="8" class="px-4 py-10 text-center text-slate-400">Belum ada konsumsi periode ini</td></tr>

@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@php use App\Support\HumanLabel; @endphp
 
 @section('title', ' - Budget ' . $budget->number)
 
@@ -6,7 +7,7 @@
 <div class="mb-4">
     <a href="{{ route('budgets.index') }}" class="text-xs text-indigo-600 hover:underline">← Kembali ke daftar</a>
     <h1 class="text-xl font-bold text-slate-800 mt-1">Budget {{ $budget->number }} <x-status-badge :status="$budget->status" /></h1>
-    <p class="text-sm text-slate-500">{{ $budget->year }} · {{ $budget->type }} · v{{ $budget->version }} · {{ $budget->company?->name }} / {{ $budget->site?->name ?? 'Pusat' }}</p>
+    <p class="text-sm text-slate-500">{{ $budget->year }} · {{ HumanLabel::label($budget->type) }} · v{{ $budget->version }} · {{ $budget->company?->name ?? '—' }} / {{ $budget->site?->name ?? 'Pusat' }}</p>
 </div>
 
 <div class="grid md:grid-cols-4 gap-3 mb-4">

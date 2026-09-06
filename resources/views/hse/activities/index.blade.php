@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@php use App\Support\HumanLabel; @endphp
 
 @section('title', ' - Kegiatan K3')
 
@@ -75,7 +76,7 @@
     @forelse ($items as $item)
     <tr class="hover:bg-slate-50">
         <td class="px-4 py-2.5">{{ $item->activity_date }}</td>
-        <td class="px-4 py-2.5">{{ $kinds[$item->kind] ?? $item->kind }}</td>
+        <td class="px-4 py-2.5">{{ $kinds[$item->kind] ?? HumanLabel::label($item->kind) }}</td>
         <td class="px-4 py-2.5">{{ $item->topic }}</td>
         <td class="px-4 py-2.5">{{ $item->site?->name ?? '—' }}</td>
         <td class="px-4 py-2.5 text-xs">{{ $item->participants }}</td>

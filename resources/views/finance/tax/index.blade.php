@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title', ' - Pajak')
 @section('content')
+@php use App\Support\HumanLabel; @endphp
 <h1 class="text-xl font-bold text-slate-800 mb-4">Pajak</h1>
 <div class="grid grid-cols-3 gap-4 mb-4">
     <x-stat-card title="PPN Keluaran (Aktif)" :value="'Rp ' . number_format($ppnOut, 0, ',', '.')" color="red" />
@@ -14,7 +15,7 @@
         <thead><tr class="text-left text-[11px] uppercase text-slate-400 border-b"><th class="py-2">Kode</th><th class="py-2">Nama</th><th class="py-2">Tipe</th><th class="py-2 text-right">Tarif %</th><th class="py-2">Status</th></tr></thead>
         <tbody class="divide-y divide-slate-100">
             @foreach ($taxCodes as $code)
-            <tr><td class="py-1.5 font-medium">{{ $code->code }}</td><td class="py-1.5">{{ $code->name }}</td><td class="py-1.5 text-xs">{{ $code->type }}</td><td class="py-1.5 text-right">{{ number_format($code->rate, 2) }}%</td><td class="py-1.5"><x-status-badge :status="$code->status ? 'ACTIVE' : 'INACTIVE'" /></td></tr>
+            <tr><td class="py-1.5 font-medium">{{ $code->code }}</td><td class="py-1.5">{{ $code->name }}</td><td class="py-1.5 text-xs">{{ HumanLabel::label($code->type) }}</td><td class="py-1.5 text-right">{{ number_format($code->rate, 2) }}%</td><td class="py-1.5"><x-status-badge :status="$code->status ? 'ACTIVE' : 'INACTIVE'" /></td></tr>
             @endforeach
         </tbody>
     </table>
@@ -28,7 +29,7 @@
             @forelse ($items as $item)
             <tr class="hover:bg-slate-50">
                 <td class="px-5 py-2">{{ $item->trx_date?->format('d/m/Y') }}</td>
-                <td class="px-5 py-2 text-xs">{{ $item->kind }} · {{ $item->taxCode?->code }}</td>
+                <td class="px-5 py-2 text-xs">{{ HumanLabel::label($item->kind) }} · {{ $item->taxCode?->code ?? '—' }}</td>
                 <td class="px-5 py-2 text-xs">{{ $item->tax_invoice_no ?? $item->transaction_number }}</td>
                 <td class="px-5 py-2 text-right">{{ number_format($item->tax_base, 0, ',', '.') }}</td>
                 <td class="px-5 py-2 text-right font-semibold">{{ number_format($item->tax_amount, 0, ',', '.') }}</td>

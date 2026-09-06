@@ -11,9 +11,12 @@
 @section('content')
 @php
     use App\Docs\DocRegistry;
+    use App\Support\PermissionLabel;
     $shotUrl = DocRegistry::screenshotUrl($doc);
     $shotPath = !empty($doc['shot']) ? public_path('docs-assets/screenshots/' . ltrim($doc['shot'], '/')) : null;
     $shotExists = $shotPath && file_exists($shotPath);
+    preg_match('/[a-z_]+\.[a-z_]+/', (string) ($doc['permission'] ?? ''), $permissionMatch);
+    $permissionLabel = $permissionMatch[0] ?? null;
     $appRoute = DocRegistry::appRouteForDoc($doc['url']);
     $toc = [];
     if (!empty($doc['steps'])) $toc[] = ['langkah', 'Langkah-langkah'];
@@ -39,7 +42,7 @@
         </div>
         <div class="rounded-lg bg-white dark:bg-navy-800 border border-slate-200 dark:border-slate-700/60 px-3 py-2">
             <dt class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Permission</dt>
-            <dd class="font-mono mt-0.5 truncate" title="{{ $doc['permission'] ?? '' }}">{{ $doc['permission'] ?? '—' }}</dd>
+            <dd class="font-medium mt-0.5 truncate" title="{{ $permissionLabel ? PermissionLabel::label($permissionLabel) : 'Tidak dibatasi' }}">{{ $permissionLabel ? PermissionLabel::label($permissionLabel) : 'Tidak dibatasi' }}</dd>
         </div>
         <div class="rounded-lg bg-white dark:bg-navy-800 border border-slate-200 dark:border-slate-700/60 px-3 py-2">
             <dt class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Peran</dt>

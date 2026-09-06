@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@php use App\Support\HumanLabel; @endphp
 @section('title', ' - Pembayaran')
 @section('content')
 <div class="flex items-center justify-between mb-4">
@@ -16,7 +17,7 @@
             <td class="px-4 py-2.5 font-medium">{{ $item->number }}</td>
             <td class="px-4 py-2.5">{{ $item->payment_date?->format('d/m/Y') }}</td>
             <td class="px-4 py-2.5">{{ $item->customer?->name ?? $item->supplier?->name }}</td>
-            <td class="px-4 py-2.5 text-xs">{{ str_replace('_', ' ', $item->method) }}</td>
+            <td class="px-4 py-2.5 text-xs">{{ HumanLabel::label($item->method) }}</td>
             <td class="px-4 py-2.5 text-right font-semibold">Rp {{ number_format($item->amount, 0, ',', '.') }}</td>
             <td class="px-4 py-2.5"><x-status-badge :status="$item->status" /></td>
             <td class="px-4 py-2.5"></td>

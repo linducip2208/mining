@@ -1,6 +1,8 @@
 @props(['status'])
 @php
-    $colors = [
+    use App\Support\StatusLabel;
+    /* Status colors are centralized in StatusLabel so every badge shares the same presentation mapping. */
+    /* $colors = [
         'DRAFT' => 'bg-slate-100 text-slate-600',
         'SUBMITTED' => 'bg-blue-50 text-blue-600',
         'PENDING' => 'bg-amber-50 text-amber-700',
@@ -35,9 +37,9 @@
         'DEPOSIT_IN' => 'bg-green-50 text-green-700',
         'DEPOSIT_USED' => 'bg-blue-50 text-blue-600',
         'DEPOSIT_REFUND' => 'bg-orange-50 text-orange-600',
-    ];
-    $color = $colors[$status] ?? 'bg-slate-100 text-slate-600';
+    ]; */
+    $color = StatusLabel::color($status);
 @endphp
 <span {{ $attributes->merge(['class' => "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ring-1 ring-inset ring-black/5 dark:ring-white/10 $color"]) }}>
-    {{ str_replace('_', ' ', $status) }}
+    {{ StatusLabel::label($status) }}
 </span>

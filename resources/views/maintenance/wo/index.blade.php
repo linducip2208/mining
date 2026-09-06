@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@php use App\Support\HumanLabel; @endphp
 @section('title', ' - Work Order')
 @section('content')
 <div class="flex items-center justify-between mb-4">
@@ -22,7 +23,7 @@
                     {{ $item->asset?->name }}
                 @endif
             </td>
-            <td class="px-4 py-2.5 text-xs">{{ $item->type }}</td>
+            <td class="px-4 py-2.5 text-xs">{{ HumanLabel::label($item->type) }}</td>
             <td class="px-4 py-2.5 text-xs">{{ $item->priority }}</td>
             <td class="px-4 py-2.5 text-right">Rp {{ number_format($item->actual_cost, 0, ',', '.') }}</td>
             <td class="px-4 py-2.5"><x-status-badge :status="$item->status" /></td>

@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@php use App\Support\HumanLabel; @endphp
 
 @section('title', ' - Ban ' . $tire->serial_no)
 
@@ -116,7 +117,7 @@
         @forelse ($tire->movements ?? [] as $m)
         <tr class="hover:bg-slate-50">
             <td class="px-4 py-2.5">{{ $m->date ?? $m->created_at }}</td>
-            <td class="px-4 py-2.5">{{ $m->type }}</td>
+            <td class="px-4 py-2.5">{{ HumanLabel::label($m->type) }}</td>
             <td class="px-4 py-2.5 font-mono">{{ $m->equipment?->code }}</td>
             <td class="px-4 py-2.5">{{ $m->position }}</td>
             <td class="px-4 py-2.5 text-right">{{ $m->hm }}</td>

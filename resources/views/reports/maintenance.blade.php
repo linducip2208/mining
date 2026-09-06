@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@php use App\Support\HumanLabel; @endphp
 
 @section('title', ' - Laporan Pemeliharaan')
 
@@ -51,7 +52,7 @@
                 <td class="py-1.5">{{ $wo->number }}</td>
                 <td class="py-1.5">{{ $wo->date?->format('d/m/Y') }}</td>
                 <td class="py-1.5">{{ $wo->equipment?->name ?? $wo->asset?->name ?? '-' }}</td>
-                <td class="py-1.5 text-xs">{{ $wo->type }}</td>
+                <td class="py-1.5 text-xs">{{ HumanLabel::label($wo->type) }}</td>
                 <td class="py-1.5 text-right">{{ number_format($wo->downtime_hours, 1) }}</td>
                 <td class="py-1.5 text-right">Rp {{ number_format($wo->actual_cost, 0, ',', '.') }}</td>
                 <td class="py-1.5"><x-status-badge :status="$wo->status" /></td>

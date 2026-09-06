@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@php use App\Support\HumanLabel; @endphp
 
 @section('title', ' - Kalender Compliance')
 
@@ -33,7 +34,7 @@
         <td class="px-4 py-2.5 font-mono">{{ is_object($reg) ? ($reg->expiry_date ?? '—') : ($reg['expiry_date'] ?? '—') }}</td>
         <td class="px-4 py-2.5 font-semibold {{ ($days !== null && $days <= 30) ? 'text-red-600' : '' }}">{{ $days !== null ? ($days < 0 ? 'Lewat ' . abs($days) . ' hari' : $days . ' hari') : '—' }}</td>
         <td class="px-4 py-2.5">{{ is_object($reg) ? $reg->title : ($reg['title'] ?? '—') }}</td>
-        <td class="px-4 py-2.5">{{ is_object($reg) ? $reg->type : ($reg['type'] ?? '—') }}</td>
+        <td class="px-4 py-2.5">{{ HumanLabel::label(is_object($reg) ? $reg->type : ($reg['type'] ?? null)) }}</td>
         <td class="px-4 py-2.5">{{ is_object($reg) ? ($reg->responsible?->name ?? '—') : ($reg['responsible'] ?? '—') }}</td>
         <td class="px-4 py-2.5"><x-status-badge :status="is_object($reg) ? $reg->status : ($reg['status'] ?? 'ACTIVE')" /></td>
     </tr>

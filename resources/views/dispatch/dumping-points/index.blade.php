@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@php use App\Support\HumanLabel; @endphp
 
 @section('title', ' - Titik Bongkar')
 
@@ -32,7 +33,7 @@
         <td class="px-4 py-2.5">{{ $item->site?->name }}</td>
         <td class="px-4 py-2.5 font-mono">{{ $item->code }}</td>
         <td class="px-4 py-2.5">{{ $item->name }}</td>
-        <td class="px-4 py-2.5">{{ $item->type }}</td>
+        <td class="px-4 py-2.5">{{ HumanLabel::label($item->type) }}</td>
         <td class="px-4 py-2.5">{{ $item->warehouse?->name }}</td>
         <td class="px-4 py-2.5"><x-status-badge :status="$item->status ? 'ACTIVE' : 'INACTIVE'" /></td>
         <td class="px-4 py-2.5 text-right whitespace-nowrap">

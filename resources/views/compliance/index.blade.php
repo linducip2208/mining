@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@php use App\Support\HumanLabel; @endphp
 
 @section('title', ' - Compliance')
 
@@ -32,7 +33,7 @@
     <tr class="hover:bg-slate-50">
         <td class="px-4 py-2.5 font-mono">{{ $item->number }}</td>
         <td class="px-4 py-2.5"><a href="{{ route('compliance.show', $item) }}" class="text-indigo-600 hover:underline">{{ $item->title }}</a></td>
-        <td class="px-4 py-2.5">{{ $types[$item->type] ?? $item->type }}</td>
+        <td class="px-4 py-2.5">{{ $types[$item->type] ?? HumanLabel::label($item->type) }}</td>
         <td class="px-4 py-2.5 {{ $item->status === 'EXPIRED' ? 'text-red-600 font-semibold' : '' }}">{{ $item->expiry_date ?? '—' }}</td>
         <td class="px-4 py-2.5">{{ $item->responsible?->name ?? '—' }}</td>
         <td class="px-4 py-2.5"><x-status-badge :status="$item->status" /></td>

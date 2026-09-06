@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@php use App\Support\StatusLabel; @endphp
 
 @section('title', ' - Assignment Operator')
 
@@ -92,7 +93,7 @@
         <td class="px-4 py-2.5">{{ $a->site?->name }}</td>
         <td class="px-4 py-2.5">{{ $a->shift?->name }}</td>
         <td class="px-4 py-2.5 text-right">{{ $a->working_hours }}</td>
-        <td class="px-4 py-2.5">{{ $a->status }}</td>
+        <td class="px-4 py-2.5"><x-status-badge :status="$a->status" /></td>
     </tr>
     @empty
     <tr><td colspan="7" class="px-4 py-10 text-center text-slate-400">Belum ada data</td></tr>

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ config('app.name', 'Mining ERP') }}@yield('title')</title>
+    <title>{{ \App\Services\BrandingService::appName() }}@yield('title')</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛏️</text></svg>">
     <script>
         // restore theme + sidebar state pre-paint (no FOUC)
@@ -30,7 +30,7 @@
             {{-- Breadcrumb / location --}}
             @php
                 $rn = request()->route()?->getName() ?? '';
-                $crumbs = collect(explode('.', $rn))->filter()->map(fn ($s) => ucwords(str_replace(['-', '_'], ' ', $s)))->take(3);
+                $crumbs = collect(explode('.', $rn))->filter()->map(fn ($s) => \App\Support\BreadcrumbLabel::label($s))->take(3);
             @endphp
             <nav aria-label="Lokasi halaman" class="hidden md:block text-sm text-slate-400 dark:text-slate-500 truncate">
                 <a href="{{ route('dashboard') }}" class="hover:text-amber-600">Dashboard</a>
@@ -98,12 +98,13 @@
                         @forelse (auth()->user()->unreadNotifications()->latest()->limit(10)->get() as $notif)
                             @php
                                 $etype = $notif->data['type'] ?? 'INFO';
+                                $etypeLabel = \App\Support\HumanLabel::label($etype);
                                 $prio = in_array($etype, ['FUEL_ANOMALY', 'FUEL_DIP_VARIANCE', 'EQUIPMENT_BREAKDOWN', 'SAFETY_INCIDENT']) ? 'critical'
                                     : (in_array($etype, ['BUDGET_EXCEEDED', 'OVERDUE_AP', 'COMPLIANCE_EXPIRY', 'HSE_PERMIT_EXPIRY', 'QUALITY_FAILURE', 'STOCK_VARIANCE', 'HIGH_DOWNTIME', 'LOW_PRODUCTION']) ? 'warning' : 'info');
                             @endphp
                             <div class="px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-white/5 border-b border-slate-100 dark:border-slate-700/50 {{ $prio === 'critical' ? 'border-l-2 border-l-red-500' : '' }}">
                                 <div class="flex items-center gap-2">
-                                    <span class="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded {{ $prio === 'critical' ? 'bg-red-100 dark:bg-red-500/15 text-red-600 dark:text-red-300' : ($prio === 'warning' ? 'bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300' : 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-300') }}">{{ $etype }}</span>
+                                    <span class="text-[10px] font-bold tracking-wide px-1.5 py-0.5 rounded {{ $prio === 'critical' ? 'bg-red-100 dark:bg-red-500/15 text-red-600 dark:text-red-300' : ($prio === 'warning' ? 'bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300' : 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-300') }}">{{ $etypeLabel }}</span>
                                     <span class="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{{ $notif->data['title'] ?? 'Notifikasi' }}</span>
                                 </div>
                                 <div class="text-xs text-slate-500 mt-0.5">{{ $notif->data['body'] ?? '' }}</div>

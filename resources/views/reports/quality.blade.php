@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title', ' - Laporan Quality')
 @section('content')
+@php use App\Support\HumanLabel; @endphp
 <div class="flex items-center justify-between mb-4">
     <h1 class="text-xl font-bold text-slate-800">Laporan Hasil Quality</h1>
     <div class="flex gap-2">
@@ -22,7 +23,7 @@
         <thead><tr class="text-left text-[11px] uppercase text-slate-400 border-b"><th class="py-2">Parameter</th><th class="py-2 text-right">Uji</th><th class="py-2 text-right">Gagal</th><th class="py-2 text-right">Fail Rate</th></tr></thead>
         <tbody class="divide-y divide-slate-100">
             @forelse ($perParam as $code => $r)
-            <tr><td class="py-1.5 font-mono">{{ $code }}</td><td class="py-1.5 text-right">{{ $r['tests'] }}</td><td class="py-1.5 text-right">{{ $r['fails'] }}</td><td class="py-1.5 text-right font-semibold {{ $r['fail_rate'] > 10 ? 'text-red-600' : '' }}">{{ $r['fail_rate'] }}%</td></tr>
+            <tr><td class="py-1.5">{{ HumanLabel::label($code) }}</td><td class="py-1.5 text-right">{{ $r['tests'] }}</td><td class="py-1.5 text-right">{{ $r['fails'] }}</td><td class="py-1.5 text-right font-semibold {{ $r['fail_rate'] > 10 ? 'text-red-600' : '' }}">{{ $r['fail_rate'] }}%</td></tr>
             @empty <tr><td colspan="4" class="py-6 text-center text-slate-400">Belum ada hasil uji periode ini</td></tr> @endforelse
         </tbody>
     </table>

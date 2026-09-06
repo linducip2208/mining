@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title', ' - Laporan Budget')
 @section('content')
+@php use App\Support\HumanLabel; @endphp
 <div class="flex items-center justify-between mb-4">
     <h1 class="text-xl font-bold text-slate-800">Laporan Budget vs Aktual {{ $year }}</h1>
     <div class="flex gap-2">
@@ -23,7 +24,7 @@
         <thead><tr class="text-left text-[11px] uppercase text-slate-400 border-b"><th class="py-2">Budget</th><th class="py-2">Tipe</th><th class="py-2 text-right">Pagu</th><th class="py-2 text-right">Komitmen</th><th class="py-2 text-right">Aktual</th><th class="py-2 text-right">Sisa</th><th class="py-2">Status</th></tr></thead>
         <tbody class="divide-y divide-slate-100">
             @forelse ($budgets as $r)
-            <tr><td class="py-1.5 font-mono text-xs">{{ $r['budget']->number }}</td><td class="py-1.5">{{ $r['budget']->type }}</td><td class="py-1.5 text-right">Rp {{ number_format($r['report']['totals']['budget'], 0) }}</td><td class="py-1.5 text-right">Rp {{ number_format($r['report']['totals']['committed'], 0) }}</td><td class="py-1.5 text-right">Rp {{ number_format($r['report']['totals']['actual'], 0) }}</td><td class="py-1.5 text-right font-semibold {{ $r['report']['totals']['available'] < 0 ? 'text-red-600' : '' }}">Rp {{ number_format($r['report']['totals']['available'], 0) }}</td><td class="py-1.5"><x-status-badge :status="$r['budget']->status" /></td></tr>
+            <tr><td class="py-1.5 font-mono text-xs">{{ $r['budget']->number }}</td><td class="py-1.5">{{ HumanLabel::label($r['budget']->type) }}</td><td class="py-1.5 text-right">Rp {{ number_format($r['report']['totals']['budget'], 0) }}</td><td class="py-1.5 text-right">Rp {{ number_format($r['report']['totals']['committed'], 0) }}</td><td class="py-1.5 text-right">Rp {{ number_format($r['report']['totals']['actual'], 0) }}</td><td class="py-1.5 text-right font-semibold {{ $r['report']['totals']['available'] < 0 ? 'text-red-600' : '' }}">Rp {{ number_format($r['report']['totals']['available'], 0) }}</td><td class="py-1.5"><x-status-badge :status="$r['budget']->status" /></td></tr>
             @empty <tr><td colspan="7" class="py-6 text-center text-slate-400">Tidak ada data</td></tr> @endforelse
         </tbody>
     </table>

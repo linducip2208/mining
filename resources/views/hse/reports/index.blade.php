@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@php use App\Support\HumanLabel; @endphp
 
 @section('title', ' - Laporan HSE')
 
@@ -32,7 +33,7 @@
     <tr class="hover:bg-slate-50">
         <td class="px-4 py-2.5"><a href="{{ route('hse.reports.show', $item) }}" class="font-mono text-indigo-600 hover:underline">{{ $item->number }}</a></td>
         <td class="px-4 py-2.5">{{ $item->occurred_at }}</td>
-        <td class="px-4 py-2.5">{{ $item->kind }}</td>
+        <td class="px-4 py-2.5">{{ HumanLabel::label($item->kind) }}</td>
         <td class="px-4 py-2.5">{{ $item->location }}</td>
         <td class="px-4 py-2.5"><x-status-badge :status="in_array($item->severity, ['HIGH', 'CRITICAL', 'LTI', 'FATALITY']) ? 'BREAKDOWN' : 'PENDING'" /></td>
         <td class="px-4 py-2.5"><x-status-badge :status="$item->status" /></td>
