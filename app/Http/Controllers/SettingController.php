@@ -209,6 +209,7 @@ class SettingController extends Controller
             'Branding' => $user?->hasPermission('branding.update'),
             'Integrasi' => $user?->hasPermission('integration.setting.update'),
             'Keamanan' => $user?->hasPermission('security.setting.update'),
+            'Printer & Perangkat' => $user?->hasPermission('printer.manage'),
             'Advanced' => false,
             default => $user?->hasPermission('setting.update'),
         };

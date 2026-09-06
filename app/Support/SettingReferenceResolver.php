@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Pit;
+use App\Models\PrinterDevice;
 use App\Models\Site;
 use App\Models\Warehouse;
 
@@ -16,6 +17,7 @@ final class SettingReferenceResolver
         'warehouse' => Warehouse::class,
         'site' => Site::class,
         'pit' => Pit::class,
+        'printer' => PrinterDevice::class,
     ];
 
     public static function options(array $meta): array
@@ -30,7 +32,12 @@ final class SettingReferenceResolver
             ? $meta['label_column']
             : 'name';
 
-        return $class::query()
+        $query = $class::query();
+        if ($model === 'printer') {
+            $query->where('is_active', true);
+        }
+
+        return $query
             ->orderBy($labelColumn)
             ->limit(500)
             ->get(['id', $labelColumn])

@@ -60,6 +60,8 @@ use App\Http\Controllers\PaymentTermController;
 use App\Http\Controllers\PayrollViewController;
 use App\Http\Controllers\PriceListController;
 use App\Http\Controllers\PriceVarianceController;
+use App\Http\Controllers\PrinterDeviceController;
+use App\Http\Controllers\PrintJobController;
 use App\Http\Controllers\ProductionBatchController;
 use App\Http\Controllers\ProductSpecificationController;
 use App\Http\Controllers\ProfileController;
@@ -165,6 +167,16 @@ Route::middleware(['auth', 'feature.flags'])->group(function () {
     Route::get('settings/approval-workflow', [ApprovalWorkflowController::class, 'index'])->name('setting.approval-workflow')->middleware('permission:approval.workflow.view');
     Route::post('settings/approval-workflow', [ApprovalWorkflowController::class, 'store'])->name('setting.approval-workflow.store')->middleware('permission:approval.workflow.update');
     Route::patch('settings/approval-workflow/{workflow}/toggle', [ApprovalWorkflowController::class, 'toggle'])->name('setting.approval-workflow.toggle')->middleware('permission:approval.workflow.update');
+    Route::get('settings/printers', [PrinterDeviceController::class, 'index'])->name('printer.index')->middleware('permission:printer.view');
+    Route::post('settings/printers', [PrinterDeviceController::class, 'store'])->name('printer.store')->middleware('permission:printer.manage');
+    Route::put('settings/printers/{printer}', [PrinterDeviceController::class, 'update'])->name('printer.update')->middleware('permission:printer.manage');
+    Route::delete('settings/printers/{printer}', [PrinterDeviceController::class, 'destroy'])->name('printer.destroy')->middleware('permission:printer.manage');
+    Route::post('settings/printers/{printer}/default', [PrinterDeviceController::class, 'makeDefault'])->name('printer.default')->middleware('permission:printer.manage');
+    Route::get('settings/printers/agent-config', [PrinterDeviceController::class, 'agentConfig'])->name('printer.agent-config')->middleware('permission:printer.view');
+    Route::post('settings/printers/{printer}/test', [PrinterDeviceController::class, 'test'])->name('printer.test')->middleware('permission:printer.test');
+    Route::post('print-jobs/{print_job}/retry', [PrintJobController::class, 'retry'])->name('print-jobs.retry')->middleware('permission:printer.manage');
+    Route::get('print-jobs/{print_job:uuid}/package', [PrintJobController::class, 'package'])->name('print-jobs.package');
+    Route::post('print-jobs/{print_job:uuid}/status', [PrintJobController::class, 'clientStatus'])->name('print-jobs.status');
 
     // ===== ORGANIZATION =====
     Route::resource('companies', CompanyController::class)->middleware('permission:company.view');
@@ -207,6 +219,7 @@ Route::middleware(['auth', 'feature.flags'])->group(function () {
     Route::post('weighbridge-tickets/{weighbridge_ticket}/post', [WeighbridgeTicketController::class, 'postTicket'])->name('weighbridge.post')->middleware('permission:weighbridge.post');
     Route::post('weighbridge-tickets/{weighbridge_ticket}/void', [WeighbridgeTicketController::class, 'void'])->name('weighbridge.void')->middleware('permission:weighbridge.void');
     Route::match(['GET', 'POST'], 'weighbridge-tickets/{weighbridge_ticket}/print', [WeighbridgeTicketController::class, 'printTicket'])->name('weighbridge.print')->middleware('permission:weighbridge.print');
+    Route::post('weighbridge-tickets/{weighbridge_ticket}/reprint', [WeighbridgeTicketController::class, 'reprint'])->name('weighbridge.reprint')->middleware('permission:weighbridge.reprint');
     Route::get('weighbridge-tickets/{weighbridge_ticket}/pdf', [WeighbridgeTicketController::class, 'pdfTicket'])->name('weighbridge.pdf')->middleware('permission:weighbridge.print');
 
     // ===== PRODUCTION =====

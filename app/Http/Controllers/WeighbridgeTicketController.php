@@ -16,6 +16,7 @@ use App\Models\WeighbridgeTicket;
 use App\Services\AuditService;
 use App\Services\NumberingService;
 use App\Services\PrintDocumentService;
+use App\Services\PrintJobService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -135,6 +136,21 @@ class WeighbridgeTicketController extends Controller
 
         AuditService::updated('WEIGHBRIDGE', $weighbridge_ticket);
 
+        if (filter_var(Setting::get('printer.auto_print_weighbridge', false), FILTER_VALIDATE_BOOLEAN)) {
+            try {
+                $job = app(PrintJobService::class)->queueWeighbridge($weighbridge_ticket->fresh(), auth()->id());
+                if ($job->status === 'FAILED') {
+                    return back()->with('success', 'Timbang kedua tersimpan. NET: '.number_format($weighbridge_ticket->net, 2).' kg')->with('warning', 'Tiket tersimpan, tetapi gagal dicetak: '.$job->error_message);
+                }
+
+                return back()->with('success', 'Timbang kedua tersimpan. NET: '.number_format($weighbridge_ticket->net, 2).' kg')->with('print_job_uuid', $job->uuid);
+            } catch (\Throwable $exception) {
+                AuditService::log('PRINT_FAILED', 'WEIGHBRIDGE', $weighbridge_ticket->id, WeighbridgeTicket::class, null, ['message' => 'Auto print gagal']);
+
+                return back()->with('success', 'Timbang kedua tersimpan. NET: '.number_format($weighbridge_ticket->net, 2).' kg')->with('warning', 'Tiket tersimpan, tetapi gagal dicetak.');
+            }
+        }
+
         return back()->with('success', 'Timbang kedua tersimpan. NET: '.number_format($weighbridge_ticket->net, 2).' kg');
     }
 
@@ -216,6 +232,15 @@ class WeighbridgeTicketController extends Controller
         AuditService::log('PRINT', 'WEIGHBRIDGE', $weighbridge_ticket->id, WeighbridgeTicket::class, null, ['ticket' => $weighbridge_ticket->ticket_no, 'reprint_count' => $weighbridge_ticket->reprint_count]);
 
         return view('print.weighbridge', PrintDocumentService::context(['ticket' => $weighbridge_ticket->load(['weighbridge', 'customer', 'supplier', 'item', 'operator', 'company']), 'documentTitle' => 'Tiket Timbangan']));
+    }
+
+    public function reprint(Request $request, WeighbridgeTicket $weighbridge_ticket)
+    {
+        $validated = $request->validate(['reason' => 'required|string|max:500']);
+        $weighbridge_ticket->increment('reprint_count');
+        AuditService::log('REPRINT', 'WEIGHBRIDGE', $weighbridge_ticket->id, WeighbridgeTicket::class, null, ['ticket' => $weighbridge_ticket->ticket_no, 'reprint_count' => $weighbridge_ticket->reprint_count], $validated['reason']);
+
+        return view('print.weighbridge', PrintDocumentService::context(['ticket' => $weighbridge_ticket->load(['weighbridge', 'customer', 'supplier', 'item', 'operator', 'company']), 'documentTitle' => 'Tiket Timbangan', 'copyLabel' => 'CETAK ULANG']));
     }
 
     public function pdfTicket(WeighbridgeTicket $weighbridge_ticket)

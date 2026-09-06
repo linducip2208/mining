@@ -1,0 +1,6 @@
+{
+  "port": 17845,
+  "pairingToken": "paste-the-token-from-mining-erp-here",
+  "allowedOrigins": ["https://erp.example.test", "http://127.0.0.1:8000"],
+  "erpCallbackOrigin": "https://erp.example.test"
+}

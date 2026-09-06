@@ -1,0 +1,7 @@
+{
+  "name": "mining-erp-print-agent",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Localhost print bridge for Mining ERP thermal and system printers",
+  "scripts": { "start": "node server.cjs" }
+}

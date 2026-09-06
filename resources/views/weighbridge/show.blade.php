@@ -8,7 +8,8 @@
     </div>
     <div class="flex gap-2">
         @if ($ticket->status !== 'FIRST_WEIGH' && $ticket->status !== 'VOID' && $ticket->status !== 'CANCELLED')
-        <a href="{{ route('weighbridge.print', $ticket) }}" target="_blank" class="px-4 py-2 rounded-lg bg-slate-700 text-white text-sm">Cetak Tiket</a>
+        <a href="{{ route('weighbridge.print', $ticket) }}" target="_blank" class="px-4 py-2 rounded-lg bg-slate-700 text-white text-sm"><x-ui.icon name="printer" class="inline w-4 h-4 mr-1"/>Cetak Tiket</a>
+        @can('weighbridge.reprint')<form action="{{ route('weighbridge.reprint', $ticket) }}" method="POST" onsubmit="return confirm('Cetak ulang tiket ini?')">@csrf<input type="hidden" name="reason" value="Cetak ulang dari detail tiket"><button class="px-4 py-2 rounded-lg border border-slate-200 text-slate-700 text-sm">Cetak Ulang</button></form>@endcan
         @endif
         @if ($ticket->status === 'COMPLETE')
         @can('weighbridge.post')
@@ -107,4 +108,8 @@
         </div>
     </div>
 </div>
+@if (session('print_job_uuid'))
+<div x-data="autoPrint('{{ session('print_job_uuid') }}')" x-init="send()" class="mt-4 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900"><span x-text="message">Menyiapkan tiket untuk printer lokal...</span></div>
+<script>function autoPrint(uuid){return{message:'Menyiapkan tiket untuk printer lokal...',async send(){try{const p=await fetch('{{ route('print-jobs.package', ['print_job' => session('print_job_uuid')]) }}').then(r=>r.json());const r=await fetch(p.url,{method:'POST',headers:p.headers,body:p.body});if(!r.ok)throw new Error();this.message='Tiket dikirim ke printer lokal.';}catch(e){fetch('{{ url('/print-jobs') }}/'+uuid+'/status',{method:'POST',headers:{'X-CSRF-TOKEN':document.querySelector('meta[name=csrf-token]').content,'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify({status:'FAILED',error_message:'Local Print Agent tidak tersedia.'})});this.message='Tiket tersimpan, tetapi printer lokal tidak tersedia. Gunakan Cetak Tiket atau Download PDF.';}}}}</script>
+@endif
 @endsection

@@ -14,6 +14,9 @@
             <p class="mt-1 text-sm text-slate-500">Kelola identitas, perilaku bisnis, keamanan, dan integrasi Mining ERP dari satu pusat konfigurasi.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
+            @can('printer.view')
+                <a href="{{ route('printer.index') }}" class="inline-flex items-center gap-2 h-10 px-3 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:border-amber-300"><x-ui.icon name="printer" class="w-4 h-4" /> Printer &amp; Perangkat</a>
+            @endcan
             <div class="relative">
                 <x-ui.icon name="search" class="absolute left-3 top-3 w-4 h-4 text-slate-400" />
                 <input x-model="query" type="search" placeholder="Cari pengaturan..." aria-label="Cari pengaturan" class="w-full sm:w-72 h-10 pl-9 pr-3 rounded-lg border border-slate-200 bg-white text-sm focus:border-amber-400 focus:ring-2 focus:ring-amber-100 outline-none">
