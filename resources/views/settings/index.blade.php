@@ -101,9 +101,6 @@
                         <footer class="px-5 py-3 border-t border-slate-100 flex justify-end"><button type="submit" class="inline-flex items-center gap-2 min-h-[42px] px-5 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-700"><x-ui.icon name="check" class="w-4 h-4" /> Simpan Perubahan</button></footer>
                     </section>
                 @endforeach
-                @if(auth()->user()->isSuperAdmin())
-                    <label class="flex items-center gap-2 text-xs text-slate-500"><input type="hidden" name="settings[developer_labels_enabled]" value="0"><input type="checkbox" name="settings[developer_labels_enabled]" value="1" @checked($developerLabels) class="rounded border-slate-300 text-amber-500 focus:ring-amber-400"> Tampilkan Developer Key pada mode Advanced</label>
-                @endif
             </div>
         </div>
     </form>
