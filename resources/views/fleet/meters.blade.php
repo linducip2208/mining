@@ -38,7 +38,7 @@
             <label class="text-xs font-semibold text-slate-600 uppercase">Status</label>
             <select name="status" required class="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm outline-none">
                 @foreach (['AVAILABLE', 'IN_USE', 'IDLE', 'MAINTENANCE', 'BREAKDOWN', 'STANDBY'] as $s)
-                    <option value="{{ $s }}">{{ $s }}</option>
+                    <option value="{{ $s }}">{{ \App\Support\StatusLabel::label($s) }}</option>
                 @endforeach
             </select>
         </div>

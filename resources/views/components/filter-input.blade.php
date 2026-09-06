@@ -1,6 +1,8 @@
 @props(['name', 'label', 'type' => 'text', 'options' => [], 'placeholder' => ''])
-@php($humanLabel = \App\Support\HumanLabel::label($label))
-@php($isStatusFilter = str_contains(strtolower($name), 'status'))
+@php
+    $humanLabel = \App\Support\HumanLabel::label($label);
+    $isStatusFilter = str_contains(strtolower($name), 'status');
+@endphp
 <div class="flex flex-col gap-1 {{ $attributes->only('class') }}">
     <label for="{{ $name }}" class="text-xs font-semibold text-slate-600 dark:text-slate-300 tracking-wide">{{ $humanLabel }}</label>
     @if ($type === 'select')

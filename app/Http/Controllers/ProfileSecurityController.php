@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\PasswordPolicy;
 use Illuminate\Http\Request;
 
 class ProfileSecurityController extends Controller
@@ -15,7 +16,7 @@ class ProfileSecurityController extends Controller
     {
         $validated = $request->validate([
             'current_password' => 'required|current_password',
-            'password' => 'required|min:8|confirmed|different:current_password',
+            'password' => array_merge(PasswordPolicy::rules(), ['different:current_password']),
         ]);
 
         $user = $request->user();

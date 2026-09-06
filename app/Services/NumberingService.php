@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\DocumentNumbering;
+use App\Models\Setting;
 use Illuminate\Support\Facades\DB;
 
 class NumberingService
@@ -25,14 +26,15 @@ class NumberingService
                 ->lockForUpdate()
                 ->first();
 
-            if (!$cfg) {
+            if (! $cfg) {
+                $suffix = self::settingSuffix($docType);
                 $cfg = DocumentNumbering::create([
                     'company_id' => null,
                     'site_id' => null,
                     'doc_type' => $docType,
-                    'format' => '{PREFIX}-{YM}--{SEQ}',
+                    'format' => Setting::get('numbering.'.$suffix.'_format', '{PREFIX}-{YM}--{SEQ}'),
                     'current_seq' => 0,
-                    'padding' => 6,
+                    'padding' => self::paddingFromFormat((string) Setting::get('numbering.'.$suffix.'_format', '{PREFIX}-{YM}--{SEQ}')),
                     'reset_period' => 'MONTHLY',
                 ]);
             }
@@ -53,18 +55,42 @@ class NumberingService
             $cfg->save();
 
             $seq = str_pad((string) $cfg->current_seq, $cfg->padding, '0', STR_PAD_LEFT);
+            $format = preg_replace_callback('/\{SEQ(?::(\d+))?\}/', fn ($match) => str_pad((string) $cfg->current_seq, (int) ($match[1] ?? $cfg->padding), '0', STR_PAD_LEFT), $cfg->format);
 
             return str_replace(
-                ['{PREFIX}', '{Y}', '{M}', '{YM}', '{YMD}', '{SEQ}'],
-                [$cfg->doc_type === $cfg->format ? '' : self::prefixFor($cfg, $docType), $now->format('Y'), $now->format('m'), $now->format('Ym'), $now->format('Ymd'), $seq],
-                $cfg->format
+                ['{PREFIX}', '{Y}', '{YYYY}', '{M}', '{MM}', '{YM}', '{YMD}'],
+                [$cfg->doc_type === $cfg->format ? '' : self::prefixFor($cfg, $docType), $now->format('Y'), $now->format('Y'), $now->format('m'), $now->format('m'), $now->format('Ym'), $now->format('Ymd')],
+                $format
             );
         });
     }
 
     protected static function prefixFor(DocumentNumbering $cfg, string $docType): string
     {
-        // doc_type itself is the prefix (SO, DO, INV, PR, PO, GRN, WO, WB, JN)
-        return $docType;
+        $suffix = self::settingSuffix($docType);
+
+        return (string) Setting::get('numbering.'.$suffix.'_prefix', $docType);
+    }
+
+    private static function settingSuffix(string $docType): string
+    {
+        return match (strtoupper($docType)) {
+            'INV', 'INVOICE' => 'invoice',
+            'PO' => 'po',
+            'PR' => 'pr',
+            'DO' => 'do',
+            'GR', 'GRN' => 'gr',
+            'WB', 'WEIGHBRIDGE' => 'weighbridge',
+            'JN', 'JOURNAL' => 'journal',
+            'WO', 'WORK_ORDER' => 'work_order',
+            default => strtolower($docType),
+        };
+    }
+
+    private static function paddingFromFormat(string $format): int
+    {
+        preg_match('/\{SEQ:(\d+)\}/', $format, $match);
+
+        return isset($match[1]) ? max(1, min(12, (int) $match[1])) : 6;
     }
 }

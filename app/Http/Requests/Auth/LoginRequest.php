@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Auth;
 
 use App\Models\LoginHistory;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -58,7 +59,7 @@ class LoginRequest extends FormRequest
             ]);
         };
 
-        if (!$user) {
+        if (! $user) {
             $fail();
         }
 
@@ -74,20 +75,22 @@ class LoginRequest extends FormRequest
             $fail('Akun terkunci sementara. Coba lagi nanti.');
         }
 
-        if (!Auth::attempt([$field => $login, 'password' => $this->password], $this->boolean('remember'))) {
+        if (! Auth::attempt([$field => $login, 'password' => $this->password], $this->boolean('remember'))) {
             $user->increment('failed_login_count');
 
             // auto lockout after 5 failed attempts
-            if ($user->failed_login_count >= 5) {
-                $user->update(['status' => 'LOCKED', 'locked_until' => now()->addMinutes(30)]);
+            $maxAttempts = max(1, (int) Setting::get('security.max_login_attempts', 5));
+            $lockoutMinutes = max(1, (int) Setting::get('security.lockout_minutes', 30));
+            if ($user->failed_login_count >= $maxAttempts) {
+                $user->update(['status' => 'LOCKED', 'locked_until' => now()->addMinutes($lockoutMinutes)]);
                 LoginHistory::create(['user_id' => $user->id, 'event' => 'LOCKOUT', 'ip_address' => $this->ip(), 'user_agent' => substr((string) $this->userAgent(), 0, 255)]);
-                $fail('Terlalu banyak percobaan gagal. Akun terkunci 30 menit.');
+                $fail('Terlalu banyak percobaan gagal. Akun terkunci '.$lockoutMinutes.' menit.');
             }
 
             $fail();
         }
 
-        if (!empty($this->password) && $this->boolean('remember') === false) {
+        if (! empty($this->password) && $this->boolean('remember') === false) {
             // ok
         }
 
@@ -107,6 +110,7 @@ class LoginRequest extends FormRequest
     {
         $login = trim($this->string('email'));
         $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
+
         return User::where($field, $login)->value('id');
     }
 
@@ -117,7 +121,8 @@ class LoginRequest extends FormRequest
      */
     public function ensureIsNotRateLimited(): void
     {
-        if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
+        $maxAttempts = max(1, (int) Setting::get('security.max_login_attempts', 5));
+        if (! RateLimiter::tooManyAttempts($this->throttleKey(), $maxAttempts)) {
             return;
         }
 

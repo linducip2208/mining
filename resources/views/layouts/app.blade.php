@@ -5,12 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ \App\Services\BrandingService::appName() }}@yield('title')</title>
+    <link rel="icon" href="{{ \App\Services\BrandingService::assetUrl('branding.favicon') ?? url('/favicon.ico') }}">
+    <link rel="manifest" href="{{ route('pwa.manifest') }}">
+    <style>:root{@foreach(\App\Services\BrandingService::cssVariables() as $name=>$value){{ $name }}:{{ $value }};@endforeach}.app-topbar{background:color-mix(in srgb,var(--brand-topbar) 92%,transparent)}.bg-amber-400,.bg-amber-500{background-color:var(--brand-primary)!important}.text-amber-600,.text-amber-700{color:var(--brand-primary)!important}</style>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛏️</text></svg>">
     <script>
         // restore theme + sidebar state pre-paint (no FOUC)
         try {
-            if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark');
-            if (localStorage.getItem('sb-collapsed') === '1') document.documentElement.classList.add('sb-collapsed');
+            var configuredMode = @js(\App\Models\Setting::get('theme.default_mode', 'system'));
+            var storedMode = localStorage.getItem('theme');
+            if (storedMode === 'dark' || (!storedMode && (configuredMode === 'dark' || (configuredMode === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)))) document.documentElement.classList.add('dark');
+            if (localStorage.getItem('sb-collapsed') === '1' || (!localStorage.getItem('sb-collapsed') && @js(\App\Models\Setting::get('theme.sidebar_collapsed_default', false)))) document.documentElement.classList.add('sb-collapsed');
         } catch (e) {}
     </script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])

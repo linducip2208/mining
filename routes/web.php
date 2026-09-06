@@ -2,8 +2,11 @@
 
 use App\Http\Controllers\AiController;
 use App\Http\Controllers\ApprovalCenterController;
+use App\Http\Controllers\ApprovalWorkflowController;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\AuditController;
+use App\Http\Controllers\BranchController;
 use App\Http\Controllers\BudgetController;
 use App\Http\Controllers\CashAccountController;
 use App\Http\Controllers\CoaController;
@@ -16,10 +19,11 @@ use App\Http\Controllers\CustomerContractController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerDepositController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\DispatchController;
-use App\Http\Controllers\DocsController;
 use App\Http\Controllers\DeliveryOrderController;
+use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\DispatchController;
 use App\Http\Controllers\DivisionController;
+use App\Http\Controllers\DocsController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\DumpingPointController;
 use App\Http\Controllers\EmployeeController;
@@ -47,20 +51,21 @@ use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\LoadingPointController;
 use App\Http\Controllers\MaintenanceScheduleController;
 use App\Http\Controllers\MiningActivityController;
-use App\Http\Controllers\OvertimeController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OperatorIncentiveController;
-use App\Http\Controllers\PayrollController;
+use App\Http\Controllers\OvertimeController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PaymentTermController;
 use App\Http\Controllers\PayrollViewController;
 use App\Http\Controllers\PriceListController;
 use App\Http\Controllers\PriceVarianceController;
-use App\Http\Controllers\ProductSpecificationController;
 use App\Http\Controllers\ProductionBatchController;
+use App\Http\Controllers\ProductSpecificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProfileSecurityController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\PurchaseRequestController;
+use App\Http\Controllers\PwaManifestController;
 use App\Http\Controllers\QcSampleController;
 use App\Http\Controllers\QualityHoldController;
 use App\Http\Controllers\QualityParameterController;
@@ -76,6 +81,7 @@ use App\Http\Controllers\StockpileController;
 use App\Http\Controllers\StockTransferController;
 use App\Http\Controllers\SupplierContractController;
 use App\Http\Controllers\SupplierController;
+use App\Http\Controllers\SystemHealthController;
 use App\Http\Controllers\TaxController;
 use App\Http\Controllers\TelematicsController;
 use App\Http\Controllers\TireController;
@@ -95,6 +101,7 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::redirect('/', '/dashboard');
+Route::get('/manifest.webmanifest', PwaManifestController::class)->name('pwa.manifest');
 
 require __DIR__.'/auth.php';
 
@@ -107,7 +114,7 @@ Route::get('/docs/sitemap.xml', [DocsController::class, 'sitemap'])->name('docs.
 Route::get('/docs/{section}', [DocsController::class, 'section'])->name('docs.section');
 Route::get('/docs/{section}/{page}', [DocsController::class, 'page'])->name('docs.page');
 
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'feature.flags'])->group(function () {
 
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -141,17 +148,26 @@ Route::middleware(['auth'])->group(function () {
     Route::put('roles/{role}/permissions', [RoleController::class, 'updatePermissions'])->name('role.update-permissions')->middleware('permission:role.update');
     Route::resource('roles', RoleController::class)->except(['index', 'show'])->names(['create' => 'role.create', 'store' => 'role.store', 'edit' => 'role.edit', 'update' => 'role.update', 'destroy' => 'role.destroy'])->middleware('permission:role.create');
 
-    Route::get('audit', [App\Http\Controllers\AuditController::class, 'index'])->name('audit.index')->middleware('permission:audit.view');
+    Route::get('audit', [AuditController::class, 'index'])->name('audit.index')->middleware('permission:audit.view');
 
     Route::get('settings', [SettingController::class, 'index'])->name('setting.index')->middleware('permission:setting.view');
-    Route::put('settings', [SettingController::class, 'update'])->name('setting.update')->middleware('permission:setting.update');
+    Route::put('settings', [SettingController::class, 'update'])->name('setting.update')->middleware('permission:setting.view');
+    Route::post('settings/reset', [SettingController::class, 'resetGroup'])->name('setting.reset-group')->middleware('permission:setting.view');
+    Route::post('settings/reset-all', [SettingController::class, 'resetAll'])->name('setting.reset-all')->middleware('permission:setting.view');
+    Route::post('settings/reset/{key}', [SettingController::class, 'reset'])->name('setting.reset')->middleware('permission:setting.view');
+    Route::get('settings/export', [SettingController::class, 'export'])->name('setting.export')->middleware('permission:advanced.setting.view');
+    Route::post('settings/import', [SettingController::class, 'import'])->name('setting.import')->middleware('permission:advanced.setting.update');
+    Route::get('settings/health', [SystemHealthController::class, 'index'])->name('setting.health')->middleware('permission:setting.view');
+    Route::get('settings/approval-workflow', [ApprovalWorkflowController::class, 'index'])->name('setting.approval-workflow')->middleware('permission:approval.workflow.view');
+    Route::post('settings/approval-workflow', [ApprovalWorkflowController::class, 'store'])->name('setting.approval-workflow.store')->middleware('permission:approval.workflow.update');
+    Route::patch('settings/approval-workflow/{workflow}/toggle', [ApprovalWorkflowController::class, 'toggle'])->name('setting.approval-workflow.toggle')->middleware('permission:approval.workflow.update');
 
     // ===== ORGANIZATION =====
     Route::resource('companies', CompanyController::class)->middleware('permission:company.view');
-    Route::resource('branches', App\Http\Controllers\BranchController::class)->middleware('permission:branch.view');
+    Route::resource('branches', BranchController::class)->middleware('permission:branch.view');
     Route::resource('sites', SiteController::class)->middleware('permission:site.view');
     Route::resource('divisions', DivisionController::class)->middleware('permission:division.view');
-    Route::resource('departments', App\Http\Controllers\DepartmentController::class)->middleware('permission:division.view');
+    Route::resource('departments', DepartmentController::class)->middleware('permission:division.view');
     Route::resource('cost-centers', CostCenterController::class)->middleware('permission:company.view');
 
     // ===== HR =====
@@ -227,6 +243,7 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('delivery-orders', DeliveryOrderController::class)->middleware('permission:delivery_order.view');
     Route::post('delivery-orders/{delivery_order}/complete', [DeliveryOrderController::class, 'complete'])->name('delivery-orders.complete')->middleware('permission:delivery_order.update');
     Route::resource('invoices', InvoiceController::class)->middleware('permission:invoice.view');
+    Route::get('invoices/{invoice}/print', [InvoiceController::class, 'print'])->name('invoices.print')->middleware('permission:invoice.print');
     Route::post('invoices/{invoice}/post', [InvoiceController::class, 'post'])->name('invoices.post')->middleware('permission:invoice.post');
     Route::resource('payments', PaymentController::class)->middleware('permission:payment.view');
     Route::get('deposits', [CustomerDepositController::class, 'index'])->name('deposit.index')->middleware('permission:deposit.view');
@@ -433,6 +450,6 @@ Route::middleware(['auth'])->group(function () {
     Route::get('forecast', [ForecastController::class, 'index'])->name('forecast.index')->middleware('permission:forecast.view');
     Route::get('executive', [ExecutiveController::class, 'index'])->name('executive.index')->middleware('permission:executive.view');
 
-    Route::get('/notifications', [App\Http\Controllers\NotificationController::class, 'index'])->name('notification.index');
-    Route::post('/notifications/read-all', [App\Http\Controllers\NotificationController::class, 'readAll'])->name('notification.read-all');
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notification.index');
+    Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notification.read-all');
 });

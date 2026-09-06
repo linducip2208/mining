@@ -24,7 +24,7 @@
 <div class="flex flex-wrap gap-2 mt-3">
     @foreach (['DRAFT', 'SUBMITTED', 'APPROVED', 'POSTED', 'CANCELLED'] as $st)
     <span class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full bg-white dark:bg-navy-800 border border-slate-200 dark:border-slate-700">
-        {{ $st }} <strong>{{ $byStatus[$st] ?? 0 }}</strong>
+        {{ \App\Support\StatusLabel::label($st) }} <strong>{{ $byStatus[$st] ?? 0 }}</strong>
     </span>
     @endforeach
 </div>

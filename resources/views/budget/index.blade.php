@@ -1,13 +1,13 @@
 @extends('layouts.app')
 @php use App\Support\HumanLabel; @endphp
 
-@section('title', ' - Budget')
+@section('title', ' - Kontrol Anggaran')
 
 @section('content')
 <div class="flex items-center justify-between mb-4">
     <div>
-        <h1 class="text-xl font-bold text-slate-800">Budget OPEX / CAPEX</h1>
-        <p class="text-sm text-slate-500">Pagu per COA — PR/PO otomatis cek sisa budget</p>
+        <h1 class="text-xl font-bold text-slate-800">Kontrol Anggaran OPEX / CAPEX</h1>
+        <p class="text-sm text-slate-500">Pagu per COA — PR/PO otomatis memeriksa sisa anggaran</p>
     </div>
     @can('budget.create')
     <x-btn-create label="Buat Budget" :href="route('budgets.create')" />

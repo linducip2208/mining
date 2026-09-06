@@ -6,9 +6,9 @@ use App\Models\LoginHistory;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\AuditService;
+use App\Support\PasswordPolicy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Session;
 
 class UserController extends Controller
 {
@@ -19,24 +19,25 @@ class UserController extends Controller
                 ->orWhere('username', 'like', "%{$request->q}%")
                 ->orWhere('email', 'like', "%{$request->q}%"));
         })
-        ->when($request->status, fn ($q) => $q->where('status', $request->status))
-        ->when($request->role, fn ($q) => $q->whereHas('roles', fn ($r) => $r->where('code', $request->role)))
-        ->orderBy('id')->paginate(20)->withQueryString();
+            ->when($request->status, fn ($q) => $q->where('status', $request->status))
+            ->when($request->role, fn ($q) => $q->whereHas('roles', fn ($r) => $r->where('code', $request->role)))
+            ->orderBy('id')->paginate(20)->withQueryString();
 
         return view('users.index', compact('users'));
     }
 
     public function create()
     {
-        if (!auth()->user()->hasPermission('user.create')) {
+        if (! auth()->user()->hasPermission('user.create')) {
             abort(403);
         }
+
         return view('users.form', ['roles' => Role::all(), 'user' => null]);
     }
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermission('user.create') && !auth()->user()->isSuperAdmin()) {
+        if (! auth()->user()->hasPermission('user.create') && ! auth()->user()->isSuperAdmin()) {
             abort(403);
         }
 
@@ -45,7 +46,7 @@ class UserController extends Controller
             'username' => 'required|max:100|unique:users,username',
             'email' => 'required|email|unique:users,email',
             'phone' => 'nullable|max:30',
-            'password' => 'required|min:8|confirmed',
+            'password' => PasswordPolicy::rules(),
             'status' => 'required|in:ACTIVE,INACTIVE,SUSPENDED',
             'roles' => 'array',
         ]);
@@ -63,22 +64,23 @@ class UserController extends Controller
 
     public function edit(User $user)
     {
-        if (!auth()->user()->hasPermission('user.update')) {
+        if (! auth()->user()->hasPermission('user.update')) {
             abort(403);
         }
+
         return view('users.form', ['user' => $user, 'roles' => Role::all()]);
     }
 
     public function update(Request $request, User $user)
     {
-        if (!auth()->user()->hasPermission('user.update')) {
+        if (! auth()->user()->hasPermission('user.update')) {
             abort(403);
         }
         $old = $user->toArray();
         $validated = $request->validate([
             'name' => 'required|max:150',
-            'username' => 'required|max:100|unique:users,username,' . $user->id,
-            'email' => 'required|email|unique:users,email,' . $user->id,
+            'username' => 'required|max:100|unique:users,username,'.$user->id,
+            'email' => 'required|email|unique:users,email,'.$user->id,
             'phone' => 'nullable|max:30',
             'status' => 'required|in:ACTIVE,INACTIVE,SUSPENDED,LOCKED',
             'roles' => 'array',
@@ -95,7 +97,7 @@ class UserController extends Controller
 
     public function destroy(User $user)
     {
-        if (!auth()->user()->hasPermission('user.delete')) {
+        if (! auth()->user()->hasPermission('user.delete')) {
             abort(403);
         }
         if ($user->isSuperAdmin()) {
@@ -106,6 +108,7 @@ class UserController extends Controller
         }
         AuditService::deleted('USER', $user);
         $user->delete();
+
         return redirect()->route('users.index')->with('success', 'Pengguna berhasil dihapus.');
     }
 
@@ -117,7 +120,8 @@ class UserController extends Controller
         $user->status = $activating ? 'ACTIVE' : 'INACTIVE';
         $user->save();
         AuditService::log($user->status === 'ACTIVE' ? 'UPDATE' : 'UPDATE', 'USER', $user->id, User::class, null, ['status' => $user->status]);
-        return back()->with('success', 'Status pengguna diperbarui: ' . $user->status);
+
+        return back()->with('success', 'Status pengguna diperbarui: '.$user->status);
     }
 
     public function unlock(User $user)
@@ -126,6 +130,7 @@ class UserController extends Controller
         $this->guardNotSelf($user, 'membuka kunci akun sendiri');
         $user->update(['status' => 'ACTIVE', 'failed_login_count' => 0, 'locked_until' => null]);
         AuditService::log('UPDATE', 'USER', $user->id, User::class, null, ['unlocked' => true]);
+
         return back()->with('success', 'Akun dibuka kunci.');
     }
 
@@ -133,13 +138,14 @@ class UserController extends Controller
     {
         $this->requireAnyUserPerm(['user.reset_password', 'user.update']);
         $this->guardNotSelf($user, 'mereset password sendiri (gunakan menu Ganti Password)');
-        $temp = 'Temp!' . substr(str_shuffle('abcdefghjkmnpqrstuvwxyz23456789'), 0, 8);
+        $temp = 'Temp!'.substr(str_shuffle('abcdefghjkmnpqrstuvwxyz23456789'), 0, 8);
         $user->update([
             'password' => Hash::make($temp),
             'force_password_reset' => true,
             'password_changed_at' => now(),
         ]);
         AuditService::log('UPDATE', 'USER', $user->id, User::class, null, ['password_reset' => true]);
+
         return back()->with('success', "Password direset. Password sementara: {$temp} (wajib diganti saat login).");
     }
 
@@ -147,6 +153,7 @@ class UserController extends Controller
     {
         $this->requireAnyUserPerm(['user.view_login_history', 'user.view']);
         $history = LoginHistory::where('user_id', $user->id)->latest()->limit(100)->get();
+
         return view('users.login-history', compact('user', 'history'));
     }
 
@@ -155,6 +162,7 @@ class UserController extends Controller
         $this->requireAnyUserPerm(['user.logout_session', 'user.update']);
         $user->sessions()->delete();
         AuditService::log('UPDATE', 'USER', $user->id, User::class, null, ['sessions_terminated' => true]);
+
         return back()->with('success', 'Semua sesi pengguna diakhiri.');
     }
 
@@ -163,13 +171,14 @@ class UserController extends Controller
         $this->requireAnyUserPerm(['user.assign_role', 'role.update']);
         $this->syncRolesGuarded($user, $request->input('roles', []));
         AuditService::log('UPDATE', 'USER', $user->id, User::class, null, ['roles' => $request->input('roles', [])]);
+
         return back()->with('success', 'Peran pengguna diperbarui.');
     }
 
     protected function guardNotSelf(User $user, string $action): void
     {
         if ($user->id === auth()->id()) {
-            abort(403, 'Anda tidak dapat ' . $action . '.');
+            abort(403, 'Anda tidak dapat '.$action.'.');
         }
     }
 
@@ -192,6 +201,7 @@ class UserController extends Controller
     {
         if (empty($roles)) {
             $user->roles()->sync([]);
+
             return;
         }
         $this->requireAnyUserPerm(['user.assign_role', 'role.update'], 'Menetapkan peran memerlukan izin user.assign_role / role.update.');
@@ -200,7 +210,7 @@ class UserController extends Controller
 
     protected function authorizeAdmin(): void
     {
-        if (!auth()->user()->hasPermission('user.update') && !auth()->user()->isSuperAdmin()) {
+        if (! auth()->user()->hasPermission('user.update') && ! auth()->user()->isSuperAdmin()) {
             abort(403);
         }
     }

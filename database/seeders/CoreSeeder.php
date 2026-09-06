@@ -134,6 +134,15 @@ class CoreSeeder extends Seeder
     ];
 
     public const EXTRA_PERMISSIONS = [
+        ['setting.update', 'Pengaturan - Ubah', 'setting', 'update'],
+        ['branding.view', 'Branding - Lihat', 'setting', 'view'],
+        ['branding.update', 'Branding - Ubah', 'setting', 'update'],
+        ['security.setting.update', 'Keamanan - Ubah Pengaturan', 'setting', 'update'],
+        ['integration.setting.update', 'Integrasi - Ubah Pengaturan', 'setting', 'update'],
+        ['advanced.setting.view', 'Advanced - Lihat', 'setting', 'view'],
+        ['advanced.setting.update', 'Advanced - Ubah', 'setting', 'update'],
+        ['approval.workflow.view', 'Approval Workflow - Lihat', 'approval', 'view'],
+        ['approval.workflow.update', 'Approval Workflow - Ubah', 'approval', 'update'],
         ['user.activate', 'Pengguna - Aktivasi', 'user', 'activate'],
         ['user.deactivate', 'Pengguna - Nonaktif', 'user', 'activate'],
         ['user.suspend', 'Pengguna - Suspend', 'user', 'activate'],
@@ -337,7 +346,7 @@ class CoreSeeder extends Seeder
 
         // super admin user — DEMO CREDENTIAL, never seed in production.
         // Structural seeds above (roles/permissions) are production-safe.
-        if (!app()->environment('production')) {
+        if (! app()->environment('production')) {
             $admin = User::updateOrCreate(
                 ['username' => 'superadmin'],
                 [
@@ -353,6 +362,6 @@ class CoreSeeder extends Seeder
             $this->command?->warn('Production: demo superadmin dilewati. Buat admin via tinker dengan password kuat.');
         }
 
-        $this->command?->info('Core seeded: ' . Permission::count() . ' permissions, ' . Role::count() . ' roles, superadmin/admin@miningerp.local');
+        $this->command?->info('Core seeded: '.Permission::count().' permissions, '.Role::count().' roles, superadmin/admin@miningerp.local');
     }
 }

@@ -14,20 +14,29 @@ final class StatusLabel
         'ACTIVE' => 'Aktif', 'INACTIVE' => 'Tidak Aktif', 'LOCKED' => 'Terkunci', 'SUSPENDED' => 'Ditangguhkan',
         'FIRST_WEIGH' => 'Timbang Pertama', 'VALIDATED' => 'Tervalidasi', 'OPEN' => 'Terbuka', 'BREAKDOWN' => 'Rusak',
         'MAINTENANCE' => 'Dalam Pemeliharaan', 'UNDER_MAINTENANCE' => 'Dalam Pemeliharaan', 'OUT_OF_SERVICE' => 'Tidak Beroperasi',
-        'IN_USE' => 'Sedang Dipakai', 'AVAILABLE' => 'Tersedia', 'DEPOSIT_IN' => 'Deposit Masuk', 'DEPOSIT_USED' => 'Deposit Terpakai',
+        'IN_USE' => 'Sedang Dipakai', 'AVAILABLE' => 'Tersedia', 'IDLE' => 'Idle', 'STANDBY' => 'Siaga',
+        'RETIRED' => 'Dipensiunkan', 'DISPOSED' => 'Dihapuskan', 'PLANNED' => 'Direncanakan', 'LOADING' => 'Memuat',
+        'HAULING' => 'Mengangkut', 'DUMPED' => 'Dumping Selesai', 'EXPIRING_SOON' => 'Segera Kedaluwarsa',
+        'EXPIRED' => 'Kedaluwarsa', 'RENEWED' => 'Diperpanjang', 'PROPOSAL' => 'Usulan', 'HOLD' => 'Ditahan',
+        'RELEASED' => 'Dilepas', 'PASS' => 'Lulus', 'FAIL' => 'Gagal', 'REJECT' => 'Ditolak', 'DONE' => 'Selesai',
+        'DEPOSIT_IN' => 'Deposit Masuk', 'DEPOSIT_USED' => 'Deposit Terpakai',
         'DEPOSIT_REFUND' => 'Pengembalian Deposit', 'PARTIALLY_RECEIVED' => 'Diterima Sebagian', 'REVISED' => 'Direvisi',
     ];
 
     public static function label(?string $status): string
     {
-        if ($status === null || trim($status) === '') return "\u{2014}";
+        if ($status === null || trim($status) === '') {
+            return "\u{2014}";
+        }
         $key = strtoupper((string) $status);
+
         return self::LABELS[$key] ?? HumanLabel::label($key);
     }
 
     public static function color(?string $status): string
     {
         $key = strtoupper((string) $status);
+
         return match (true) {
             in_array($key, ['APPROVED', 'COMPLETED', 'COMPLETE', 'PAID', 'VALIDATED', 'ACTIVE', 'AVAILABLE', 'FAVORABLE']) => 'bg-green-50 text-green-700',
             in_array($key, ['REJECTED', 'CANCELLED', 'VOID', 'BREAKDOWN', 'LOCKED', 'UNFAVORABLE', 'OUT_OF_SERVICE']) => 'bg-red-50 text-red-600',
