@@ -19,6 +19,9 @@ class AccountingSeeder extends Seeder
         ['1-1300', 'Persediaan Finished Goods', 'ASSET', 'INVENTORY'],
         ['1-1310', 'Persediaan Bahan Baku / Material', 'ASSET', 'INVENTORY'],
         ['1-1320', 'Persediaan Sparepart', 'ASSET', 'INVENTORY'],
+        ['1-1330', 'Persediaan BBM', 'ASSET', 'INVENTORY'],
+        ['1-1590', 'Akumulasi Penyusutan', 'ASSET', 'ACCUM_DEP'],
+        ['1-1330', 'Persediaan BBM', 'ASSET', 'INVENTORY'],
         ['1-1400', 'Uang Muka PPN Masukan', 'ASSET', 'TAX'],
         ['1-1500', 'Peralatan & Mesin', 'ASSET', 'FIXED_ASSET'],
         ['1-1600', 'Akumulasi Penyusutan', 'ASSET', 'FIXED_ASSET'],
@@ -56,6 +59,8 @@ class AccountingSeeder extends Seeder
         ['INVENTORY_FG', '1-1300', 'Persediaan FG'],
         ['INVENTORY_RAW', '1-1310', 'Persediaan bahan baku'],
         ['INVENTORY_SPAREPART', '1-1320', 'Persediaan sparepart'],
+        ['INVENTORY_FUEL', '1-1330', 'Persediaan BBM'],
+        ['ACCUM_DEP', '1-1590', 'Akumulasi penyusutan'],
         ['INVENTORY_GENERAL', '1-1310', 'Pembelian inventory (default bahan baku)'],
         ['CUSTOMER_DEPOSIT', '1-1700', 'Deposit customer'],
         ['AP_TRADE', '2-1000', 'Hutang usaha'],
@@ -112,6 +117,8 @@ class AccountingSeeder extends Seeder
         Setting::updateOrCreate(['key' => 'weighbridge.void_require_approval'], ['value' => 'true', 'type' => 'bool']);
         Setting::updateOrCreate(['key' => 'docs.public'], ['value' => 'true', 'type' => 'bool']);
         Setting::updateOrCreate(['key' => 'notification.whatsapp_webhook_url'], ['value' => '', 'type' => 'string']);
+        Setting::updateOrCreate(['key' => 'budget.enforce'], ['value' => 'warning', 'type' => 'string']);
+        Setting::updateOrCreate(['key' => 'hse.severity_levels'], ['value' => json_encode(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL', 'LTI', 'FATALITY']), 'type' => 'json']);
 
         // open fiscal periods for this + next year
         foreach (range(now()->year, now()->year + 1) as $y) {

@@ -75,7 +75,12 @@ class PurchaseOrderController extends Controller
         }
         $purchase_order->update(['status' => 'APPROVED', 'approved_by' => auth()->id()]);
         AuditService::log('APPROVE', 'PROCUREMENT', $purchase_order->id, PurchaseOrder::class);
-        return back()->with('success', 'PO disetujui.');
+        try {
+            $warn = \App\Services\BudgetService::commitPurchaseOrder($purchase_order->fresh());
+        } catch (\DomainException $e) {
+            return back()->with('error', 'PO disetujui. ' . $e->getMessage());
+        }
+        return back()->with('success', 'PO disetujui.' . ($warn ? ' Peringatan budget: ' . $warn : ''));
     }
 
     protected function syncLines(PurchaseOrder $po, Request $request): void

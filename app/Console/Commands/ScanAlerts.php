@@ -31,6 +31,10 @@ class ScanAlerts extends Command
         if (!$this->option('dry')) {
             $summary = $service->run();
             $this->info('Notifikasi terkirim untuk: ' . (empty($summary) ? '(tidak ada temuan)' : json_encode($summary, JSON_UNESCAPED_UNICODE)));
+            $reminded = \App\Services\ComplianceService::dispatchReminders();
+            if ($reminded) {
+                $this->info('Pengingat compliance: ' . implode(', ', $reminded));
+            }
         }
 
         return self::SUCCESS;

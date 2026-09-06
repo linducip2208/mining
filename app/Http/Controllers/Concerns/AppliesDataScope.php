@@ -52,6 +52,13 @@ trait AppliesDataScope
             return;
         }
 
+        if ($user->isOwnDataOnly()) {
+            if ($record->getAttribute('created_by') === null || (int) $record->getAttribute('created_by') !== (int) $user->id) {
+                abort(403, 'Data di luar scope akses Anda.');
+            }
+            return;
+        }
+
         $siteId = $record->getAttribute('site_id');
         if ($siteId !== null && !$user->canSeeSite($siteId)) {
             abort(403, 'Data di luar scope akses Anda.');
@@ -62,6 +69,27 @@ trait AppliesDataScope
             $companies = $user->accessibleCompanyIds();
             if ($companies !== null && !in_array($companyId, $companies)) {
                 abort(403, 'Data di luar scope akses Anda.');
+            }
+        }
+
+        $branchId = $record->getAttribute('branch_id');
+        if ($branchId === null && $siteId !== null) {
+            $branchId = \App\Models\Site::whereKey($siteId)->value('branch_id');
+        }
+        if ($branchId !== null) {
+            $branches = $user->accessibleBranchIds();
+            if ($branches !== null && !in_array($branchId, $branches)) {
+                abort(403, 'Data di luar scope akses Anda.');
+            }
+        }
+
+        foreach (['division_id' => 'accessibleDivisionIds', 'department_id' => 'accessibleDepartmentIds'] as $attr => $method) {
+            $val = $record->getAttribute($attr);
+            if ($val !== null) {
+                $allowed = $user->$method();
+                if ($allowed !== null && !in_array($val, $allowed)) {
+                    abort(403, 'Data di luar scope akses Anda.');
+                }
             }
         }
     }

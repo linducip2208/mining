@@ -102,6 +102,11 @@ class ProcurementService
             $bill->journal_entry_id = $journal->id;
             $bill->save();
 
+            // commitment consumed by actual (bill linked to PO)
+            if ($bill->purchase_order_id) {
+                BudgetService::consume('PURCHASE_ORDER', $bill->purchase_order_id);
+            }
+
             AuditService::log('POST', 'PROCUREMENT', $bill->id, VendorBill::class, null, ['bill' => $bill->number, 'total' => $bill->total]);
         });
     }

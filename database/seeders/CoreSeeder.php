@@ -58,6 +58,22 @@ class CoreSeeder extends Seeder
         'notification' => 'Notifikasi',
         'audit' => 'Audit Trail',
         'setting' => 'Pengaturan',
+        'fleet' => 'Armada & Alat Berat',
+        'fuel' => 'BBM',
+        'tire' => 'Ban',
+        'dispatch' => 'Dispatch & Hauling',
+        'stockpile' => 'Stockpile',
+        'quality' => 'Quality Control',
+        'cost' => 'Biaya Tambang',
+        'contract' => 'Kontrak',
+        'budget' => 'Budget',
+        'hse' => 'HSE / K3',
+        'compliance' => 'Compliance',
+        'fiscal' => 'Periode Fiskal',
+        'telematics' => 'Telematics',
+        'ai' => 'AI Copilot',
+        'forecast' => 'Forecast & Anomali',
+        'executive' => 'Executive Dashboard',
     ];
 
     public const ACTIONS = [
@@ -103,6 +119,50 @@ class CoreSeeder extends Seeder
         'CSR' => 'CSR',
         'AUDITOR' => 'Auditor',
         'VIEWER' => 'Viewer',
+        'FLEET_MANAGER' => 'Fleet Manager',
+        'DISPATCHER' => 'Dispatcher',
+        'FUEL_ADMIN' => 'Fuel Admin',
+        'FUEL_OPERATOR' => 'Fuel Operator',
+        'TIRE_OFFICER' => 'Tire Officer',
+        'QUALITY_OFFICER' => 'Quality Officer',
+        'LAB_OFFICER' => 'Lab Officer',
+        'HSE_MANAGER' => 'HSE Manager',
+        'HSE_OFFICER' => 'HSE Officer',
+        'BUDGET_CONTROLLER' => 'Budget Controller',
+        'CONTRACT_MANAGER' => 'Contract Manager',
+        'COMPLIANCE_OFFICER' => 'Compliance Officer',
+    ];
+
+    public const EXTRA_PERMISSIONS = [
+        ['user.activate', 'Pengguna - Aktivasi', 'user', 'activate'],
+        ['user.deactivate', 'Pengguna - Nonaktif', 'user', 'activate'],
+        ['user.suspend', 'Pengguna - Suspend', 'user', 'activate'],
+        ['user.unlock', 'Pengguna - Buka Kunci', 'user', 'activate'],
+        ['user.reset_password', 'Pengguna - Reset Password', 'user', 'update'],
+        ['user.assign_role', 'Pengguna - Assign Role', 'user', 'update'],
+        ['user.view_login_history', 'Pengguna - Lihat Login History', 'user', 'view'],
+        ['user.logout_session', 'Pengguna - Akhiri Sesi', 'user', 'update'],
+        ['fuel.issue', 'BBM - Issue', 'fuel', 'update'],
+        ['fuel.approve', 'BBM - Approve', 'fuel', 'approve'],
+        ['fuel.adjust', 'BBM - Adjustment', 'fuel', 'update'],
+        ['dispatch.assign', 'Dispatch - Assign', 'dispatch', 'create'],
+        ['dispatch.close', 'Dispatch - Close Trip', 'dispatch', 'update'],
+        ['stockpile.adjust', 'Stockpile - Adjustment', 'stockpile', 'update'],
+        ['stockpile.reconcile', 'Stockpile - Rekonsiliasi', 'stockpile', 'approve'],
+        ['stockpile.approve', 'Stockpile - Approve', 'stockpile', 'approve'],
+        ['quality.test', 'Quality - Uji Lab', 'quality', 'create'],
+        ['quality.approve', 'Quality - Approve', 'quality', 'approve'],
+        ['quality.release', 'Quality - Release Hold', 'quality', 'approve'],
+        ['budget.approve', 'Budget - Approve', 'budget', 'approve'],
+        ['budget.revise', 'Budget - Revisi', 'budget', 'update'],
+        ['budget.override', 'Budget - Override Over-Budget', 'budget', 'approve'],
+        ['hse.close', 'HSE - Close Case', 'hse', 'approve'],
+        ['hse.approve', 'HSE - Approve', 'hse', 'approve'],
+        ['contract.approve', 'Kontrak - Approve', 'contract', 'approve'],
+        ['contract.override', 'Kontrak - Override Over-Contract', 'contract', 'approve'],
+        ['compliance.update', 'Compliance - Update', 'compliance', 'update'],
+        ['fiscal.close', 'Periode - Close', 'fiscal', 'update'],
+        ['fiscal.reopen', 'Periode - Reopen', 'fiscal', 'update'],
     ];
 
     public function run(): void
@@ -122,6 +182,14 @@ class CoreSeeder extends Seeder
             Role::updateOrCreate(['code' => $code], ['name' => $name, 'is_system' => true]);
         }
 
+        // permission granular tambahan (di luar matriks modul×aksi standar)
+        foreach (self::EXTRA_PERMISSIONS as [$code, $name, $module, $group]) {
+            Permission::updateOrCreate(
+                ['code' => $code],
+                ['name' => $name, 'module' => $module, 'group' => $group]
+            );
+        }
+
         $all = Permission::pluck('id');
         $viewOnly = Permission::where('group', 'view')->orWhere('group', 'export')->orWhere('group', 'print')->pluck('id');
 
@@ -136,15 +204,15 @@ class CoreSeeder extends Seeder
         );
 
         Role::where('code', 'ACCOUNTING')->first()->permissions()->sync(
-            Permission::whereIn('module', ['dashboard', 'finance', 'journal', 'ledger', 'tax', 'report', 'vendor_bill', 'payment', 'invoice', 'deposit', 'audit'])->get()
+            Permission::whereIn('module', ['dashboard', 'finance', 'journal', 'ledger', 'tax', 'fiscal', 'cost', 'report', 'vendor_bill', 'payment', 'invoice', 'deposit', 'audit'])->get()
         );
 
         Role::where('code', 'FINANCE_MANAGER')->first()->permissions()->sync(
-            Permission::whereIn('module', ['dashboard', 'finance', 'journal', 'ledger', 'tax', 'report', 'vendor_bill', 'payment', 'invoice', 'deposit', 'price', 'price_variance', 'audit'])->get()
+            Permission::whereIn('module', ['dashboard', 'finance', 'journal', 'ledger', 'tax', 'fiscal', 'budget', 'contract', 'cost', 'report', 'vendor_bill', 'payment', 'invoice', 'deposit', 'price', 'price_variance', 'audit'])->get()
         );
 
         Role::where('code', 'SALES_MANAGER')->first()->permissions()->sync(
-            Permission::whereIn('module', ['dashboard', 'sales', 'sales_order', 'delivery_order', 'invoice', 'price', 'price_variance', 'deposit', 'customer_report', 'report'])->get()
+            Permission::whereIn('module', ['dashboard', 'sales', 'sales_order', 'delivery_order', 'invoice', 'price', 'price_variance', 'deposit', 'contract', 'customer_report', 'report'])->get()
         );
 
         Role::where('code', 'SALES')->first()->permissions()->sync(
@@ -174,11 +242,59 @@ class CoreSeeder extends Seeder
         );
 
         Role::where('code', 'MINE_MANAGER')->first()->permissions()->sync(
-            Permission::whereIn('module', ['dashboard', 'mining', 'production', 'incentive', 'report'])->get()
+            Permission::whereIn('module', ['dashboard', 'mining', 'production', 'dispatch', 'stockpile', 'quality', 'cost', 'incentive', 'report'])->get()
         );
 
         Role::where('code', 'MAINTENANCE_MANAGER')->first()->permissions()->sync(
             Permission::whereIn('module', ['dashboard', 'maintenance', 'work_order', 'asset', 'inventory', 'report'])->get()
+        );
+
+        Role::where('code', 'FLEET_MANAGER')->first()->permissions()->sync(
+            Permission::whereIn('module', ['dashboard', 'fleet', 'asset', 'fuel', 'tire', 'dispatch', 'maintenance', 'work_order', 'report', 'approval'])->get()
+        );
+
+        Role::where('code', 'DISPATCHER')->first()->permissions()->sync(
+            Permission::whereIn('module', ['dashboard', 'dispatch', 'mining', 'weighbridge', 'report'])->whereNotIn('group', ['delete', 'void'])->get()
+        );
+
+        Role::where('code', 'FUEL_ADMIN')->first()->permissions()->sync(
+            Permission::whereIn('module', ['dashboard', 'fuel', 'report', 'approval'])->get()
+        );
+
+        Role::where('code', 'FUEL_OPERATOR')->first()->permissions()->sync(
+            Permission::whereIn('module', ['dashboard', 'fuel'])->whereIn('group', ['view', 'create', 'update'])->get()
+        );
+
+        Role::where('code', 'TIRE_OFFICER')->first()->permissions()->sync(
+            Permission::whereIn('module', ['dashboard', 'tire', 'fleet', 'report'])->whereNotIn('group', ['delete'])->get()
+        );
+
+        Role::where('code', 'QUALITY_OFFICER')->first()->permissions()->sync(
+            Permission::whereIn('module', ['dashboard', 'quality', 'production', 'report'])->get()
+        );
+
+        Role::where('code', 'LAB_OFFICER')->first()->permissions()->sync(
+            Permission::whereIn('module', ['dashboard', 'quality'])->whereIn('group', ['view', 'create', 'update'])->get()
+        );
+
+        Role::where('code', 'HSE_MANAGER')->first()->permissions()->sync(
+            Permission::whereIn('module', ['dashboard', 'hse', 'compliance', 'report', 'approval'])->get()
+        );
+
+        Role::where('code', 'HSE_OFFICER')->first()->permissions()->sync(
+            Permission::whereIn('module', ['dashboard', 'hse'])->whereNotIn('group', ['delete'])->get()
+        );
+
+        Role::where('code', 'BUDGET_CONTROLLER')->first()->permissions()->sync(
+            Permission::whereIn('module', ['dashboard', 'budget', 'finance', 'ledger', 'report', 'approval'])->get()
+        );
+
+        Role::where('code', 'CONTRACT_MANAGER')->first()->permissions()->sync(
+            Permission::whereIn('module', ['dashboard', 'contract', 'sales', 'procurement', 'report', 'approval'])->get()
+        );
+
+        Role::where('code', 'COMPLIANCE_OFFICER')->first()->permissions()->sync(
+            Permission::whereIn('module', ['dashboard', 'compliance', 'document', 'report'])->get()
         );
 
         Role::where('code', 'SYSTEM_ADMIN')->first()->permissions()->sync($all);
@@ -188,11 +304,11 @@ class CoreSeeder extends Seeder
         );
 
         Role::where('code', 'SITE_MANAGER')->first()->permissions()->sync(
-            Permission::whereIn('module', ['dashboard', 'mining', 'production', 'weighbridge', 'inventory', 'maintenance', 'work_order', 'incentive', 'approval', 'report', 'audit'])->get()
+            Permission::whereIn('module', ['dashboard', 'mining', 'production', 'dispatch', 'weighbridge', 'inventory', 'stockpile', 'quality', 'fuel', 'hse', 'cost', 'maintenance', 'work_order', 'incentive', 'approval', 'report', 'audit'])->get()
         );
 
         Role::where('code', 'PRODUCTION_MANAGER')->first()->permissions()->sync(
-            Permission::whereIn('module', ['dashboard', 'production', 'mining', 'inventory', 'stock', 'incentive', 'approval', 'report'])->get()
+            Permission::whereIn('module', ['dashboard', 'production', 'mining', 'inventory', 'stock', 'stockpile', 'quality', 'cost', 'incentive', 'approval', 'report'])->get()
         );
 
         Role::where('code', 'HR_STAFF')->first()->permissions()->sync(

@@ -11,3 +11,6 @@ Artisan::command('inspire', function () {
 
 // Proactive alerts: daily 07:00
 Schedule::command(ScanAlerts::class)->dailyAt('07:00');
+
+// Monthly fixed-asset depreciation (1st, 01:30)
+Schedule::command('accounting:depreciate')->monthlyOn(1, '01:30');

@@ -51,15 +51,19 @@ class SalesOrderController extends Controller
         $this->ensureCompanyInScope($validated['company_id'] ?? null);
         $this->ensureSiteInScope($validated['site_id'] ?? null);
 
-        $so = DB::transaction(function () use ($validated, $request) {
-            $so = SalesOrder::create($validated + [
-                'number' => \App\Services\NumberingService::generate('SO', $validated['company_id']),
-                'status' => 'DRAFT',
-                'created_by' => auth()->id(),
-            ]);
-            $this->syncLines($so, $request);
-            return $so;
-        });
+        try {
+            $so = DB::transaction(function () use ($validated, $request) {
+                $so = SalesOrder::create($validated + [
+                    'number' => \App\Services\NumberingService::generate('SO', $validated['company_id']),
+                    'status' => 'DRAFT',
+                    'created_by' => auth()->id(),
+                ]);
+                $this->syncLines($so, $request);
+                return $so;
+            });
+        } catch (\DomainException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
 
         AuditService::created('SALES', $so);
         return redirect()->route('sales-orders.index')->with('success', 'Order penjualan dibuat.');
@@ -110,6 +114,11 @@ class SalesOrderController extends Controller
         $subtotal = 0;
         foreach ($request->input('lines', []) as $line) {
             if (!empty($line['item_id']) && $line['qty'] > 0) {
+                // contract guard: block over-contract lines without override permission
+                \App\Services\ContractService::assertSalesWithinContract(
+                    $so->customer_id, (int) $line['item_id'], (float) $line['qty'], $so->id,
+                    $so->order_date?->toDateString()
+                );
                 $price = (float) ($line['unit_price'] ?: PriceService::resolvePrice($so->customer, $so->site_id, $line['item_id']));
                 $total = round((float) $line['qty'] * $price, 2);
                 $subtotal += $total;

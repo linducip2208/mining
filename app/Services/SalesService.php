@@ -22,6 +22,8 @@ class SalesService
             if (in_array($deliveryOrder->status, ['COMPLETED', 'CANCELLED'])) {
                 throw new \DomainException('Surat jalan sudah ' . strtolower($deliveryOrder->status) . ' — posting ganda ditolak.');
             }
+            // quality gate: active HOLD blocks delivery (unless released / special-approved)
+            QualityService::assertDeliveryClear($deliveryOrder);
             $so = $deliveryOrder->salesOrder;
 
             foreach ($deliveryOrder->items as $line) {

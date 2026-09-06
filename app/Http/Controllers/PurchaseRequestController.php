@@ -117,7 +117,12 @@ class PurchaseRequestController extends Controller
         }
         $purchase_request->update(['status' => 'APPROVED', 'approved_by' => auth()->id()]);
         AuditService::log('APPROVE', 'PROCUREMENT', $purchase_request->id, PurchaseRequest::class);
-        return back()->with('success', 'PR disetujui.');
+        try {
+            $warn = \App\Services\BudgetService::commitPurchaseRequest($purchase_request->fresh());
+        } catch (\DomainException $e) {
+            return back()->with('error', 'PR disetujui. ' . $e->getMessage());
+        }
+        return back()->with('success', 'PR disetujui.' . ($warn ? ' Peringatan budget: ' . $warn : ''));
     }
 
     protected function validateInput(Request $request): array

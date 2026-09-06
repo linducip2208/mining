@@ -32,7 +32,7 @@ class User extends Authenticatable
     public function roles()
     {
         return $this->belongsToMany(Role::class, 'role_user')
-            ->withPivot('company_id', 'site_id', 'scope');
+            ->withPivot('company_id', 'branch_id', 'division_id', 'department_id', 'site_id', 'scope');
     }
 
     public function employee()
@@ -75,7 +75,10 @@ class User extends Authenticatable
             'role' => $r,
             'scope' => $r->pivot->scope,
             'company_id' => $r->pivot->company_id,
+            'branch_id' => $r->pivot->branch_id ?? null,
             'site_id' => $r->pivot->site_id,
+            'division_id' => $r->pivot->division_id ?? null,
+            'department_id' => $r->pivot->department_id ?? null,
         ]);
     }
 
@@ -96,13 +99,32 @@ class User extends Authenticatable
         return array_unique($ids);
     }
 
+    public function accessibleBranchIds(): ?array
+    {
+        if ($this->isSuperAdmin()) {
+            return null;
+        }
+        foreach ($this->roleScopes() as $s) {
+            if (in_array($s['scope'], ['ALL_COMPANIES', 'COMPANY'])) {
+                return null;
+            }
+        }
+        $ids = [];
+        foreach ($this->roleScopes() as $s) {
+            if ($s['scope'] === 'BRANCH' && $s['branch_id']) {
+                $ids[] = $s['branch_id'];
+            }
+        }
+        return $ids ?: null;
+    }
+
     public function accessibleSiteIds(): ?array
     {
         if ($this->isSuperAdmin()) {
             return null;
         }
         foreach ($this->roleScopes() as $s) {
-            if ($s['scope'] === 'ALL_COMPANIES' || $s['scope'] === 'COMPANY') {
+            if (in_array($s['scope'], ['ALL_COMPANIES', 'COMPANY'])) {
                 return null;
             }
         }
@@ -111,8 +133,62 @@ class User extends Authenticatable
             if ($s['site_id']) {
                 $ids[] = $s['site_id'];
             }
+            if ($s['scope'] === 'BRANCH' && $s['branch_id']) {
+                $branchSites = \App\Models\Site::where('branch_id', $s['branch_id'])->pluck('id')->all();
+                $ids = array_merge($ids, $branchSites);
+            }
         }
-        return $ids ?: null;
+        return $ids ? array_unique($ids) : null;
+    }
+
+    public function accessibleDivisionIds(): ?array
+    {
+        if ($this->isSuperAdmin()) {
+            return null;
+        }
+        foreach ($this->roleScopes() as $s) {
+            if (in_array($s['scope'], ['ALL_COMPANIES', 'COMPANY', 'BRANCH', 'SITE'])) {
+                return null;
+            }
+        }
+        $ids = [];
+        foreach ($this->roleScopes() as $s) {
+            if (in_array($s['scope'], ['DIVISION', 'DEPARTMENT']) && $s['division_id']) {
+                $ids[] = $s['division_id'];
+            }
+        }
+        return $ids ? array_unique($ids) : null;
+    }
+
+    public function accessibleDepartmentIds(): ?array
+    {
+        if ($this->isSuperAdmin()) {
+            return null;
+        }
+        foreach ($this->roleScopes() as $s) {
+            if (in_array($s['scope'], ['ALL_COMPANIES', 'COMPANY', 'BRANCH', 'SITE', 'DIVISION'])) {
+                return null;
+            }
+        }
+        $ids = [];
+        foreach ($this->roleScopes() as $s) {
+            if ($s['scope'] === 'DEPARTMENT' && $s['department_id']) {
+                $ids[] = $s['department_id'];
+            }
+        }
+        return $ids ? array_unique($ids) : null;
+    }
+
+    public function isOwnDataOnly(): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return false;
+        }
+        $scopes = $this->roleScopes();
+        if ($scopes->isEmpty()) {
+            return true;
+        }
+        return $scopes->every(fn ($s) => $s['scope'] === 'OWN_DATA');
     }
 
     public function canSeeSite($siteId): bool

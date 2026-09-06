@@ -12,5 +12,6 @@ class FiscalPeriod extends BaseModel
 
     public function creator() { return $this->belongsTo(User::class, 'created_by'); }
     public function updater() { return $this->belongsTo(User::class, 'updated_by'); }
+    public function closer() { return $this->belongsTo(User::class, 'closed_by'); }
 
 }

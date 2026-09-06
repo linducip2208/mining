@@ -96,11 +96,14 @@ abstract class BaseCrudController extends Controller
 
     public function create()
     {
-        return view("{$this->viewPrefix}.form", $this->formData());
+        return view("{$this->viewPrefix}.form", ['item' => null] + $this->formData());
     }
 
     public function store(Request $request)
     {
+        if (!auth()->user()->hasPermission($this->module . '.create')) {
+            abort(403);
+        }
         $validated = $request->validate($this->rules());
         $this->ensureCompanyInScope($validated['company_id'] ?? null);
         $item = $this->model::create($validated + ['created_by' => auth()->id()]);
@@ -124,6 +127,9 @@ abstract class BaseCrudController extends Controller
 
     public function update(Request $request, $id)
     {
+        if (!auth()->user()->hasPermission($this->module . '.update')) {
+            abort(403);
+        }
         $item = $this->model::findOrFail($id);
         $old = $item->toArray();
         $validated = $request->validate($this->rules($item));
@@ -136,6 +142,9 @@ abstract class BaseCrudController extends Controller
 
     public function destroy($id)
     {
+        if (!auth()->user()->hasPermission($this->module . '.delete')) {
+            abort(403);
+        }
         $item = $this->model::findOrFail($id);
         $this->ensureInScope($item);
         AuditService::deleted($this->module, $item);

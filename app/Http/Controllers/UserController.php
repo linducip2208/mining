@@ -98,9 +98,10 @@ class UserController extends Controller
 
     public function toggle(User $user)
     {
-        $this->authorizeAdmin();
         $this->guardNotSelf($user, 'menonaktifkan akun sendiri');
-        $user->status = $user->status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+        $activating = $user->status !== 'ACTIVE';
+        $this->requireAnyUserPerm($activating ? ['user.activate', 'user.update'] : ['user.deactivate', 'user.suspend', 'user.update']);
+        $user->status = $activating ? 'ACTIVE' : 'INACTIVE';
         $user->save();
         AuditService::log($user->status === 'ACTIVE' ? 'UPDATE' : 'UPDATE', 'USER', $user->id, User::class, null, ['status' => $user->status]);
         return back()->with('success', 'Status pengguna diperbarui: ' . $user->status);
@@ -108,7 +109,7 @@ class UserController extends Controller
 
     public function unlock(User $user)
     {
-        $this->authorizeAdmin();
+        $this->requireAnyUserPerm(['user.unlock', 'user.update']);
         $this->guardNotSelf($user, 'membuka kunci akun sendiri');
         $user->update(['status' => 'ACTIVE', 'failed_login_count' => 0, 'locked_until' => null]);
         return back()->with('success', 'Akun dibuka kunci.');
@@ -116,7 +117,7 @@ class UserController extends Controller
 
     public function resetPassword(User $user)
     {
-        $this->authorizeAdmin();
+        $this->requireAnyUserPerm(['user.reset_password', 'user.update']);
         $this->guardNotSelf($user, 'mereset password sendiri (gunakan menu Ganti Password)');
         $temp = 'Temp!' . substr(str_shuffle('abcdefghjkmnpqrstuvwxyz23456789'), 0, 8);
         $user->update([
@@ -130,20 +131,21 @@ class UserController extends Controller
 
     public function loginHistory(User $user)
     {
+        $this->requireAnyUserPerm(['user.view_login_history', 'user.view']);
         $history = LoginHistory::where('user_id', $user->id)->latest()->limit(100)->get();
         return view('users.login-history', compact('user', 'history'));
     }
 
     public function logoutAll(User $user)
     {
-        $this->authorizeAdmin();
+        $this->requireAnyUserPerm(['user.logout_session', 'user.update']);
         $user->sessions()->delete();
         return back()->with('success', 'Semua sesi pengguna diakhiri.');
     }
 
     public function assignRoles(Request $request, User $user)
     {
-        $this->authorizeAdmin();
+        $this->requireAnyUserPerm(['user.assign_role', 'role.update']);
         $this->syncRolesGuarded($user, $request->input('roles', []));
         AuditService::log('UPDATE', 'USER', $user->id, User::class, null, ['roles' => $request->input('roles', [])]);
         return back()->with('success', 'Peran pengguna diperbarui.');
@@ -177,9 +179,7 @@ class UserController extends Controller
             $user->roles()->sync([]);
             return;
         }
-        if (!auth()->user()->hasPermission('role.update') && !auth()->user()->isSuperAdmin()) {
-            abort(403, 'Menetapkan peran memerlukan izin role.update.');
-        }
+        $this->requireAnyUserPerm(['user.assign_role', 'role.update'], 'Menetapkan peran memerlukan izin user.assign_role / role.update.');
         $user->roles()->sync($roles);
     }
 
@@ -188,5 +188,19 @@ class UserController extends Controller
         if (!auth()->user()->hasPermission('user.update') && !auth()->user()->isSuperAdmin()) {
             abort(403);
         }
+    }
+
+    protected function requireAnyUserPerm(array $codes, string $message = 'Anda tidak memiliki izin untuk aksi ini.'): void
+    {
+        $user = auth()->user();
+        if ($user->isSuperAdmin()) {
+            return;
+        }
+        foreach ($codes as $code) {
+            if ($user->hasPermission($code)) {
+                return;
+            }
+        }
+        abort(403, $message);
     }
 }
