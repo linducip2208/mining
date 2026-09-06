@@ -1,17 +1,14 @@
 @extends('layouts.app')
-@section('title', ' - Ganti Password')
+@section('title', ' - Keamanan Akun')
 @section('content')
-<h1 class="text-xl font-bold text-slate-800 mb-4">Ganti Password</h1>
-<form method="POST" action="{{ route('password.profile-update') }}" class="bg-white rounded-xl border border-slate-200 p-6 max-w-md">
+<x-ui.page-header title="Keamanan Akun" description="Perbarui password Anda secara berkala — gunakan kombinasi huruf, angka, dan simbol." />
+<form method="POST" action="{{ route('password.profile-update') }}" class="bg-white dark:bg-navy-800 rounded-card border border-slate-200 dark:border-slate-700/60 shadow-card p-6 max-w-md">
     @csrf @method('PUT')
     <div class="space-y-4">
-        <div><label class="text-xs font-semibold text-slate-600 uppercase">Password Saat Ini</label>
-            <input type="password" name="current_password" required class="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 text-sm"></div>
-        <div><label class="text-xs font-semibold text-slate-600 uppercase">Password Baru</label>
-            <input type="password" name="password" required minlength="8" class="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 text-sm"></div>
-        <div><label class="text-xs font-semibold text-slate-600 uppercase">Konfirmasi Password Baru</label>
-            <input type="password" name="password_confirmation" required class="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 text-sm"></div>
+        <x-ui.input name="current_password" label="Password Saat Ini" type="password" required />
+        <x-ui.input name="password" label="Password Baru" type="password" required hint="Minimal 8 karakter." />
+        <x-ui.input name="password_confirmation" label="Konfirmasi Password Baru" type="password" required />
     </div>
-    <button class="mt-6 px-5 py-2 rounded-lg bg-amber-500 text-white text-sm font-semibold">Simpan Password</button>
+    <x-ui.button class="mt-6">Simpan Password</x-ui.button>
 </form>
 @endsection

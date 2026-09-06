@@ -38,6 +38,6 @@
     ];
     $color = $colors[$status] ?? 'bg-slate-100 text-slate-600';
 @endphp
-<span {{ $attributes->merge(['class' => "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold $color"]) }}>
+<span {{ $attributes->merge(['class' => "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ring-1 ring-inset ring-black/5 dark:ring-white/10 $color"]) }}>
     {{ str_replace('_', ' ', $status) }}
 </span>

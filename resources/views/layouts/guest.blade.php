@@ -5,26 +5,39 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title>{{ config('app.name', 'Laravel') }}</title>
+        <title>{{ config('app.name', 'Mining ERP') }}@yield('title')</title>
+        <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛏️</text></svg>">
+        <script>
+            try {
+                if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark');
+            } catch (e) {}
+        </script>
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
+        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700,800&display=swap" rel="stylesheet" />
 
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="font-sans text-gray-900 antialiased">
-        <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100">
-            <div>
-                <a href="/">
-                    <x-application-logo class="w-20 h-20 fill-current text-gray-500" />
+    <body class="font-sans text-slate-800 dark:text-slate-200 antialiased">
+        <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-slate-100 dark:bg-navy-950 relative">
+            <div class="absolute inset-0 pointer-events-none opacity-[0.07] dark:opacity-[0.12]" aria-hidden="true" style="background-image: radial-gradient(circle at 80% 15%, #f59e0b 0, transparent 40%), radial-gradient(circle at 12% 85%, #f59e0b66 0, transparent 35%);"></div>
+            <div class="relative">
+                <a href="/" class="flex items-center gap-3" aria-label="Beranda Mining ERP">
+                    <span class="w-11 h-11 rounded-xl bg-amber-500 flex items-center justify-center font-black text-xl text-slate-900">M</span>
+                    <span>
+                        <span class="block font-bold tracking-wide text-slate-800 dark:text-slate-100">MINING ERP</span>
+                        <span class="block text-[11px] text-slate-500 dark:text-slate-400">Enterprise Operations</span>
+                    </span>
                 </a>
             </div>
 
-            <div class="w-full sm:max-w-md mt-6 px-6 py-4 bg-white shadow-md overflow-hidden sm:rounded-lg">
+            <div class="w-full sm:max-w-md mt-6 px-6 py-6 bg-white dark:bg-navy-800 shadow-card rounded-card border border-slate-200 dark:border-slate-700/60 relative">
                 {{ $slot }}
             </div>
+
+            <p class="relative mt-6 text-xs text-slate-400">© {{ now()->year }} Mining ERP · <a href="/docs" class="hover:text-amber-600">Dokumentasi</a></p>
         </div>
     </body>
 </html>
