@@ -11,6 +11,7 @@ use App\Http\Controllers\CsrController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerDepositController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DocsController;
 use App\Http\Controllers\DeliveryOrderController;
 use App\Http\Controllers\DivisionController;
 use App\Http\Controllers\DocumentController;
@@ -64,6 +65,13 @@ use Illuminate\Support\Facades\Route;
 Route::redirect('/', '/dashboard');
 
 require __DIR__.'/auth.php';
+
+// ===== DOCUMENTATION PORTAL (public/login per setting docs.public) =====
+Route::get('/docs', [DocsController::class, 'index'])->name('docs.index');
+Route::get('/docs/search', [DocsController::class, 'search'])->name('docs.search');
+Route::get('/docs/sitemap.xml', [DocsController::class, 'sitemap'])->name('docs.sitemap');
+Route::get('/docs/{section}', [DocsController::class, 'section'])->name('docs.section');
+Route::get('/docs/{section}/{page}', [DocsController::class, 'page'])->name('docs.page');
 
 Route::middleware(['auth'])->group(function () {
 
@@ -142,7 +150,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('weighbridge-tickets/{weighbridge_ticket}/override', [WeighbridgeTicketController::class, 'overrideWeight'])->name('weighbridge.override')->middleware('permission:weighbridge.update');
     Route::post('weighbridge-tickets/{weighbridge_ticket}/post', [WeighbridgeTicketController::class, 'postTicket'])->name('weighbridge.post')->middleware('permission:weighbridge.post');
     Route::post('weighbridge-tickets/{weighbridge_ticket}/void', [WeighbridgeTicketController::class, 'void'])->name('weighbridge.void')->middleware('permission:weighbridge.void');
-    Route::post('weighbridge-tickets/{weighbridge_ticket}/print', [WeighbridgeTicketController::class, 'printTicket'])->name('weighbridge.print')->middleware('permission:weighbridge.print');
+    Route::match(['GET', 'POST'], 'weighbridge-tickets/{weighbridge_ticket}/print', [WeighbridgeTicketController::class, 'printTicket'])->name('weighbridge.print')->middleware('permission:weighbridge.print');
 
     // ===== PRODUCTION =====
     Route::resource('production-batches', ProductionBatchController::class)->middleware('permission:production.view');

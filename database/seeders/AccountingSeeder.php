@@ -110,6 +110,8 @@ class AccountingSeeder extends Seeder
         Setting::updateOrCreate(['key' => 'sales.invoice_require_do'], ['value' => 'true', 'type' => 'bool']);
         Setting::updateOrCreate(['key' => 'weighbridge.allow_weight_override'], ['value' => 'true', 'type' => 'bool']);
         Setting::updateOrCreate(['key' => 'weighbridge.void_require_approval'], ['value' => 'true', 'type' => 'bool']);
+        Setting::updateOrCreate(['key' => 'docs.public'], ['value' => 'true', 'type' => 'bool']);
+        Setting::updateOrCreate(['key' => 'notification.whatsapp_webhook_url'], ['value' => '', 'type' => 'string']);
 
         // open fiscal periods for this + next year
         foreach (range(now()->year, now()->year + 1) as $y) {

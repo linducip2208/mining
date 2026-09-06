@@ -29,6 +29,9 @@
             </form>
 
             <div class="flex items-center gap-1 ml-auto">
+                {{-- Contextual help (?): halaman docs sesuai route aktif --}}
+                @php $docsUrl = \App\Docs\DocRegistry::urlForRoute(request()->route()?->getName()); @endphp
+                <a href="{{ $docsUrl }}" target="_blank" title="Bantuan halaman ini" class="p-2 rounded-md hover:bg-slate-100 text-slate-500 font-bold text-lg leading-none">?</a>
                 {{-- Pending approvals --}}
                 @php
                     $pendingCount = auth()->user()->isSuperAdmin()

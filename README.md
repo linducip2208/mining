@@ -71,6 +71,22 @@ Password : Admin!2345
 
 **Coba alur approval**: login sebagai `purchasing` → buat PR → `site_mgr` mendapat notifikasi persetujuan di topbar. Data demo sudah berisi 1 PR berstatus SUBMITTED (menunggu `site_mgr`).
 
+## Portal Dokumentasi & Tutorial (`/docs`)
+
+Pusat dokumentasi resmi terintegrasi: 19 bagian, 66 halaman tutorial dengan screenshot nyata per modul + 4 alur end-to-end + FAQ + troubleshooting + pencarian.
+
+```bash
+# Generate ulang screenshot (Playwright headless, 1440x900, user demo)
+php artisan docs:screenshot            # semua modul
+php artisan docs:screenshot --only=sales,weighbridge
+php artisan docs:screenshot --dry      # lihat daftar saja
+```
+
+Buka: `http://miningerp.test/docs` (atau `/docs` di domain app).
+Ikon **?** di topbar membuka bantuan kontekstual halaman aktif.
+Atur visibilitas: env `DOCS_PUBLIC=true` (default) atau Settings → `docs.public`.
+Kredensial screenshot demo: env `DOCS_USER` / `DOCS_PASS` (default superadmin).
+
 ## Struktur Dokumentasi
 
 - [Arsitektur Sistem](ARCHITECTURE.md)
