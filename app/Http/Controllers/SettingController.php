@@ -68,7 +68,9 @@ class SettingController extends Controller
             $uploaded = $files[$key] ?? null;
             if ($uploaded instanceof UploadedFile) {
                 Validator::make(['file' => $uploaded], ['file' => 'required|file|mimes:png,jpg,jpeg,webp,ico|max:5120'], [], ['file' => $meta['label']])->validate();
+                $oldFile = Setting::where('key', $key)->where('scope_type', 'GLOBAL')->whereNull('scope_id')->value('value');
                 $value = $this->storeBrandingFile($uploaded);
+                $this->deleteStoredFile($oldFile);
             }
             if (($meta['sensitive'] ?? false) && ($value === null || $value === '')) {
                 continue;
@@ -184,7 +186,9 @@ class SettingController extends Controller
 
     private function storeBrandingFile(UploadedFile $file): string
     {
-        return $file->storeAs('branding', Str::lower(Str::random(24)).'.'.$file->getClientOriginalExtension(), 'public');
+        $extension = strtolower((string) $file->extension());
+
+        return $file->storeAs('branding', Str::lower(Str::random(32)).'.'.$extension, 'public');
     }
 
     private function deleteStoredFile(?string $value): void

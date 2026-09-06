@@ -6,7 +6,7 @@
 @section('content')
 <div class="flex items-center justify-between mb-4">
     <h1 class="text-xl font-bold text-slate-800">Laporan Pemeliharaan</h1>
-    <button onclick="window.print()" class="px-4 py-2 rounded-lg bg-slate-700 text-white text-sm print:hidden">Cetak / PDF</button>
+    <span class="print:hidden inline-flex items-center gap-2"><a href="{{ route('report.print', ['report' => 'maintenance']) }}{{ request()->getQueryString() ? '?' . request()->getQueryString() : '' }}" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm">Cetak</a><a href="{{ route('report.pdf', ['report' => 'maintenance']) }}{{ request()->getQueryString() ? '?' . request()->getQueryString() : '' }}" class="px-4 py-2 rounded-lg bg-slate-800 text-white text-sm">PDF</a></span>
 </div>
 <x-filter-bar :route="route('report.maintenance')" class="print:hidden">
     <x-filter-input name="from" label="Dari" type="date" />

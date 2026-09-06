@@ -3,7 +3,7 @@
 @section('content')
 <div class="flex items-center justify-between mb-4">
     <h1 class="text-xl font-bold text-slate-800">Neraca (Balance Sheet)</h1>
-    <button onclick="window.print()" class="px-4 py-2 rounded-lg bg-slate-700 text-white text-sm print:hidden">Cetak / PDF</button>
+    <span class="print:hidden inline-flex items-center gap-2"><a href="{{ route('finance.balance_sheet.print', request()->query()) }}" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm">Cetak</a><a href="{{ route('finance.balance_sheet.pdf', request()->query()) }}" class="px-4 py-2 rounded-lg bg-slate-800 text-white text-sm">PDF</a></span>
 </div>
 <x-filter-bar :route="route('finance.balance_sheet')" class="print:hidden">
     <x-filter-input name="as_of" label="Per" type="date" />

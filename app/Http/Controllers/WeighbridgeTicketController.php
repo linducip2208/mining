@@ -1,17 +1,21 @@
 <?php
 
 namespace App\Http\Controllers;
-use App\Http\Controllers\Concerns\AppliesDataScope;
 
+use App\Http\Controllers\Concerns\AppliesDataScope;
+use App\Models\ApprovalWorkflow;
 use App\Models\Company;
 use App\Models\Customer;
 use App\Models\Equipment;
 use App\Models\Item;
+use App\Models\Setting;
 use App\Models\Site;
 use App\Models\Supplier;
 use App\Models\Weighbridge;
 use App\Models\WeighbridgeTicket;
 use App\Services\AuditService;
+use App\Services\NumberingService;
+use App\Services\PrintDocumentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -28,7 +32,7 @@ class WeighbridgeTicketController extends Controller
             ->when($request->from, fn ($q) => $q->whereDate('created_at', '>=', $request->from))
             ->when($request->to, fn ($q) => $q->whereDate('created_at', '<=', $request->to))
 
-            ->when(!is_null($companies = auth()->user()?->accessibleCompanyIds()), fn ($w) => $w->whereIn('company_id', $companies))
+            ->when(! is_null($companies = auth()->user()?->accessibleCompanyIds()), fn ($w) => $w->whereIn('company_id', $companies))
             ->orderByDesc('id')->paginate(20)->withQueryString();
 
         return view('weighbridge.index', [
@@ -58,13 +62,13 @@ class WeighbridgeTicketController extends Controller
         ]);
 
         $ticket = DB::transaction(function () use ($validated) {
-        $this->ensureCompanyInScope($validated['company_id'] ?? null);
-        $this->ensureSiteInScope($validated['site_id'] ?? null);
+            $this->ensureCompanyInScope($validated['company_id'] ?? null);
+            $this->ensureSiteInScope($validated['site_id'] ?? null);
             $wb = Weighbridge::with('calibrations')->find($validated['weighbridge_id']);
             $active = $wb->calibrations()->orderByDesc('calibration_date')->first();
 
             return WeighbridgeTicket::create([
-                'ticket_no' => \App\Services\NumberingService::generate('WB', $validated['company_id'], $validated['site_id']),
+                'ticket_no' => NumberingService::generate('WB', $validated['company_id'], $validated['site_id']),
                 'weighbridge_id' => $validated['weighbridge_id'],
                 'company_id' => $validated['company_id'],
                 'site_id' => $validated['site_id'],
@@ -81,12 +85,14 @@ class WeighbridgeTicketController extends Controller
         });
 
         AuditService::created('WEIGHBRIDGE', $ticket);
-        return redirect()->route('weighbridge-tickets.show', $ticket)->with('success', 'Timbang pertama tersimpan. Ticket: ' . $ticket->ticket_no);
+
+        return redirect()->route('weighbridge-tickets.show', $ticket)->with('success', 'Timbang pertama tersimpan. Ticket: '.$ticket->ticket_no);
     }
 
     public function show(WeighbridgeTicket $weighbridge_ticket)
     {
         $weighbridge_ticket->load(['weighbridge', 'customer', 'supplier', 'item', 'operator']);
+
         return view('weighbridge.show', ['ticket' => $weighbridge_ticket]);
     }
 
@@ -128,7 +134,8 @@ class WeighbridgeTicketController extends Controller
         ]);
 
         AuditService::updated('WEIGHBRIDGE', $weighbridge_ticket);
-        return back()->with('success', 'Timbang kedua tersimpan. NET: ' . number_format($weighbridge_ticket->net, 2) . ' kg');
+
+        return back()->with('success', 'Timbang kedua tersimpan. NET: '.number_format($weighbridge_ticket->net, 2).' kg');
     }
 
     /**
@@ -136,7 +143,7 @@ class WeighbridgeTicketController extends Controller
      */
     public function overrideWeight(Request $request, WeighbridgeTicket $weighbridge_ticket)
     {
-        if (!filter_var(\App\Models\Setting::get('weighbridge.allow_weight_override', 'true'), FILTER_VALIDATE_BOOL)) {
+        if (! filter_var(Setting::get('weighbridge.allow_weight_override', 'true'), FILTER_VALIDATE_BOOL)) {
             return back()->with('error', 'Override berat dinonaktifkan oleh pengaturan sistem.');
         }
 
@@ -167,11 +174,12 @@ class WeighbridgeTicketController extends Controller
 
     public function postTicket(WeighbridgeTicket $weighbridge_ticket)
     {
-        if (!in_array($weighbridge_ticket->status, ['COMPLETE', 'VALIDATED'])) {
+        if (! in_array($weighbridge_ticket->status, ['COMPLETE', 'VALIDATED'])) {
             return back()->with('error', 'Ticket belum lengkap.');
         }
         $weighbridge_ticket->update(['status' => 'POSTED']);
         AuditService::log('POST', 'WEIGHBRIDGE', $weighbridge_ticket->id, WeighbridgeTicket::class, null, ['ticket' => $weighbridge_ticket->ticket_no, 'net' => $weighbridge_ticket->net]);
+
         return back()->with('success', 'Ticket diposting.');
     }
 
@@ -181,19 +189,21 @@ class WeighbridgeTicketController extends Controller
     public function void(Request $request, WeighbridgeTicket $weighbridge_ticket)
     {
         $validated = $request->validate(['cancel_reason' => 'required|max:500']);
-        $requireApproval = filter_var(\App\Models\Setting::get('weighbridge.void_require_approval', 'true'), FILTER_VALIDATE_BOOL);
+        $requireApproval = filter_var(Setting::get('weighbridge.void_require_approval', 'true'), FILTER_VALIDATE_BOOL);
 
         if ($requireApproval) {
-            $wf = \App\Models\ApprovalWorkflow::where('transaction_type', 'WEIGHBRIDGE_VOID')->where('is_active', true)->first();
+            $wf = ApprovalWorkflow::where('transaction_type', 'WEIGHBRIDGE_VOID')->where('is_active', true)->first();
             if ($wf) {
                 $weighbridge_ticket->update(['cancel_reason' => $validated['cancel_reason']]);
                 ApprovalService::submit('WEIGHBRIDGE', 'WEIGHBRIDGE_VOID', $weighbridge_ticket);
+
                 return back()->with('success', 'Permintaan void diajukan untuk persetujuan.');
             }
         }
 
         $weighbridge_ticket->update(['status' => 'VOID', 'cancel_reason' => $validated['cancel_reason']]);
         AuditService::log('VOID', 'WEIGHBRIDGE', $weighbridge_ticket->id, WeighbridgeTicket::class, null, ['ticket' => $weighbridge_ticket->ticket_no], $validated['cancel_reason']);
+
         return back()->with('success', 'Ticket di-void.');
     }
 
@@ -204,7 +214,15 @@ class WeighbridgeTicketController extends Controller
     {
         $weighbridge_ticket->increment('reprint_count');
         AuditService::log('PRINT', 'WEIGHBRIDGE', $weighbridge_ticket->id, WeighbridgeTicket::class, null, ['ticket' => $weighbridge_ticket->ticket_no, 'reprint_count' => $weighbridge_ticket->reprint_count]);
-        return view('weighbridge.print', ['ticket' => $weighbridge_ticket->load(['weighbridge', 'customer', 'item'])]);
+
+        return view('print.weighbridge', PrintDocumentService::context(['ticket' => $weighbridge_ticket->load(['weighbridge', 'customer', 'supplier', 'item', 'operator', 'company']), 'documentTitle' => 'Tiket Timbangan']));
+    }
+
+    public function pdfTicket(WeighbridgeTicket $weighbridge_ticket)
+    {
+        AuditService::log('PDF_DOWNLOAD', 'WEIGHBRIDGE', $weighbridge_ticket->id, WeighbridgeTicket::class, null, ['ticket' => $weighbridge_ticket->ticket_no]);
+
+        return PrintDocumentService::pdf('print.weighbridge', ['ticket' => $weighbridge_ticket->load(['weighbridge', 'customer', 'supplier', 'item', 'operator', 'company']), 'documentTitle' => 'Tiket Timbangan'], 'Tiket-Timbangan-'.$weighbridge_ticket->ticket_no);
     }
 
     public function destroy(WeighbridgeTicket $weighbridge_ticket)
@@ -214,6 +232,7 @@ class WeighbridgeTicketController extends Controller
         }
         AuditService::deleted('WEIGHBRIDGE', $weighbridge_ticket);
         $weighbridge_ticket->delete();
+
         return redirect()->route('weighbridge-tickets.index')->with('success', 'Ticket dihapus.');
     }
 

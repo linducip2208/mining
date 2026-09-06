@@ -37,6 +37,13 @@ class NumberingService
                     'padding' => self::paddingFromFormat((string) Setting::get('numbering.'.$suffix.'_format', '{PREFIX}-{YM}--{SEQ}')),
                     'reset_period' => 'MONTHLY',
                 ]);
+            } elseif (is_null($cfg->company_id) && is_null($cfg->site_id)) {
+                // Keep the locked sequence intact while allowing the global UI format to take effect.
+                $configuredFormat = Setting::get('numbering.'.self::settingSuffix($docType).'_format');
+                if (filled($configuredFormat) && $configuredFormat !== $cfg->format) {
+                    $cfg->format = $configuredFormat;
+                    $cfg->padding = self::paddingFromFormat((string) $configuredFormat);
+                }
             }
 
             $now = now();

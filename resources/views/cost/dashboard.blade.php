@@ -11,7 +11,8 @@
         </div>
         <div class="flex gap-2">
             <a href="{{ url()->current() . (count(request()->query()) ? '?' . http_build_query(array_merge(request()->query(), ['export' => 1])) : '?export=1') }}" class="px-4 py-2 rounded-lg bg-green-700 text-white text-sm print:hidden">Export CSV</a>
-            <button onclick="window.print()" class="px-4 py-2 rounded-lg bg-slate-700 text-white text-sm print:hidden">Cetak / PDF</button>
+            <a href="{{ route('report.print', ['report' => 'budget']) }}" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm print:hidden">Cetak</a>
+            <a href="{{ route('report.pdf', ['report' => 'budget']) }}" class="px-4 py-2 rounded-lg bg-slate-700 text-white text-sm print:hidden">PDF</a>
         </div>
     </div>
 </div>

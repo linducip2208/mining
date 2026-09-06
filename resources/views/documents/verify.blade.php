@@ -1,0 +1,5 @@
+@extends('layouts.guest')
+@section('title', 'Verifikasi Dokumen')
+@section('content')
+<main class="max-w-xl mx-auto px-6 py-16"><div class="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm"><div class="text-xs font-semibold uppercase tracking-[.16em] text-emerald-600">Dokumen valid</div><h1 class="mt-2 text-2xl font-bold text-slate-900">Verifikasi {{ $label }}</h1><dl class="mt-6 space-y-4 text-sm"><div><dt class="text-slate-500">Nomor Dokumen</dt><dd class="font-semibold text-slate-900">{{ $payload['reference'] }}</dd></div><div><dt class="text-slate-500">Perusahaan</dt><dd class="font-semibold text-slate-900">{{ $companyName }}</dd></div><div><dt class="text-slate-500">Tanggal Terbit</dt><dd class="font-semibold text-slate-900">{{ \App\Support\DateFormatter::long($record->invoice_date ?? $record->ticket_date ?? $record->created_at) }}</dd></div><div><dt class="text-slate-500">Status</dt><dd class="font-semibold text-emerald-700">{{ \App\Support\HumanLabel::label($record->status ?? 'TERVERIFIKASI') }}</dd></div></dl></div></main>
+@endsection

@@ -87,6 +87,7 @@ class CoreSeeder extends Seeder
         'post' => 'Posting',
         'unpost' => 'Batal Posting',
         'print' => 'Cetak',
+        'pdf' => 'Download PDF',
         'export' => 'Ekspor',
         'import' => 'Impor',
         'void' => 'Void',
@@ -200,7 +201,7 @@ class CoreSeeder extends Seeder
         }
 
         $all = Permission::pluck('id');
-        $viewOnly = Permission::where('group', 'view')->orWhere('group', 'export')->orWhere('group', 'print')->pluck('id');
+        $viewOnly = Permission::where('group', 'view')->orWhere('group', 'export')->orWhere('group', 'print')->orWhere('group', 'pdf')->pluck('id');
 
         // role => permission assignment
         Role::where('code', 'SUPER_ADMIN')->first()->permissions()->sync($all);

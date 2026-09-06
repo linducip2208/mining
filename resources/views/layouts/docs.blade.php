@@ -97,7 +97,7 @@
                     <span class="hidden dark:inline"><x-ui.icon name="sun" class="w-[18px] h-[18px]" /></span>
                     <span class="dark:hidden"><x-ui.icon name="moon" class="w-[18px] h-[18px]" /></span>
                 </button>
-                <button onclick="window.print()" class="hidden sm:inline-flex px-3 py-1.5 text-xs rounded-lg bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10">Cetak</button>
+                <button type="button" onclick="window.print()" class="hidden sm:inline-flex px-3 py-1.5 text-xs rounded-lg bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10">Cetak Halaman</button>
             </div>
         </header>
         <main id="docsMain" class="flex-1 p-4 lg:p-8 w-full max-w-6xl" tabindex="-1">

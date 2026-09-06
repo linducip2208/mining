@@ -25,6 +25,7 @@ use App\Http\Controllers\DispatchController;
 use App\Http\Controllers\DivisionController;
 use App\Http\Controllers\DocsController;
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\DocumentVerificationController;
 use App\Http\Controllers\DumpingPointController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EquipmentCategoryController;
@@ -70,6 +71,7 @@ use App\Http\Controllers\QcSampleController;
 use App\Http\Controllers\QualityHoldController;
 use App\Http\Controllers\QualityParameterController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\ReportPrintController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SalesOrderController;
 use App\Http\Controllers\SearchController;
@@ -85,6 +87,7 @@ use App\Http\Controllers\SystemHealthController;
 use App\Http\Controllers\TaxController;
 use App\Http\Controllers\TelematicsController;
 use App\Http\Controllers\TireController;
+use App\Http\Controllers\TransactionPrintController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VehicleController;
 use App\Http\Controllers\VendorBillController;
@@ -102,6 +105,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/dashboard');
 Route::get('/manifest.webmanifest', PwaManifestController::class)->name('pwa.manifest');
+Route::get('/verify/{token}', DocumentVerificationController::class)->name('documents.verify');
 
 require __DIR__.'/auth.php';
 
@@ -183,7 +187,8 @@ Route::middleware(['auth', 'feature.flags'])->group(function () {
     Route::post('payroll-runs/{payroll_run}/approve', [PayrollViewController::class, 'approve'])->name('payroll.approve')->middleware('permission:payroll.approve');
     Route::post('payroll-runs/{payroll_run}/post', [PayrollViewController::class, 'post'])->name('payroll.post')->middleware('permission:payroll.post');
     Route::post('payroll-runs/{payroll_run}/pay', [PayrollViewController::class, 'pay'])->name('payroll.pay')->middleware('permission:payroll.post');
-    Route::get('payroll-runs/{payroll_run}/payslip/{detail}', [PayrollViewController::class, 'payslip'])->name('payroll.payslip');
+    Route::get('payroll-runs/{payroll_run}/payslip/{detail}', [PayrollViewController::class, 'payslip'])->name('payroll.payslip')->middleware('permission:payroll.print');
+    Route::get('payroll-runs/{payroll_run}/payslip/{detail}/pdf', [PayrollViewController::class, 'payslipPdf'])->name('payroll.payslip.pdf')->middleware('permission:payroll.pdf');
     Route::resource('operator-incentives', OperatorIncentiveController::class)->middleware('permission:incentive.view');
     Route::post('operator-incentives/{operator_incentive}/approve', [OperatorIncentiveController::class, 'approve'])->name('operator-incentives.approve')->middleware('permission:incentive.approve');
 
@@ -202,6 +207,7 @@ Route::middleware(['auth', 'feature.flags'])->group(function () {
     Route::post('weighbridge-tickets/{weighbridge_ticket}/post', [WeighbridgeTicketController::class, 'postTicket'])->name('weighbridge.post')->middleware('permission:weighbridge.post');
     Route::post('weighbridge-tickets/{weighbridge_ticket}/void', [WeighbridgeTicketController::class, 'void'])->name('weighbridge.void')->middleware('permission:weighbridge.void');
     Route::match(['GET', 'POST'], 'weighbridge-tickets/{weighbridge_ticket}/print', [WeighbridgeTicketController::class, 'printTicket'])->name('weighbridge.print')->middleware('permission:weighbridge.print');
+    Route::get('weighbridge-tickets/{weighbridge_ticket}/pdf', [WeighbridgeTicketController::class, 'pdfTicket'])->name('weighbridge.pdf')->middleware('permission:weighbridge.print');
 
     // ===== PRODUCTION =====
     Route::resource('production-batches', ProductionBatchController::class)->middleware('permission:production.view');
@@ -244,6 +250,7 @@ Route::middleware(['auth', 'feature.flags'])->group(function () {
     Route::post('delivery-orders/{delivery_order}/complete', [DeliveryOrderController::class, 'complete'])->name('delivery-orders.complete')->middleware('permission:delivery_order.update');
     Route::resource('invoices', InvoiceController::class)->middleware('permission:invoice.view');
     Route::get('invoices/{invoice}/print', [InvoiceController::class, 'print'])->name('invoices.print')->middleware('permission:invoice.print');
+    Route::get('invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])->name('invoices.pdf')->middleware('permission:invoice.pdf');
     Route::post('invoices/{invoice}/post', [InvoiceController::class, 'post'])->name('invoices.post')->middleware('permission:invoice.post');
     Route::resource('payments', PaymentController::class)->middleware('permission:payment.view');
     Route::get('deposits', [CustomerDepositController::class, 'index'])->name('deposit.index')->middleware('permission:deposit.view');
@@ -277,10 +284,20 @@ Route::middleware(['auth', 'feature.flags'])->group(function () {
     Route::get('finance/ar-aging', [FinanceReportController::class, 'arAging'])->name('finance.ar_aging')->middleware('permission:ledger.view');
     Route::get('finance/ap-aging', [FinanceReportController::class, 'apAging'])->name('finance.ap_aging')->middleware('permission:ledger.view');
     Route::get('finance/cash-flow', [ReportController::class, 'cashFlow'])->name('finance.cash_flow')->middleware('permission:ledger.view');
+    Route::get('finance/trial-balance/print', [ReportPrintController::class, 'print'])->defaults('report', 'finance-trial-balance')->name('finance.trial_balance.print')->middleware('permission:report.print');
+    Route::get('finance/trial-balance/pdf', [ReportPrintController::class, 'pdf'])->defaults('report', 'finance-trial-balance')->name('finance.trial_balance.pdf')->middleware('permission:report.pdf');
+    Route::get('finance/pl/print', [ReportPrintController::class, 'print'])->defaults('report', 'finance-pl')->name('finance.pl.print')->middleware('permission:report.print');
+    Route::get('finance/pl/pdf', [ReportPrintController::class, 'pdf'])->defaults('report', 'finance-pl')->name('finance.pl.pdf')->middleware('permission:report.pdf');
+    Route::get('finance/balance-sheet/print', [ReportPrintController::class, 'print'])->defaults('report', 'finance-balance-sheet')->name('finance.balance_sheet.print')->middleware('permission:report.print');
+    Route::get('finance/balance-sheet/pdf', [ReportPrintController::class, 'pdf'])->defaults('report', 'finance-balance-sheet')->name('finance.balance_sheet.pdf')->middleware('permission:report.pdf');
+    Route::get('finance/cash-flow/print', [ReportPrintController::class, 'print'])->defaults('report', 'finance-cash-flow')->name('finance.cash_flow.print')->middleware('permission:report.print');
+    Route::get('finance/cash-flow/pdf', [ReportPrintController::class, 'pdf'])->defaults('report', 'finance-cash-flow')->name('finance.cash_flow.pdf')->middleware('permission:report.pdf');
     Route::resource('tax', TaxController::class)->middleware('permission:tax.view');
 
     // ===== DOCUMENTS & CSR =====
     Route::resource('documents', DocumentController::class)->middleware('permission:document.view');
+    Route::get('transactions/{documentType}/{document}/print', [TransactionPrintController::class, 'print'])->name('transactions.print')->middleware('permission:document.print');
+    Route::get('transactions/{documentType}/{document}/pdf', [TransactionPrintController::class, 'pdf'])->name('transactions.pdf')->middleware('permission:document.pdf');
     Route::post('documents/{document}/approve', [DocumentController::class, 'approve'])->name('documents.approve')->middleware('permission:document.approve');
     Route::get('documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
     Route::resource('csr', CsrController::class)->middleware('permission:csr.view');
@@ -303,6 +320,8 @@ Route::middleware(['auth', 'feature.flags'])->group(function () {
     Route::get('reports/quality', [ReportController::class, 'quality'])->name('report.quality')->middleware('permission:report.view');
     Route::get('reports/contract', [ReportController::class, 'contract'])->name('report.contract')->middleware('permission:report.view');
     Route::get('reports/budget', [ReportController::class, 'budget'])->name('report.budget')->middleware('permission:report.view');
+    Route::get('reports/{report}/print', [ReportPrintController::class, 'print'])->name('report.print')->middleware('permission:report.print');
+    Route::get('reports/{report}/pdf', [ReportPrintController::class, 'pdf'])->name('report.pdf')->middleware('permission:report.pdf');
 
     // ===== FLEET =====
     Route::get('fleet', [FleetController::class, 'dashboard'])->name('fleet.dashboard')->middleware('permission:fleet.view');

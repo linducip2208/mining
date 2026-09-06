@@ -48,6 +48,9 @@ final class SettingCatalog
         $color = static function (string $key, string $label, string $description, string $group, string $default = '#0f172a') use ($add): void {
             $add($key, compact('label', 'description', 'group', 'default') + ['type' => 'color', 'validation' => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/']]);
         };
+        $mm = static function (string $key, string $label, string $description, string $default = '12') use ($add): void {
+            $add($key, compact('label', 'description', 'default') + ['group' => 'Dokumen & Cetak', 'type' => 'decimal', 'unit' => 'mm', 'validation' => 'numeric|min:0|max:60']);
+        };
 
         // General and company identity.
         $select('general.timezone', 'Zona Waktu', 'Zona waktu default untuk transaksi dan laporan.', 'Umum', 'Asia/Jakarta', ['Asia/Jakarta' => 'WIB — Asia/Jakarta', 'Asia/Makassar' => 'WITA — Asia/Makassar', 'Asia/Jayapura' => 'WIT — Asia/Jayapura']);
@@ -111,6 +114,19 @@ final class SettingCatalog
         $text('document.signature_name', 'Nama Penandatangan', 'Nama default pada blok tanda tangan.', 'Dokumen & Cetak');
         $text('document.signature_title', 'Jabatan Penandatangan', 'Jabatan default pada blok tanda tangan.', 'Dokumen & Cetak');
         $image('document.signature_image', 'Gambar Tanda Tangan', 'Gambar tanda tangan untuk dokumen resmi.', 'Dokumen & Cetak');
+        $select('document.paper_size', 'Ukuran Kertas', 'Ukuran kertas untuk print dan PDF.', 'Dokumen & Cetak', 'A4', ['A4' => 'A4', 'A5' => 'A5', 'Letter' => 'Letter', 'F4' => 'F4', 'Continuous' => 'Continuous']);
+        $select('document.orientation', 'Orientasi Dokumen', 'Arah halaman untuk dokumen dan laporan.', 'Dokumen & Cetak', 'portrait', ['portrait' => 'Portrait', 'landscape' => 'Landscape']);
+        $mm('document.margin_top', 'Margin Atas', 'Jarak atas halaman saat dicetak.', '12');
+        $mm('document.margin_right', 'Margin Kanan', 'Jarak kanan halaman saat dicetak.', '12');
+        $mm('document.margin_bottom', 'Margin Bawah', 'Jarak bawah halaman saat dicetak.', '14');
+        $mm('document.margin_left', 'Margin Kiri', 'Jarak kiri halaman saat dicetak.', '12');
+        foreach (['show_address' => 'Tampilkan Alamat', 'show_phone' => 'Tampilkan Telepon', 'show_email' => 'Tampilkan Email', 'show_qr' => 'Tampilkan QR Verifikasi', 'show_page_number' => 'Tampilkan Nomor Halaman', 'print_charts' => 'Cetak Grafik'] as $suffix => $label) {
+            $bool('document.'.$suffix, $label, 'Atur informasi yang ditampilkan pada dokumen cetak.', 'Dokumen & Cetak', $suffix === 'print_charts' ? false : true);
+        }
+        $bool('document.watermark_enabled', 'Aktifkan Watermark', 'Tampilkan watermark berdasarkan status dokumen.', 'Dokumen & Cetak', true);
+        $number('document.watermark_opacity', 'Opasitas Watermark', 'Tingkat transparansi watermark dokumen.', 'Dokumen & Cetak', 'decimal', 0.12, null, ['validation' => 'numeric|min:0|max:1']);
+        $select('document.signature_mode', 'Mode Tanda Tangan', 'Sumber tanda tangan pada dokumen resmi.', 'Dokumen & Cetak', 'manual', ['manual' => 'Manual', 'approval' => 'Approval Workflow', 'digital' => 'Digital']);
+        $select('document.template', 'Template Dokumen', 'Gaya visual dokumen cetak.', 'Dokumen & Cetak', 'modern', ['classic' => 'Classic', 'modern' => 'Modern', 'compact' => 'Compact']);
         foreach (['invoice' => 'Invoice', 'po' => 'Purchase Order', 'pr' => 'Purchase Request', 'do' => 'Delivery Order', 'gr' => 'Goods Receipt', 'weighbridge' => 'Tiket Timbangan', 'journal' => 'Jurnal', 'work_order' => 'Work Order'] as $suffix => $label) {
             $prefix = $suffix === 'work_order' ? 'WO' : strtoupper($suffix);
             $text('numbering.'.$suffix.'_prefix', 'Prefix '.$label, 'Prefix nomor dokumen '.$label.'.', 'Nomor Dokumen', $prefix);
