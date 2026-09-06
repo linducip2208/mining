@@ -26,16 +26,22 @@ class DashboardController extends Controller
 {
     public function index(Request $request)
     {
-        $from = $request->date('from', now()->startOfMonth()->toDateString());
-        $to = $request->date('to', now()->toDateString());
+        $period = $request->string('period', 'mtd')->toString();
+        [$from, $to] = match ($period) {
+            'today' => [today()->toDateString(), today()->toDateString()],
+            'ytd' => [now()->startOfYear()->toDateString(), today()->toDateString()],
+            'custom' => [$request->date('from', today())->toDateString(), $request->date('to', today())->toDateString()],
+            default => [now()->startOfMonth()->toDateString(), today()->toDateString()],
+        };
         $siteId = $request->integer('site_id') ?: null;
+        $pitId = $request->integer('pit_id') ?: null;
 
         $stockScope = fn ($q) => $siteId ? $q->where('site_id', $siteId) : $q;
 
         // OPERATIONAL
-        $produksiHariIni = MiningActivity::whereDate('date', today())->when($siteId, fn ($q) => $q->where('site_id', $siteId))->whereIn('status', ['APPROVED', 'POSTED'])->sum('tonnage');
-        $produksiBulanIni = MiningActivity::whereMonth('date', now()->month)->whereYear('date', now()->year)->when($siteId, fn ($q) => $q->where('site_id', $siteId))->whereIn('status', ['APPROVED', 'POSTED'])->sum('tonnage');
-        $outputCrusher = ProductionBatch::whereMonth('date', now()->month)->when($siteId, fn ($q) => $q->where('site_id', $siteId))->where('status', 'POSTED')->sum('net_output');
+        $produksiHariIni = MiningActivity::whereDate('date', today())->when($siteId, fn ($q) => $q->where('site_id', $siteId))->when($pitId, fn ($q) => $q->where('pit_id', $pitId))->whereIn('status', ['APPROVED', 'POSTED'])->sum('tonnage');
+        $produksiBulanIni = MiningActivity::whereBetween('date', [$from, $to])->when($siteId, fn ($q) => $q->where('site_id', $siteId))->when($pitId, fn ($q) => $q->where('pit_id', $pitId))->whereIn('status', ['APPROVED', 'POSTED'])->sum('tonnage');
+        $outputCrusher = ProductionBatch::whereBetween('date', [$from, $to])->when($siteId, fn ($q) => $q->where('site_id', $siteId))->where('status', 'POSTED')->sum('net_output');
         $tonnagePerSite = MiningActivity::select('sites.name', DB::raw('SUM(tonnage) total'))
             ->join('sites', 'sites.id', '=', 'mining_activities.site_id')
             ->whereMonth('date', now()->month)
@@ -94,6 +100,8 @@ class DashboardController extends Controller
         // CHART DATA
         $prodTrend = MiningActivity::selectRaw('DATE(date) d, SUM(tonnage) t')
             ->whereDate('date', '>=', today()->subDays(13))
+            ->when($siteId, fn ($q) => $q->where('site_id', $siteId))
+            ->when($pitId, fn ($q) => $q->where('pit_id', $pitId))
             ->whereIn('status', ['APPROVED', 'POSTED'])
             ->groupBy('d')->orderBy('d')->get();
         $salesTrend = Invoice::selectRaw('DATE(invoice_date) d, SUM(total) t')
@@ -111,6 +119,9 @@ class DashboardController extends Controller
 
         $variances = PriceVariance::where('approval_status', 'PENDING')->latest()->limit(5)->get();
 
+        $fuel = \App\Models\FuelIssue::where('status', 'POSTED')->whereBetween('issue_date', [$from, $to])->when($siteId, fn ($q) => $q->where('site_id', $siteId))->selectRaw('COALESCE(SUM(liter),0) liter')->first();
+        $fleet = \App\Services\FleetService::fleetSummary(null, $siteId, $from, $to);
+
         return view('dashboard', compact(
             'produksiHariIni', 'produksiBulanIni', 'outputCrusher', 'tonnagePerSite',
             'stockBalances', 'kritis',
@@ -119,7 +130,7 @@ class DashboardController extends Controller
             'employeeActive', 'hadir',
             'woOpen', 'downtime',
             'pendingApprovals',
-            'prodTrend', 'salesTrend', 'revExpTrend', 'variances'
+            'prodTrend', 'salesTrend', 'revExpTrend', 'variances', 'fuel', 'fleet'
         ));
     }
 }

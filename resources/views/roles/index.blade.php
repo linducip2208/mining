@@ -1,30 +1,6 @@
 @extends('layouts.app')
-@section('title', ' - Peran')
+@section('title', ' - Peran & Izin')
 @section('content')
-<div class="flex items-center justify-between mb-4">
-    <h1 class="text-xl font-bold text-slate-800">Manajemen Peran</h1>
-    @can('role.create')<x-btn-create :href="route('role.create')" />@endcan
-</div>
-<x-table>
-    <x-slot:head>
-        <th class="px-4 py-2.5">Kode</th><th class="px-4 py-2.5">Nama</th><th class="px-4 py-2.5 text-center">Jumlah Izin</th>
-        <th class="px-4 py-2.5 text-center">Jumlah Pengguna</th><th class="px-4 py-2.5">Sistem</th><th></th>
-    </x-slot:head>
-    <tbody>
-        @forelse ($roles as $role)
-        <tr class="hover:bg-slate-50">
-            <td class="px-4 py-2.5 font-medium">{{ $role->code }}</td>
-            <td class="px-4 py-2.5">{{ $role->name }}</td>
-            <td class="px-4 py-2.5 text-center">{{ $role->permissions_count }}</td>
-            <td class="px-4 py-2.5 text-center">{{ $role->users_count }}</td>
-            <td class="px-4 py-2.5">{{ $role->is_system ? 'Ya' : '-' }}</td>
-            <td class="px-4 py-2.5 text-right whitespace-nowrap">
-                <a href="{{ route('role.show', $role) }}" class="text-amber-600 text-xs hover:underline">Matriks Izin</a>
-            </td>
-        </tr>
-        @empty
-        <tr><td colspan="6" class="px-4 py-10 text-center text-slate-400">Belum ada peran</td></tr>
-        @endforelse
-    </tbody>
-</x-table>
+<div class="page-frame space-y-6"><section class="flex flex-col md:flex-row md:items-end justify-between gap-4"><div><div class="section-kicker mb-2">Administration · governance</div><h1 class="text-[26px] font-bold tracking-[-.03em] text-slate-900">Roles & permissions</h1><p class="mt-1 text-sm text-slate-500">Definisikan siapa yang dapat melihat, mengubah, dan menyetujui data operasional.</p></div>@can('role.create')<x-ui.button size="sm" icon="plus" :href="route('role.create')">Tambah peran</x-ui.button>@endcan</section>
+<div class="grid lg:grid-cols-12 gap-4"><section class="dashboard-card lg:col-span-4 overflow-hidden"><div class="px-5 py-4 border-b border-slate-100"><div class="section-kicker">Role list</div><p class="mt-1 text-sm text-slate-500">{{ $roles->count() }} role terkonfigurasi</p></div><div class="p-2">@forelse($roles as $role)<a href="{{ route('role.show',$role) }}" class="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 group"><span class="w-9 h-9 rounded-lg {{ $role->is_system ? 'bg-slate-900 text-amber-400' : 'bg-amber-50 text-amber-700' }} flex items-center justify-center text-xs font-bold">{{ strtoupper(substr($role->code,0,2)) }}</span><span class="min-w-0 flex-1"><span class="block text-sm font-semibold text-slate-800 truncate">{{ $role->name }}</span><span class="block mt-0.5 text-xs text-slate-400">{{ $role->users_count }} pengguna · {{ $role->permissions_count }} izin</span></span><x-ui.icon name="chevron-right" class="w-4 h-4 text-slate-300 group-hover:text-amber-500" /></a>@empty<div class="p-6 text-sm text-slate-400 text-center">Belum ada role.</div>@endforelse</div></section><section class="dashboard-card lg:col-span-8"><div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between"><div><div class="section-kicker">Permission matrix</div><h2 class="mt-1 text-base font-semibold text-slate-900">Access model overview</h2></div><span class="text-xs text-slate-400">Pilih role untuk mengelola detail</span></div><div class="grid sm:grid-cols-3 gap-3 p-5">@foreach([['Operational access','Mining, dispatch, fleet','pickaxe','bg-amber-50 text-amber-700'],['Financial control','Budget, journals, approval','bank','bg-emerald-50 text-emerald-700'],['Data scope','Company, site, pit level','site','bg-slate-100 text-slate-700']] as [$title,$body,$icon,$tone])<div class="rounded-xl border border-slate-200 p-4"><span class="w-9 h-9 rounded-lg {{ $tone }} flex items-center justify-center"><x-ui.icon name="{{ $icon }}" class="w-4 h-4" /></span><h3 class="mt-4 text-sm font-semibold text-slate-800">{{ $title }}</h3><p class="mt-1 text-xs leading-5 text-slate-500">{{ $body }}</p></div>@endforeach</div><div class="mx-5 mb-5 p-4 rounded-xl bg-slate-50 border border-slate-200"><div class="flex items-center justify-between"><div><p class="text-sm font-semibold text-slate-800">Data scope & approval limit</p><p class="mt-1 text-xs text-slate-500">Kontrol batas akses dan otorisasi mengikuti role aktif.</p></div><x-ui.icon name="shield" class="w-5 h-5 text-slate-400" /></div></div></section></div></div>
 @endsection

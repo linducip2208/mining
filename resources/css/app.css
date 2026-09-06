@@ -23,8 +23,8 @@
     --color-info: 37 99 235;
     --radius-card: 0.75rem;
     --radius-ctl: 0.5rem;
-    --sidebar-w: 16rem;      /* 256px */
-    --sidebar-collapsed: 4.75rem; /* 76px */
+    --sidebar-w: 15rem;      /* 240px */
+    --sidebar-collapsed: 4.5rem; /* 72px */
 }
 
 html.dark {
@@ -53,12 +53,50 @@ html.dark {
 /* ------- app sidebar: fixed width var + collapsed + mobile ------- */
 #sidebar { width: var(--sidebar-w); }
 #appMain { transition: margin 0.2s ease; }
-@media (min-width: 1024px) {
+@media (min-width: 768px) {
     html.sb-collapsed #sidebar { width: var(--sidebar-collapsed); }
     html.sb-collapsed .sb-label { display: none; }
     html.sb-collapsed #sidebar .sb-groupbtn,
     html.sb-collapsed #sidebar nav a { justify-content: center; padding-left: 0; padding-right: 0; }
     html.sb-collapsed #appMain { margin-left: var(--sidebar-collapsed); }
+}
+
+/* Mining operations shell */
+.app-shell-main { background: #f7f8fa; }
+.app-topbar { height: 4rem; background: rgb(255 255 255 / .92); border-bottom: 1px solid #e5e7eb; backdrop-filter: blur(14px) saturate(150%); }
+.page-frame { width: 100%; max-width: 1800px; margin-inline: auto; }
+.section-kicker { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #94a3b8; font-weight: 700; }
+.command-filter { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; }
+.command-filter select, .command-filter input { min-height: 38px; border: 0; background: #f8fafc; border-radius: 7px; font-size: 13px; }
+.dashboard-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; }
+.dashboard-card-header { display: flex; justify-content: space-between; gap: 12px; align-items: start; padding: 18px 20px 0; }
+.dashboard-card-body { padding: 18px 20px 20px; }
+.kpi-primary { min-height: 154px; position: relative; overflow: hidden; }
+.kpi-primary::after { content: ''; position: absolute; width: 120px; height: 120px; right: -48px; bottom: -58px; border: 1px solid rgb(245 158 11 / .18); border-radius: 50%; }
+.sparkline { height: 30px; display: flex; align-items: end; gap: 3px; }
+.sparkline i { flex: 1; min-width: 3px; background: #fbbf24; border-radius: 3px 3px 0 0; opacity: .7; }
+.health-row { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid #f1f5f9; }
+.health-row:last-child { border-bottom: 0; }
+.health-meter { height: 5px; background: #eef2f7; border-radius: 99px; overflow: hidden; margin-top: 6px; }
+.health-meter span { display: block; height: 100%; border-radius: inherit; background: #f59e0b; }
+.alert-item { border-left: 3px solid #f59e0b; padding: 12px 14px; background: #fffbeb; border-radius: 0 8px 8px 0; }
+.alert-item.critical { border-left-color: #dc2626; background: #fef2f2; }
+.activity-item { position: relative; padding-left: 28px; padding-bottom: 18px; }
+.activity-item::before { content: ''; position: absolute; left: 6px; top: 5px; width: 9px; height: 9px; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 0 4px #fef3c7; }
+.activity-item:not(:last-child)::after { content: ''; position: absolute; left: 10px; top: 18px; bottom: 0; width: 1px; background: #e5e7eb; }
+.quick-op { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 12px; border-bottom: 1px solid #f1f5f9; }
+.quick-op:last-child { border-bottom: 0; }
+.sidebar-section-label { padding: 16px 12px 6px; color: #64748b; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.sidebar-sub { padding-left: 14px; margin-left: 14px; border-left: 1px solid rgb(148 163 184 / .2); }
+@media (max-width: 767px) {
+    .app-shell-main { margin-left: 0 !important; }
+    .app-topbar { height: 3.75rem; }
+    .page-frame { padding-inline: 16px; }
+    .dashboard-card-header { padding-inline: 16px; }
+    .dashboard-card-body { padding: 16px; }
+    .kpi-primary { min-height: 132px; }
+    .command-filter { overflow-x: auto; }
+    .command-filter > * { flex: 1 0 132px; }
 }
 
 /* ------- scrollbars (sidebar, drawers, tables) ------- */

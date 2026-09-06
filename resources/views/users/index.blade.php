@@ -1,19 +1,19 @@
 @extends('layouts.app')
 @section('title', ' - Pengguna')
 @section('content')
-<x-ui.page-header title="Manajemen Pengguna" description="Kelola pengguna, peran, scope, dan akses sistem. Tindakan sensitif selalu meminta konfirmasi.">
-    <x-slot:actions>
+<section class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6"><div><div class="section-kicker mb-2">Administration · access control</div><h1 class="text-[26px] font-bold tracking-[-.03em] text-slate-900">User management</h1><p class="mt-1 text-sm text-slate-500">Kelola identitas, scope site, dan akses operasional secara terkontrol.</p></div>
+    <div class="shrink-0">
         @can('user.create')<x-ui.button size="sm" icon="plus" :href="route('users.create')">Tambah Pengguna</x-ui.button>@endcan
-    </x-slot:actions>
-</x-ui.page-header>
+    </div>
+</section>
 
-<x-filter-bar :route="route('users.index')" class="print:hidden">
+<x-filter-bar :route="route('users.index')" class="command-filter print:hidden">
     <x-filter-input name="q" label="Cari" placeholder="Nama / username / email…" />
     <x-filter-input name="status" label="Status" type="select" :options="['ACTIVE' => 'Aktif', 'INACTIVE' => 'Nonaktif', 'SUSPENDED' => 'Suspended', 'LOCKED' => 'Terkunci']" />
     <x-filter-input name="role" label="Peran" type="select" :options="\App\Models\Role::orderBy('name')->pluck('name', 'code')->all()" />
 </x-filter-bar>
 
-<x-ui.table>
+<div class="dashboard-card overflow-hidden"><div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between"><div><h2 class="text-sm font-semibold text-slate-900">Directory</h2><p class="text-xs text-slate-400 mt-1">{{ $users->total() }} akun terdaftar</p></div><span class="text-xs text-slate-400">Last synced just now</span></div><x-ui.table>
     <x-slot:head>
         <th class="px-4 py-2.5">Nama</th><th class="px-4 py-2.5">Username</th><th class="px-4 py-2.5">Peran & Scope</th>
         <th class="px-4 py-2.5">Login Terakhir</th><th class="px-4 py-2.5">Status</th><th class="px-4 py-2.5 text-right">Aksi</th>
@@ -53,7 +53,7 @@
     <tr><td colspan="6"><x-ui.empty-state icon="users" title="Belum ada pengguna" body="Tambah pengguna pertama untuk memberi akses ke sistem."><x-slot:action>@can('user.create')<x-ui.button size="sm" icon="plus" :href="route('users.create')">Tambah Pengguna</x-ui.button>@endcan</x-slot:action></x-ui.empty-state></td></tr>
     @endforelse
     <x-slot:footer>{{ $users->links('components.pagination') }}</x-slot:footer>
-</x-ui.table>
+</x-ui.table></div>
 
 {{-- Confirmation modals for sensitive actions --}}
 @foreach ($users as $item)

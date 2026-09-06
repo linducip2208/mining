@@ -16,13 +16,13 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @stack('head')
 </head>
-<body class="font-sans antialiased bg-slate-100 text-slate-800 dark:bg-navy-950 dark:text-slate-200">
+<body class="font-sans antialiased text-slate-800 dark:bg-navy-950 dark:text-slate-200">
 <a href="#mainContent" class="sr-only focus:not-sr-only focus:absolute focus:z-[60] focus:px-4 focus:py-2 focus:bg-amber-500 focus:text-white focus:rounded-md focus:m-2">Lewati ke konten</a>
 <div class="min-h-screen flex">
     @include('layouts.partials.sidebar')
 
-    <div id="appMain" class="flex-1 flex flex-col min-w-0 lg:ml-64">
-        <header class="h-16 bg-white dark:bg-navy-900 border-b border-slate-200 dark:border-slate-700/60 sticky top-0 z-20 flex items-center gap-2 px-4 lg:px-6">
+    <div id="appMain" class="app-shell-main flex-1 flex flex-col min-w-0 md:ml-60">
+        <header class="app-topbar sticky top-0 z-20 flex items-center gap-3 px-4 lg:px-6">
             <button class="p-2 rounded-ctl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-500" onclick="window.toggleSidebar()" aria-label="Buka atau tutup sidebar">
                 <x-ui.icon name="menu" class="w-5 h-5" />
             </button>
@@ -49,7 +49,17 @@
                 <kbd class="text-[10px] px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-navy-800 font-sans">Ctrl K</kbd>
             </button>
 
-            <div class="flex items-center gap-1 ml-auto">
+            <div class="hidden lg:flex items-center gap-2 ml-auto">
+                <label class="sr-only" for="companyContext">Konteks perusahaan</label>
+                <select id="companyContext" class="h-9 max-w-[150px] border-0 bg-slate-50 rounded-lg text-xs font-medium text-slate-700 focus:ring-2 focus:ring-amber-200">
+                    <option>Semua perusahaan</option>
+                    @foreach (\App\Models\Company::query()->limit(6)->pluck('name') as $companyName)
+                        <option>{{ $companyName }}</option>
+                    @endforeach
+                </select>
+                <span class="hidden xl:inline text-xs text-slate-400">·</span>
+            </div>
+            <div class="flex items-center gap-1 ml-auto lg:ml-0">
                 {{-- Dark toggle --}}
                 <button type="button" onclick="toggleTheme()" title="Mode gelap / terang" aria-label="Alihkan mode gelap"
                     class="p-2 rounded-ctl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-500 dark:text-slate-400">
@@ -162,7 +172,7 @@
             });
         </script>
 
-        <main id="mainContent" class="flex-1 p-4 lg:p-6 min-w-0" tabindex="-1">
+        <main id="mainContent" class="flex-1 p-4 md:p-6 min-w-0" tabindex="-1">
             @if (session('success'))
                 <x-ui.alert type="success" class="mb-4">{{ session('success') }}</x-ui.alert>
             @endif

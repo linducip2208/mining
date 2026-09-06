@@ -1,9 +1,9 @@
 @extends('layouts.app')
 @section('title', ' - Persetujuan')
 @section('content')
-<x-ui.page-header title="Pusat Persetujuan" description="Antrian multi-level: setujui, tolak, atau kembalikan dengan catatan terlacak." />
+<section class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6"><div><div class="section-kicker mb-2">Workflow · risk control</div><h1 class="text-[26px] font-bold tracking-[-.03em] text-slate-900">Approval center</h1><p class="mt-1 text-sm text-slate-500">Tinjau dokumen bernilai tinggi dengan jejak keputusan yang lengkap.</p></div><div class="flex gap-1 p-1 rounded-lg bg-slate-100"><button class="px-3 py-1.5 rounded-md bg-white shadow-sm text-xs font-semibold">My approval</button><button class="px-3 py-1.5 text-xs text-slate-500">Submitted by me</button><button class="px-3 py-1.5 text-xs text-slate-500">Completed</button></div></section>
 
-<x-ui.card title="Menunggu Tindakan Saya" :subtitle="$pending->count() . ' dokumen dalam antrian Anda'">
+<x-ui.card title="Menunggu tindakan saya" :subtitle="$pending->count() . ' dokumen dalam antrian Anda'" class="dashboard-card">
     <div class="divide-y divide-slate-100 dark:divide-slate-700/50 -m-5 mt-0 p-0">
         @forelse ($pending as $p)
         @php
@@ -13,7 +13,7 @@
             $steps = $req->actions()->orderBy('sequence')->get();
             $cur = $steps->firstWhere('action', 'PENDING');
         @endphp
-        <details class="group px-5 py-4">
+        <details class="group px-5 py-4 hover:bg-amber-50/30 border-l-2 border-transparent open:border-amber-400">
             <summary class="flex flex-wrap items-center gap-3 cursor-pointer list-none">
                 <span class="w-10 h-10 flex-none rounded-xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-sm">{{ substr($req->module, 0, 2) }}</span>
                 <span class="min-w-0 flex-1">
