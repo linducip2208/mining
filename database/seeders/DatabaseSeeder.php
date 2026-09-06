@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             CoreSeeder::class,
+            PaperProfileSeeder::class,
             AccountingSeeder::class,
             AlertRuleSeeder::class,
             ApprovalWorkflowSeeder::class,

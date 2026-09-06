@@ -22,6 +22,10 @@ class PrintJob extends BaseModel
     {
         return [
             'payload' => 'array',
+            'paper_snapshot' => 'array',
+            'printer_snapshot' => 'array',
+            'paper_width_mm' => 'float',
+            'paper_height_mm' => 'float',
             'requested_at' => 'datetime',
             'printed_at' => 'datetime',
         ];
@@ -30,6 +34,16 @@ class PrintJob extends BaseModel
     public function printer()
     {
         return $this->belongsTo(PrinterDevice::class, 'printer_device_id');
+    }
+
+    public function paperProfile()
+    {
+        return $this->belongsTo(PaperProfile::class);
+    }
+
+    public function reprintOf()
+    {
+        return $this->belongsTo(self::class, 'reprint_of_id');
     }
 
     public function requester()

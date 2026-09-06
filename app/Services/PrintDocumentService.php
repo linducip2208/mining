@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\PaperProfile;
 use App\Models\Setting;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
@@ -14,6 +15,19 @@ final class PrintDocumentService
         $company = BrandingService::companyProfile();
         $path = BrandingService::get('document.logo') ?: BrandingService::get('branding.logo_main');
         $logo = self::asset($path, $pdf);
+        $paper = $extra['paperProfile'] ?? null;
+        $orientation = $extra['orientation'] ?? ($paper?->orientation ?: Setting::get('document.orientation', 'portrait'));
+        $margins = $paper ? [
+            'top' => $paper->margin_top_mm,
+            'right' => $paper->margin_right_mm,
+            'bottom' => $paper->margin_bottom_mm,
+            'left' => $paper->margin_left_mm,
+        ] : [
+            'top' => Setting::get('document.margin_top', 12),
+            'right' => Setting::get('document.margin_right', 12),
+            'bottom' => Setting::get('document.margin_bottom', 14),
+            'left' => Setting::get('document.margin_left', 12),
+        ];
 
         return array_merge([
             'company' => $company,
@@ -21,14 +35,11 @@ final class PrintDocumentService
             'logo' => $logo,
             'printedAt' => now(),
             'printedBy' => auth()->user()?->name ?? 'Sistem',
-            'paperSize' => Setting::get('document.paper_size', 'A4'),
-            'orientation' => Setting::get('document.orientation', 'portrait'),
-            'margins' => [
-                'top' => Setting::get('document.margin_top', 12),
-                'right' => Setting::get('document.margin_right', 12),
-                'bottom' => Setting::get('document.margin_bottom', 14),
-                'left' => Setting::get('document.margin_left', 12),
-            ],
+            'paperProfile' => $paper,
+            'paperSize' => $paper?->name ?: Setting::get('document.paper_size', 'A4'),
+            'paperCss' => $paper ? PrintCssBuilder::page($paper, $orientation) : null,
+            'orientation' => strtolower((string) $orientation),
+            'margins' => $margins,
             'showNpwp' => (bool) Setting::get('document.show_npwp', true),
             'showAddress' => (bool) Setting::get('document.show_address', true),
             'showPhone' => (bool) Setting::get('document.show_phone', true),
@@ -56,22 +67,35 @@ final class PrintDocumentService
     public static function pdf(string $view, array $data, string $filename)
     {
         $html = self::render($view, $data, true);
-        $pdf = Pdf::loadHTML($html)->setPaper(self::paper(), self::orientation());
+        $profile = $data['paperProfile'] ?? null;
+        $pdf = Pdf::loadHTML($html)->setPaper(self::paper($profile), self::orientation($profile));
         $pdf->setOption(['isRemoteEnabled' => true, 'isHtml5ParserEnabled' => true]);
 
         return $pdf->download(Str::finish(Str::slug($filename), '.pdf'));
     }
 
-    public static function paper(): string
+    public static function paper(?PaperProfile $profile = null): string|array
     {
+        if ($profile) {
+            $dimensions = PrintCssBuilder::dimensions($profile);
+            if ($dimensions['height'] !== null) {
+                return [0, 0, $dimensions['width'] * 2.83465, $dimensions['height'] * 2.83465];
+            }
+
+            // Dompdf has no reliable auto-length page. Use a long fixed roll and keep browser print exact.
+            return [0, 0, $dimensions['width'] * 2.83465, 1700];
+        }
+
         return match (Setting::get('document.paper_size', 'A4')) {
             'A5' => 'A5', 'Letter' => 'letter', 'F4' => [0, 0, 612, 936], 'Continuous' => [0, 0, 612, 936], default => 'A4',
         };
     }
 
-    public static function orientation(): string
+    public static function orientation(?PaperProfile $profile = null): string
     {
-        return Setting::get('document.orientation', 'portrait') === 'landscape' ? 'landscape' : 'portrait';
+        $orientation = strtolower((string) ($profile?->orientation ?: Setting::get('document.orientation', 'portrait')));
+
+        return $orientation === 'landscape' ? 'landscape' : 'portrait';
     }
 
     private static function asset(?string $path, bool $pdf): ?string
