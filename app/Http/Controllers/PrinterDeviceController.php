@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Company;
 use App\Models\PrinterDevice;
 use App\Models\PrintJob;
-use App\Models\Site;
 use App\Models\Setting;
+use App\Models\Site;
 use App\Services\AuditService;
 use App\Services\LocalPrintAgentService;
 use App\Services\PrintJobService;
@@ -64,7 +64,9 @@ class PrinterDeviceController extends Controller
         $settingKey = in_array($printer->printer_type, ['THERMAL_58', 'THERMAL_80', 'WEIGHBRIDGE', 'ESC_POS'], true)
             ? 'printer.default_thermal_printer_id'
             : 'printer.default_a4_printer_id';
-        if ($printer->printer_type === 'WEIGHBRIDGE') $settingKey = 'printer.default_weighbridge_printer_id';
+        if ($printer->printer_type === 'WEIGHBRIDGE') {
+            $settingKey = 'printer.default_weighbridge_printer_id';
+        }
         Setting::set($settingKey, (string) $printer->id, 'model_select');
         AuditService::log('DEFAULT', 'PRINTER', $printer->id, PrinterDevice::class, null, ['printer' => $printer->name]);
 
@@ -109,7 +111,7 @@ class PrinterDeviceController extends Controller
         foreach (['is_default', 'is_active', 'auto_print'] as $field) {
             $data[$field] = (bool) ($data[$field] ?? false);
         }
-        $data['is_active'] = $request->has('is_active');
+        $data['is_active'] = filter_var($data['is_active'] ?? false, FILTER_VALIDATE_BOOLEAN);
         $data['copies'] = (int) ($data['copies'] ?? 1);
 
         return $data;

@@ -10,6 +10,8 @@ final class LocalPrintAgentService
 {
     public function package(PrintJob $job, string $endpoint = '/print'): array
     {
+        $isRaw = ($job->payload['format'] ?? null) === 'escpos';
+        $endpoint = $isRaw ? '/print/raw' : $endpoint;
         $payload = [
             'job_uuid' => $job->uuid,
             'printer_name' => $job->printer?->device_identifier ?: $job->printer?->name,
@@ -18,7 +20,8 @@ final class LocalPrintAgentService
             'copies' => $job->copies,
             'auto_cut' => (bool) Setting::get('printer.auto_cut', true),
             'format' => $job->payload['format'] ?? 'html',
-            'content_base64' => $job->payload['content_base64'] ?? null,
+            'content_base64' => $isRaw ? null : ($job->payload['content_base64'] ?? null),
+            'raw_base64' => $isRaw ? ($job->payload['raw_base64'] ?? null) : null,
             'callback_url' => route('print-jobs.agent-status', $job),
         ];
         $body = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);

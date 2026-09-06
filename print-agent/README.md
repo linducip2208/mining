@@ -13,4 +13,6 @@ Bridge lokal untuk Windows 10/11. Laravel tidak mengakses Bluetooth atau USB mil
 
 Endpoint yang tersedia: `GET /health`, signed `GET /printers`, signed `POST /print`, signed `POST /print/raw`, dan signed `POST /test`. Job UUID disimpan lokal untuk mencegah duplicate print dan job gagal tetap dapat dikirim ulang dari ERP.
 
+Opsional, agar agent otomatis hidup saat login Windows, jalankan PowerShell `./install-startup.ps1`. Untuk membatalkan gunakan `./uninstall-startup.ps1`. Shortcut hanya dibuat di Startup profile pengguna saat ini.
+
 Agent tidak menerima file path, executable, PowerShell command, atau nama printer yang belum terdeteksi oleh Windows. Untuk thermal, aplikasi mengirim template 58/80 mm; untuk A4/PDF gunakan Browser Print dan dialog system.

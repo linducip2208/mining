@@ -38,15 +38,15 @@ final class PrintJobService
     {
         $printer = $this->routing->resolve('WEIGHBRIDGE_TICKET', $ticket->company_id, $ticket->site_id);
         $thermalSize = $printer?->paper_size ?: Setting::get('printer.thermal_width', '80mm');
-        $html = PrintDocumentService::render('print.thermal.weighbridge', ['ticket' => $ticket->load(['weighbridge', 'customer', 'supplier', 'item', 'operator', 'company', 'site']), 'paperSize' => $thermalSize]);
+        $ticket->load(['weighbridge', 'customer', 'supplier', 'item', 'operator', 'company', 'site']);
+        $isRaw = $printer && in_array($printer->connection_type, ['ESC_POS'], true);
+        $payload = $isRaw
+            ? ['format' => 'escpos', 'raw_base64' => base64_encode(EscPosTicketBuilder::weighbridge($ticket))]
+            : ['format' => 'html', 'paper_size' => $thermalSize, 'content_base64' => base64_encode(PrintDocumentService::render('print.thermal.weighbridge', ['ticket' => $ticket, 'paperSize' => $thermalSize]))];
 
         $weighTimestamp = $ticket->second_weigh_at?->timestamp ?? now()->timestamp;
 
-        $job = $this->queue('WEIGHBRIDGE_TICKET', $ticket->id, $printer, [
-            'format' => 'html',
-            'paper_size' => $thermalSize,
-            'content_base64' => base64_encode($html),
-        ], $userId, 'WEIGHBRIDGE_TICKET:'.$ticket->id.':'.$weighTimestamp, (int) Setting::get('printer.copies', 1));
+        $job = $this->queue('WEIGHBRIDGE_TICKET', $ticket->id, $printer, $payload, $userId, 'WEIGHBRIDGE_TICKET:'.$ticket->id.':'.$weighTimestamp, (int) Setting::get('printer.copies', 1));
         if (! $printer) {
             $job->update(['status' => 'FAILED', 'error_message' => 'Printer tiket timbangan belum dikonfigurasi.']);
         }
