@@ -69,5 +69,8 @@ final class SettingCatalog
     }
 
     private static function text(string $label, string $description, string $group, string $default = ''): array { return self::meta($label, $description, $group, 'text', $default); }
-    private static function select(string $label, string $description, string $group, string $default, array $options): array { return self::meta($label, $description, $group, 'select', $default) + ['options' => $options]; }
+    private static function select(string $label, string $description, string $group, string $default, array $options): array
+    {
+        return array_merge(self::meta($label, $description, $group, 'select', $default), ['options' => $options]);
+    }
 }

@@ -18,4 +18,10 @@ class SettingCatalogTest extends TestCase
             $this->assertArrayHasKey('default', $meta);
         }
     }
+
+    public function test_select_settings_expose_their_options(): void
+    {
+        $this->assertSame(['IDR' => 'Rupiah (IDR)', 'USD' => 'Dolar Amerika (USD)'], SettingCatalog::get('finance.default_currency')['options']);
+        $this->assertSame(['warning' => 'Peringatan', 'block' => 'Blokir transaksi'], SettingCatalog::get('budget.enforce')['options']);
+    }
 }
