@@ -67,6 +67,17 @@ class JournalController extends Controller
                 ];
             })->all();
 
+            // block-mode: jurnal manual yang melebihi sisa budget ditolak
+            $month = substr($validated['journal_date'], 0, 7);
+            foreach ($lines as $l) {
+                if (($l['debit'] ?? 0) > 0) {
+                    $coa = ChartOfAccount::where('code', $l['code'])->first();
+                    if ($coa && in_array($coa->type, ['EXPENSE', 'ASSET'])) {
+                        \App\Services\BudgetService::assertAvailable((int) $validated['company_id'], null, $coa->id, $month, (float) $l['debit']);
+                    }
+                }
+            }
+
             $entry = AccountingService::post((int) $validated['company_id'], $validated['journal_date'], $lines, 'MANUAL', null, null, $validated['memo']);
         } catch (\DomainException $e) {
             return back()->with('error', $e->getMessage());

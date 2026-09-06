@@ -84,6 +84,19 @@ class ProductionService
                     $outputCostPerTon,
                     $batch->date->toDateString()
                 );
+                // cermin ke stockpile yang terhubung gudang+item (no-op bila tidak ada pile)
+                StockpileService::moveForWarehouse(
+                    $wh,
+                    $output->item_id,
+                    'PRODUCTION_IN',
+                    (float) $output->net_tonnage,
+                    0,
+                    $batch->id,
+                    'PRODUCTION_BATCH',
+                    $batch->number,
+                    $batch->date->toDateString(),
+                    'Output crusher ' . $batch->number
+                );
             }
 
             foreach ($batch->scraps as $scrap) {

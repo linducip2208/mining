@@ -28,7 +28,7 @@
             <select name="weighbridge_ticket_id" required class="mt-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm outline-none min-w-[240px]">
                 <option value="">-- Pilih tiket --</option>
                 @foreach ($tickets ?? [] as $tk)
-                    <option value="{{ $tk->id }}">{{ $tk->number }} — {{ number_format($tk->net_weight, 0) }} kg</option>
+                    <option value="{{ $tk->id }}">{{ $tk->ticket_no }} — {{ number_format($tk->net, 0) }} kg</option>
                 @endforeach
             </select>
         </div>
@@ -49,13 +49,25 @@
     <div class="text-sm font-bold text-slate-700 mb-3">Detail Waktu</div>
     <div class="grid md:grid-cols-4 gap-3 text-sm">
         <div><div class="text-[11px] uppercase text-slate-500">Berangkat</div><div class="font-semibold">{{ $trip->start_time ?? '—' }}</div></div>
-        <div><div class="text-[11px] uppercase text-slate-500">Loading</div><div class="font-semibold">{{ $trip->loading_time ?? '—' }}</div></div>
-        <div><div class="text-[11px] uppercase text-slate-500">Hauling</div><div class="font-semibold">{{ $trip->hauling_time ?? '—' }}</div></div>
-        <div><div class="text-[11px] uppercase text-slate-500">Dumping</div><div class="font-semibold">{{ $trip->dumping_time ?? '—' }}</div></div>
+        <div><div class="text-[11px] uppercase text-slate-500">Mulai Loading</div><div class="font-semibold">{{ $trip->loading_start ?? '—' }}</div></div>
+        <div><div class="text-[11px] uppercase text-slate-500">Selesai Loading</div><div class="font-semibold">{{ $trip->loading_finish ?? '—' }}</div></div>
+        <div><div class="text-[11px] uppercase text-slate-500">Dumping</div><div class="font-semibold">{{ $trip->dump_time ?? '—' }}</div></div>
         <div><div class="text-[11px] uppercase text-slate-500">Loader</div><div class="font-semibold">{{ $trip->loader?->code ?? '—' }}</div></div>
         <div><div class="text-[11px] uppercase text-slate-500">Rute</div><div class="font-semibold">{{ $trip->route?->name ?? '—' }}</div></div>
         <div><div class="text-[11px] uppercase text-slate-500">Tiket WB</div><div class="font-semibold">{{ $trip->ticket?->number ?? '—' }}</div></div>
         <div><div class="text-[11px] uppercase text-slate-500">Catatan</div><div class="font-semibold">{{ $trip->notes ?? '—' }}</div></div>
+    </div>
+</div>
+
+<div class="bg-white rounded-xl border border-slate-200 p-4">
+    <div class="text-sm font-bold text-slate-700 mb-3">Cycle Time (menit)</div>
+    @php $cs = $trip->cycleStats(); @endphp
+    <div class="grid md:grid-cols-5 gap-3 text-sm">
+        <div><div class="text-[11px] uppercase text-slate-500">Antre</div><div class="font-semibold">{{ $cs['queue_min'] ?? '—' }}</div></div>
+        <div><div class="text-[11px] uppercase text-slate-500">Loading</div><div class="font-semibold">{{ $cs['loading_min'] ?? '—' }}</div></div>
+        <div><div class="text-[11px] uppercase text-slate-500">Angkut Isi</div><div class="font-semibold">{{ $cs['travel_loaded_min'] ?? '—' }}</div></div>
+        <div><div class="text-[11px] uppercase text-slate-500">Kembali Kosong</div><div class="font-semibold">{{ $cs['travel_empty_min'] ?? '—' }}</div></div>
+        <div><div class="text-[11px] uppercase text-slate-500">Total Siklus</div><div class="font-bold">{{ $cs['cycle_min'] ?? '—' }}</div></div>
     </div>
 </div>
 @endsection

@@ -12,11 +12,24 @@
 <div class="bg-white rounded-xl border border-slate-200 p-4 mb-4 text-sm space-y-2">
     <div><span class="text-[11px] uppercase text-slate-500">Deskripsi</span><div>{{ $report->description }}</div></div>
     @if ($report->cause)<div><span class="text-[11px] uppercase text-slate-500">Penyebab</span><div>{{ $report->cause }}</div></div>@endif
+    @if ($report->root_cause)<div><span class="text-[11px] uppercase text-slate-500">Root Cause (investigasi)</span><div>{{ $report->root_cause }}</div></div>@endif
     @if ($report->immediate_action)<div><span class="text-[11px] uppercase text-slate-500">Tindakan Segera</span><div>{{ $report->immediate_action }}</div></div>@endif
-    @can('hse.close')
+    @can('hse.update')
     @if (!in_array($report->status, ['CLOSED', 'CANCELLED']))
-    <form method="POST" action="{{ route('hse.reports.close', $report) }}" onsubmit="return confirm('Tutup kasus ini? Semua action harus sudah closed.')">
-        @csrf<button class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold">Tutup Kasus</button>
+    <form method="POST" action="{{ route('hse.reports.investigate', $report) }}" class="grid md:grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+        @csrf
+        <input type="text" name="cause" value="{{ $report->cause }}" maxlength="5000" placeholder="Penyebab (opsional)..." class="px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none">
+        <div class="flex gap-2">
+            <input type="text" name="root_cause" required maxlength="5000" placeholder="Root cause wajib..." class="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none">
+            <button class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold">Investigasi</button>
+        </div>
+    </form>
+    @endif
+    @endcan
+    @can('hse.update')
+    @if (!in_array($report->status, ['CLOSED', 'CANCELLED']))
+    <form method="POST" action="{{ route('hse.reports.close', $report) }}" onsubmit="return confirm('Ajukan penutupan kasus ini ke approval center?')">
+        @csrf<button class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold">Ajukan Penutupan</button>
     </form>
     @endif
     @endcan
@@ -46,6 +59,13 @@
                     <input type="text" name="evidence" required maxlength="5000" placeholder="Evidence..." class="px-2 py-1 rounded border border-slate-200 text-xs w-36">
                     <input type="file" name="evidence_file" class="text-[11px] w-32">
                     <button class="text-green-600 hover:underline text-xs">Tutup</button>
+                </form>
+                @endif
+                @endcan
+                @can('hse.close')
+                @if ($a->status === 'DONE')
+                <form method="POST" action="{{ route('hse.actions.verify', $a) }}" class="inline ml-2">
+                    @csrf<button class="text-indigo-600 hover:underline text-xs">Verifikasi</button>
                 </form>
                 @endif
                 @endcan

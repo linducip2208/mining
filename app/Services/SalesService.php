@@ -50,6 +50,26 @@ class SalesService
                 $line->qty_delivered = $finalQty;
                 $line->save();
 
+                // cermin ke stockpile yang terhubung gudang+item; bila saldo pile
+                // tidak cukup (pile baru di-link), lewati + catat — selisih akan
+                // tertangkap pada survei berikutnya, delivery tidak boleh macet
+                try {
+                    StockpileService::moveForWarehouse(
+                        $deliveryOrder->warehouse_id,
+                        $line->item_id,
+                        'SALES_OUT',
+                        0,
+                        $finalQty,
+                        $deliveryOrder->id,
+                        'DO',
+                        $deliveryOrder->number,
+                        $deliveryOrder->delivery_date->toDateString(),
+                        'Pengiriman ' . $deliveryOrder->number
+                    );
+                } catch (\DomainException $e) {
+                    AuditService::log('SKIP', 'STOCKPILE', $deliveryOrder->id, $deliveryOrder::class, null, ['reason' => $e->getMessage()]);
+                }
+
                 $soItem = $so->items()->where('item_id', $line->item_id)->first();
                 if ($soItem) {
                     $soItem->qty_delivered += $finalQty;

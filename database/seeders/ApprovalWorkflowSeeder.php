@@ -36,6 +36,39 @@ class ApprovalWorkflowSeeder extends Seeder
             ['ADJ-APPROVAL', 'Approval Penyesuaian Stok', 'STOCK', 'STOCK_ADJUSTMENT', [
                 ['Persetujuan Warehouse Manager', 'WAREHOUSE_MANAGER', null, 0, null],
             ]],
+            ['FUEL-APPROVAL', 'Approval Issue BBM', 'FUEL', 'FUEL_ISSUE', [
+                ['Persetujuan Fleet Manager', 'FLEET_MANAGER', null, 0, null],
+            ]],
+            ['FUEL-RECEIPT-APPROVAL', 'Approval Penerimaan BBM', 'FUEL', 'FUEL_RECEIPT', [
+                ['Persetujuan Fleet Manager', 'FLEET_MANAGER', null, 0, null],
+            ]],
+            ['SURVEY-APPROVAL', 'Approval Rekonsiliasi Stockpile', 'STOCKPILE', 'STOCKPILE_SURVEY', [
+                ['Persetujuan Site Manager', 'SITE_MANAGER', null, 0, null],
+            ]],
+            ['BUDGET-APPROVAL', 'Approval Budget', 'BUDGET', 'BUDGET', [
+                ['Persetujuan Finance Manager', 'FINANCE_MANAGER', null, 0, null],
+            ]],
+            ['CONTRACT-CUSTOMER-APPROVAL', 'Approval Kontrak Customer', 'CONTRACT', 'CUSTOMER_CONTRACT', [
+                ['Persetujuan Contract Manager', 'CONTRACT_MANAGER', null, 0, null],
+            ]],
+            ['CONTRACT-SUPPLIER-APPROVAL', 'Approval Kontrak Supplier', 'CONTRACT', 'SUPPLIER_CONTRACT', [
+                ['Persetujuan Contract Manager', 'CONTRACT_MANAGER', null, 0, null],
+            ]],
+            ['CONTRACT-HAULING-APPROVAL', 'Approval Kontrak Hauling', 'CONTRACT', 'HAULING_CONTRACT', [
+                ['Persetujuan Contract Manager', 'CONTRACT_MANAGER', null, 0, null],
+            ]],
+            ['COST-APPROVAL', 'Approval Biaya Tambang', 'COST', 'MINING_COST', [
+                ['Persetujuan Finance Manager', 'FINANCE_MANAGER', null, 0, null],
+            ]],
+            ['HSE-PERMIT-APPROVAL', 'Approval Permit Kerja', 'HSE', 'HSE_PERMIT', [
+                ['Persetujuan HSE Manager', 'HSE_MANAGER', null, 0, null],
+            ]],
+            ['HSE-CLOSE-APPROVAL', 'Approval Penutupan Kasus HSE', 'HSE', 'HSE_CLOSE', [
+                ['Persetujuan HSE Manager', 'HSE_MANAGER', null, 0, null],
+            ]],
+            ['QUALITY-SPECIAL-APPROVAL', 'Approval Special Release QC', 'QUALITY', 'QUALITY_SPECIAL', [
+                ['Persetujuan Quality Officer', 'QUALITY_OFFICER', null, 0, null],
+            ]],
         ];
 
         foreach ($workflows as [$code, $name, $module, $type, $steps]) {

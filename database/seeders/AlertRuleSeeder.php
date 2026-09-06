@@ -17,6 +17,8 @@ class AlertRuleSeeder extends Seeder
             ['PRICE_VARIANCE', 'Selisih harga abnormal', 'Variance PENDING dengan persentase >= 10%'],
             ['APPROVAL_PENDING', 'Persetujuan tertunda', 'ApprovalRequest PENDING lebih dari 3 hari'],
             ['FUEL_ANOMALY', 'Anomali konsumsi BBM', 'Fuel issue WARNING/CRITICAL 7 hari terakhir'],
+            ['FUEL_DIP_VARIANCE', 'Selisih dip tangki', 'Dip PENDING melewati threshold fuel.dip_threshold_pct'],
+            ['HSE_PERMIT_EXPIRY', 'Permit kerja kedaluwarsa', 'HSE permit ACTIVE berakhir <= 14 hari'],
             ['STOCK_VARIANCE', 'Variansi survei stockpile', 'Survei status INVESTIGATE'],
             ['EQUIPMENT_BREAKDOWN', 'Alat breakdown', 'Equipment status BREAKDOWN'],
             ['MAINTENANCE_OVERDUE', 'Maintenance terlewat', 'Jadwal next_due < hari ini'],

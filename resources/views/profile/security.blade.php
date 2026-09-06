@@ -2,7 +2,7 @@
 @section('title', ' - Ganti Password')
 @section('content')
 <h1 class="text-xl font-bold text-slate-800 mb-4">Ganti Password</h1>
-<form method="POST" action="{{ route('password.update') }}" class="bg-white rounded-xl border border-slate-200 p-6 max-w-md">
+<form method="POST" action="{{ route('password.profile-update') }}" class="bg-white rounded-xl border border-slate-200 p-6 max-w-md">
     @csrf @method('PUT')
     <div class="space-y-4">
         <div><label class="text-xs font-semibold text-slate-600 uppercase">Password Saat Ini</label>

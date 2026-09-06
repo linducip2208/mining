@@ -104,16 +104,21 @@ class StockpileController extends Controller
 
     public function approveSurvey(Request $request, StockpileSurvey $survey)
     {
-        if (!auth()->user()->hasPermission('stockpile.approve')) {
-            abort(403);
+        if (!in_array($survey->status, ['PENDING', 'INVESTIGATE'])) {
+            return back()->with('error', 'Survei tidak dapat diajukan pada status ' . $survey->status);
         }
         $validated = $request->validate(['investigation' => 'nullable|max:2000']);
-        try {
-            StockpileService::approveSurvey($survey, $validated['investigation'] ?? null);
-        } catch (\DomainException $e) {
-            return back()->with('error', $e->getMessage());
+        // simpan investigasi dulu (dipakai engine saat final approve), lalu submit
+        if (!empty($validated['investigation'])) {
+            $survey->update(['investigation' => $validated['investigation']]);
         }
-        return back()->with('success', 'Rekonsiliasi disetujui — sistem selaras dengan survei.');
+        if ($survey->status === 'INVESTIGATE' && empty($survey->investigation)) {
+            return back()->with('error', 'Variansi di atas threshold wajib diisi hasil investigasi.');
+        }
+        \App\Services\ApprovalService::submit('STOCKPILE', 'STOCKPILE_SURVEY', $survey);
+        return back()->with('success', $survey->fresh()->status === 'SUBMITTED'
+            ? 'Rekonsiliasi diajukan ke approval center.'
+            : 'Rekonsiliasi disetujui — sistem selaras dengan survei.');
     }
 
     public function dashboard(Request $request)

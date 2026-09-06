@@ -64,6 +64,67 @@ class DocsController extends Controller
         ]);
     }
 
+    /** Autosuggest JSON untuk overlay pencarian (Ctrl+K). */
+    public function suggest(Request $request)
+    {
+        if ($r = $this->guard()) {
+            return response()->json(['data' => []]);
+        }
+        $data = collect(DocRegistry::search((string) $request->input('q', '')))
+            ->take(8)
+            ->map(fn ($h) => [
+                'title' => $h['page']['title'] ?? '',
+                'url' => $h['page']['url'] ?? '/docs',
+                'module' => $h['page']['module'] ?? '',
+                'category' => DocRegistry::categoryFor($h['page']['section'] ?? ''),
+            ])->values();
+        return response()->json(['data' => $data]);
+    }
+
+    /** Health dashboard internal (superadmin): kelengkapan dokumentasi. */
+    public function health()
+    {
+        if (!auth()->check() || !auth()->user()->isSuperAdmin()) {
+            abort(403);
+        }
+        $pages = DocRegistry::allPages();
+        $noShot = $noPerm = $badRelated = [];
+        foreach ($pages as $p) {
+            if (empty($p['shot'])) {
+                $noShot[] = $p['url'];
+            } elseif (!file_exists(public_path('docs-assets/screenshots/' . ltrim($p['shot'], '/')))) {
+                $noShot[] = $p['url'] . ' (file hilang: ' . $p['shot'] . ')';
+            }
+            if (empty($p['permission'])) {
+                $noPerm[] = $p['url'];
+            }
+            foreach ($p['related'] ?? [] as [$label, $url]) {
+                if (!str_starts_with($url, '/docs/')) {
+                    continue;
+                }
+                $parts = explode('/', trim($url, '/'));
+                if (($parts[0] ?? '') !== 'docs' || !DocRegistry::page($parts[1] ?? '', $parts[2] ?? '')) {
+                    $badRelated[] = $p['url'] . ' → ' . $url;
+                }
+            }
+        }
+        $badMapping = [];
+        foreach (DocRegistry::routeDocMap() as $route => $url) {
+            $parts = explode('/', trim($url, '/'));
+            if (!\Illuminate\Support\Facades\Route::has($route) || !DocRegistry::page($parts[1] ?? '', $parts[2] ?? '')) {
+                $badMapping[] = $route . ' → ' . $url;
+            }
+        }
+        return view('docs.health', [
+            'sections' => DocRegistry::sections(),
+            'total' => count($pages),
+            'noShot' => $noShot,
+            'noPerm' => $noPerm,
+            'badRelated' => $badRelated,
+            'badMapping' => $badMapping,
+        ]);
+    }
+
     public function sitemap()
     {
         $pages = DocRegistry::allPages();

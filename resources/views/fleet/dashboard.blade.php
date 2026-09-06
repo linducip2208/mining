@@ -3,18 +3,14 @@
 @section('title', ' - Dashboard Armada')
 
 @section('content')
-<div class="flex items-center justify-between mb-4">
-    <div>
-        <h1 class="text-xl font-bold text-slate-800">Dashboard Armada</h1>
-        <p class="text-sm text-slate-500">Ketersediaan, utilisasi & biaya unit {{ $from }} s.d. {{ $to }}</p>
-    </div>
-    <div class="flex gap-2 text-xs">
-        <a href="{{ route('fleet.availability') }}" class="px-3 py-2 rounded-lg bg-white border border-slate-200 hover:border-amber-400">Ketersediaan</a>
-        <a href="{{ route('fleet.utilization') }}" class="px-3 py-2 rounded-lg bg-white border border-slate-200 hover:border-amber-400">Utilisasi</a>
-        <a href="{{ route('fleet.downtime') }}" class="px-3 py-2 rounded-lg bg-white border border-slate-200 hover:border-amber-400">Downtime</a>
-        <a href="{{ route('fleet.cost') }}" class="px-3 py-2 rounded-lg bg-white border border-slate-200 hover:border-amber-400">Biaya</a>
-    </div>
-</div>
+<x-ui.page-header title="Dashboard Armada" description="Ketersediaan, utilisasi & biaya unit {{ $from }} s.d. {{ $to }}.">
+    <x-slot:actions>
+        <x-ui.button variant="secondary" size="sm" :href="route('fleet.availability')">Ketersediaan</x-ui.button>
+        <x-ui.button variant="secondary" size="sm" :href="route('fleet.utilization')">Utilisasi</x-ui.button>
+        <x-ui.button variant="secondary" size="sm" :href="route('fleet.downtime')">Downtime</x-ui.button>
+        <x-ui.button variant="secondary" size="sm" :href="route('fleet.cost')">Biaya</x-ui.button>
+    </x-slot:actions>
+</x-ui.page-header>
 
 <x-filter-bar :route="route('fleet.dashboard')">
     <x-filter-input name="from" label="Dari" type="date" />

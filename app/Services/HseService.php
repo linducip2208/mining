@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\HseCorrectiveAction;
+use App\Models\HsePermit;
 use App\Models\HseReport;
 use Illuminate\Support\Facades\DB;
 
@@ -66,8 +67,32 @@ class HseService
         });
     }
 
+    /**
+     * Investigation: root cause analysis moves report OPEN → IN_PROGRESS.
+     */
+    public static function investigate(HseReport $report, string $rootCause, ?string $cause = null): void
+    {
+        if (trim($rootCause) === '') {
+            throw new \DomainException('Root cause wajib diisi.');
+        }
+        $report->update([
+            'root_cause' => $rootCause,
+            'cause' => $cause ?? $report->cause,
+            'status' => 'IN_PROGRESS',
+            'investigated_by' => auth()->id(),
+            'investigated_at' => now(),
+        ]);
+        AuditService::log('UPDATE', 'HSE', $report->id, HseReport::class, null, ['investigated' => true]);
+    }
+
     public static function addAction(int $reportId, array $data): HseCorrectiveAction
     {
+        if (empty($data['responsible_id'])) {
+            throw new \DomainException('Corrective action wajib memiliki penanggung jawab.');
+        }
+        if (empty($data['due_date'])) {
+            throw new \DomainException('Corrective action wajib memiliki due date.');
+        }
         $action = HseCorrectiveAction::create([
             'hse_report_id' => $reportId,
             'action' => $data['action'],
@@ -98,12 +123,31 @@ class HseService
         AuditService::log('UPDATE', 'HSE', $action->id, HseCorrectiveAction::class, null, ['status' => 'DONE']);
     }
 
+    /**
+     * Verify action — independent QA check after DONE, before case closure.
+     */
+    public static function verifyAction(HseCorrectiveAction $action): void
+    {
+        if ($action->status !== 'DONE') {
+            throw new \DomainException('Hanya action DONE yang dapat diverifikasi.');
+        }
+        $action->update([
+            'status' => 'VERIFIED',
+            'verified_by' => auth()->id(),
+        ]);
+        AuditService::log('APPROVE', 'HSE', $action->id, HseCorrectiveAction::class, null, ['status' => 'VERIFIED']);
+    }
+
     public static function closeReport(HseReport $report): void
     {
         $open = $report->correctiveActions()->whereIn('status', ['OPEN'])->count();
         // overdue computed dynamically; also block when any OPEN past due
         if ($open > 0) {
             throw new \DomainException('Masih ada ' . $open . ' corrective action yang belum selesai.');
+        }
+        $unverified = $report->correctiveActions()->where('status', 'DONE')->count();
+        if ($unverified > 0) {
+            throw new \DomainException('Masih ada ' . $unverified . ' action DONE yang belum diverifikasi.');
         }
         $report->update(['status' => 'CLOSED']);
         AuditService::log('UPDATE', 'HSE', $report->id, HseReport::class, null, ['status' => 'CLOSED']);
@@ -137,6 +181,12 @@ class HseService
             'open_actions' => (clone $openActions)->count(),
             'overdue_actions' => $overdue,
             'safe_days' => $safeDays,
+            'permits_expiring' => HsePermit::whereIn('status', ['APPROVED', 'ACTIVE'])
+                ->whereNotNull('valid_until')
+                ->whereDate('valid_until', '<=', today()->addDays(14)->toDateString())
+                ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+                ->when($siteId, fn ($q) => $q->where('site_id', $siteId))
+                ->count(),
         ];
     }
 }

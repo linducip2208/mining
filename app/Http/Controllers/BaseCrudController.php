@@ -68,6 +68,25 @@ abstract class BaseCrudController extends Controller
         if ($request->filled('site_id')) {
             $q->where('site_id', $request->site_id);
         }
+        // auto data-scope: batasi ke company/site user bila kolom tersedia
+        if ($this->modelHasColumn('company_id')) {
+            $this->applyCompanyScope($q);
+        }
+        if ($this->modelHasColumn('site_id')) {
+            $this->applySiteScope($q);
+        }
+    }
+
+    protected static array $scopeColumnCache = [];
+
+    protected function modelHasColumn(string $column): bool
+    {
+        $table = (new $this->model)->getTable();
+        $key = $table . '.' . $column;
+        if (!array_key_exists($key, self::$scopeColumnCache)) {
+            self::$scopeColumnCache[$key] = \Illuminate\Support\Facades\Schema::hasColumn($table, $column);
+        }
+        return self::$scopeColumnCache[$key];
     }
 
     protected function indexData(Request $request): array

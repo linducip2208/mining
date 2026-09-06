@@ -21,8 +21,10 @@ class ComplianceController extends Controller
         $items = ComplianceRegister::with(['employee', 'equipment', 'site'])
             ->when($request->type, fn ($q) => $q->where('type', $request->type))
             ->when($request->status, fn ($q) => $q->where('status', $request->status))
-            ->when($request->q, fn ($q) => $q->where('title', 'like', "%{$request->q}%")->orWhere('document_number', 'like', "%{$request->q}%"))
-            ->orderBy('expiry_date')->paginate(20)->withQueryString();
+            ->when($request->q, fn ($q) => $q->where('title', 'like', "%{$request->q}%")->orWhere('document_number', 'like', "%{$request->q}%"));
+        $this->applyCompanyScope($items);
+        $this->applySiteScope($items);
+        $items = $items->orderBy('expiry_date')->paginate(20)->withQueryString();
         return view('compliance.index', [
             'items' => $items,
             'types' => ['PERMIT' => 'Izin', 'LICENSE' => 'Lisensi', 'EMP_CERT' => 'Sertifikasi Karyawan', 'EQUIP_CERT' => 'Sertifikasi Alat', 'ENVIRONMENT' => 'Lingkungan', 'CONTRACT' => 'Kontrak', 'OTHER' => 'Lainnya'],
@@ -71,6 +73,23 @@ class ComplianceController extends Controller
     public function show(ComplianceRegister $compliance)
     {
         return view('compliance.show', ['item' => $compliance->load(['employee', 'equipment', 'document', 'site'])]);
+    }
+
+    public function renew(Request $request, ComplianceRegister $compliance)
+    {
+        if (!auth()->user()->hasPermission('compliance.update')) {
+            abort(403);
+        }
+        $validated = $request->validate([
+            'expiry_date' => 'required|date|after:today',
+            'document_number' => 'nullable|max:100',
+        ]);
+        try {
+            ComplianceService::renew($compliance, $validated['expiry_date'], $validated['document_number'] ?? null);
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+        return back()->with('success', 'Diperpanjang hingga ' . $validated['expiry_date'] . '.');
     }
 
     public function calendar(Request $request)

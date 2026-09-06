@@ -18,9 +18,9 @@
     <div class="font-bold text-indigo-800">{{ $issue->number }} <x-status-badge :status="$issue->status" /></div>
     <div class="text-indigo-700 mt-1">{{ number_format($issue->liter, 1) }} L · {{ $issue->tank?->code }} → {{ $issue->equipment?->code ?? $issue->vehicle_plate }} · L/H {{ $issue->liter_per_hour }} ({{ $issue->variance_status ?? '—' }})</div>
     <div class="flex gap-2 mt-2">
-        @can('fuel.approve')
+        @can('fuel.create')
         @if ($issue->status === 'DRAFT')
-        <form method="POST" action="{{ route('fuel-issues.approve', $issue) }}">@csrf<button class="px-4 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-semibold">Approve</button></form>
+        <form method="POST" action="{{ route('fuel-issues.approve', $issue) }}">@csrf<button class="px-4 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-semibold">Ajukan Approval</button></form>
         @endif
         @endcan
         @can('fuel.post')

@@ -14,15 +14,16 @@
         <div><div class="text-[11px] uppercase text-slate-500">Nilai Kontrak</div><div class="font-bold">Rp {{ number_format($contract->contract_value ?? 0, 0) }}</div></div>
         <div><div class="text-[11px] uppercase text-slate-500">Harga Satuan</div><div class="font-semibold">Rp {{ number_format($contract->price, 0) }}</div></div>
         <div><div class="text-[11px] uppercase text-slate-500">Periode</div><div class="font-semibold">{{ $contract->start_date?->format('Y-m-d') }} → {{ $contract->end_date?->format('Y-m-d') }}</div></div>
-        <div><div class="text-[11px] uppercase text-slate-500">Realisasi PO</div><div class="font-semibold">Rp {{ number_format($real['po_value'] ?? $real['realized_value'] ?? 0, 0) }}</div></div>
+        <div><div class="text-[11px] uppercase text-slate-500">Realisasi Terima</div><div class="font-semibold">{{ number_format($real['received_qty'] ?? 0, 1) }}</div></div>
+        <div><div class="text-[11px] uppercase text-slate-500">Nilai Tertagih</div><div class="font-semibold">Rp {{ number_format($real['billed_value'] ?? 0, 0) }}</div></div>
     </div>
     @if ($contract->sla)
     <div class="mt-3 text-sm"><div class="text-[11px] uppercase text-slate-500">SLA</div><div class="text-slate-700">{{ $contract->sla }}</div></div>
     @endif
-    @can('contract.approve')
+    @can('contract.create')
     @if ($contract->status === 'DRAFT')
     <form method="POST" action="{{ route('supplier-contracts.approve', $contract) }}" class="mt-4" onsubmit="return confirm('Aktifkan kontrak ini?')">
-        @csrf<button class="px-5 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold">Aktifkan Kontrak</button>
+        @csrf<button class="px-5 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold">Ajukan Approval</button>
     </form>
     @endif
     @endcan

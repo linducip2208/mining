@@ -31,8 +31,12 @@ class ContractService
 
     public static function customerRealization(CustomerContract $c): array
     {
+        $from = $c->start_date?->toDateString();
+        $to = $c->end_date?->toDateString();
         $ordered = (float) SalesOrder::where('customer_id', $c->customer_id)
             ->whereNotIn('status', ['DRAFT', 'REJECTED', 'CANCELLED'])
+            ->when($from, fn ($q) => $q->whereDate('order_date', '>=', $from))
+            ->when($to, fn ($q) => $q->whereDate('order_date', '<=', $to))
             ->whereHas('items', fn ($q) => $q->where('item_id', $c->item_id))
             ->join('sales_order_items', 'sales_order_items.sales_order_id', '=', 'sales_orders.id')
             ->where('sales_order_items.item_id', $c->item_id)
@@ -40,12 +44,16 @@ class ContractService
 
         $delivered = (float) SalesOrder::where('customer_id', $c->customer_id)
             ->whereNotIn('status', ['DRAFT', 'REJECTED', 'CANCELLED'])
+            ->when($from, fn ($q) => $q->whereDate('order_date', '>=', $from))
+            ->when($to, fn ($q) => $q->whereDate('order_date', '<=', $to))
             ->join('sales_order_items', 'sales_order_items.sales_order_id', '=', 'sales_orders.id')
             ->where('sales_order_items.item_id', $c->item_id)
             ->sum('sales_order_items.qty_delivered');
 
         $invoiced = (float) Invoice::where('invoices.customer_id', $c->customer_id)
             ->whereNotIn('invoices.status', ['DRAFT', 'CANCELLED', 'VOID'])
+            ->when($from, fn ($q) => $q->whereDate('invoices.invoice_date', '>=', $from))
+            ->when($to, fn ($q) => $q->whereDate('invoices.invoice_date', '<=', $to))
             ->join('invoice_items', 'invoice_items.invoice_id', '=', 'invoices.id')
             ->where('invoice_items.item_id', $c->item_id)
             ->sum('invoice_items.qty');
@@ -93,8 +101,7 @@ class ContractService
         }
     }
 
-    public static function supplierRealization(SupplierContract $c): array
-    {
+    public static function supplierRealization(SupplierContract $c): array    {
         $received = $c->item_id ? (float) GoodsReceiptItem::where('item_id', $c->item_id)
             ->whereHas('receipt', function ($q) use ($c) {
                 $q->where('status', 'POSTED')
@@ -110,6 +117,91 @@ class ContractService
             'billed_value' => round($billed, 2),
             'remaining_qty' => $c->contract_qty !== null ? round(max((float) $c->contract_qty - $received, 0), 4) : null,
             'remaining_value' => $c->contract_value !== null ? round(max((float) $c->contract_value - $billed, 0), 2) : null,
+        ];
+    }
+
+    public static function activeSupplierContract(int $supplierId, $itemId = null, ?string $date = null): ?SupplierContract
+    {
+        $date = $date ?? now()->toDateString();
+        return SupplierContract::where('supplier_id', $supplierId)
+            ->where('status', 'ACTIVE')
+            ->whereDate('start_date', '<=', $date)
+            ->whereDate('end_date', '>=', $date)
+            ->when($itemId, fn ($q) => $q->where(function ($w) use ($itemId) {
+                $w->whereNull('item_id')->orWhere('item_id', $itemId);
+            }))
+            ->orderByDesc('id')
+            ->first();
+    }
+
+    /**
+     * Guard called when creating a purchase order line.
+     */
+    public static function assertPurchaseWithinContract(int $supplierId, $itemId, float $newQty, float $newValue, ?int $excludePoId = null, ?string $date = null): void
+    {
+        $contract = self::activeSupplierContract($supplierId, $itemId, $date);
+        if (!$contract) {
+            return; // spot purchase allowed when no active contract
+        }
+        if ($contract->contract_qty !== null && $itemId) {
+            $ordered = (float) \App\Models\PurchaseOrderItem::whereHas('purchaseOrder', function ($q) use ($supplierId, $excludePoId) {
+                $q->where('supplier_id', $supplierId)
+                    ->whereNotIn('status', ['DRAFT', 'REJECTED', 'CANCELLED'])
+                    ->when($excludePoId, fn ($w) => $w->where('purchase_orders.id', '!=', $excludePoId));
+            })->where('item_id', $itemId)->sum('qty');
+            $remaining = (float) $contract->contract_qty - $ordered;
+            if ($newQty > $remaining + 0.0001 && !self::canOverride()) {
+                throw new \DomainException(
+                    'Melebihi kontrak supplier ' . $contract->number . ' (sisa ' . number_format($remaining, 2) . '). ' .
+                    'Butuh izin contract.override / approval khusus.'
+                );
+            }
+        }
+        if ($contract->contract_value !== null) {
+            $billed = (float) \App\Models\PurchaseOrder::where('supplier_id', $supplierId)
+                ->whereNotIn('status', ['DRAFT', 'REJECTED', 'CANCELLED'])
+                ->when($excludePoId, fn ($q) => $q->where('id', '!=', $excludePoId))
+                ->sum('total');
+            $remaining = (float) $contract->contract_value - $billed;
+            if ($newValue > $remaining + 0.01 && !self::canOverride()) {
+                throw new \DomainException(
+                    'Nilai PO melebihi kontrak supplier ' . $contract->number . ' (sisa Rp ' . number_format($remaining, 0) . '). ' .
+                    'Butuh izin contract.override / approval khusus.'
+                );
+            }
+        }
+    }
+
+    protected static function canOverride(): bool
+    {
+        return auth()->user()?->hasPermission('contract.override') ?? false;
+    }
+
+    /**
+     * Hauling settlement math from contract rate: tons × route distance × trips.
+     */
+    public static function haulingRealization(\App\Models\HaulingContract $c): array
+    {
+        $trips = \App\Models\DispatchTrip::whereNotIn('status', ['CANCELLED'])
+            ->when($c->hauling_route_id, fn ($q) => $q->where('hauling_route_id', $c->hauling_route_id))
+            ->whereDate('trip_date', '>=', $c->start_date->toDateString())
+            ->whereDate('trip_date', '<=', $c->end_date->toDateString())
+            ->with('route')
+            ->get();
+        $tons = round($trips->sum('tonnage'), 2);
+        $count = $trips->count();
+        $tonKm = round($trips->sum(fn ($t) => (float) $t->tonnage * (float) ($t->route?->distance_km ?? 0)), 2);
+        $km = round($trips->sum(fn ($t) => (float) ($t->route?->distance_km ?? 0)), 2);
+        $cost = match ($c->rate_type) {
+            'PER_TON' => round($tons * (float) $c->rate, 2),
+            'PER_KM' => round($km * (float) $c->rate, 2),
+            'PER_TRIP' => round($count * (float) $c->rate, 2),
+            default => 0,
+        };
+        $shortfall = $c->minimum_volume !== null ? round(max((float) $c->minimum_volume - $tons, 0), 2) : null;
+        return [
+            'trips' => $count, 'tons' => $tons, 'km' => $km, 'ton_km' => $tonKm,
+            'cost' => $cost, 'minimum_volume' => $c->minimum_volume, 'shortfall' => $shortfall,
         ];
     }
 }

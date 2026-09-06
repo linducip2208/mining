@@ -165,13 +165,13 @@ class QualityService
         AuditService::log('UPDATE', 'QUALITY', $hold->id, QualityHold::class, null, ['status' => 'RELEASED'], $note);
     }
 
-    public static function specialApprove(QualityHold $hold, ?string $note = null): void
+    public static function specialApprove(QualityHold $hold, ?string $note = null, ?int $approverId = null): void
     {
         if ($hold->status !== 'HOLD') {
             throw new \DomainException('Hold tidak dalam status HOLD.');
         }
         $hold->update([
-            'special_approval_by' => auth()->id(),
+            'special_approval_by' => $approverId ?? auth()->id(),
             'special_approval_note' => $note,
         ]);
         AuditService::log('APPROVE', 'QUALITY', $hold->id, QualityHold::class, null, ['special_approval' => true], $note);
@@ -180,8 +180,14 @@ class QualityService
     public static function issueCoa(int $sampleId, ?int $customerId = null, ?int $invoiceId = null): CoaDocument
     {
         $sample = QcSample::with('tests.parameter')->findOrFail($sampleId);
-        if ($sample->status === 'REJECT') {
-            throw new \DomainException('Sampel REJECT tidak dapat diterbitkan CoA.');
+        if ($sample->status !== 'PASS') {
+            throw new \DomainException('CoA hanya dapat diterbitkan untuk sampel PASS (status: ' . $sample->status . ').');
+        }
+        if ($sample->tests->isEmpty() || $sample->tests->contains(fn ($t) => $t->result !== 'PASS')) {
+            throw new \DomainException('CoA ditolak: masih ada hasil uji yang belum PASS.');
+        }
+        if (CoaDocument::where('qc_sample_id', $sample->id)->where('status', 'ISSUED')->exists()) {
+            throw new \DomainException('CoA untuk sampel ini sudah diterbitkan.');
         }
         $results = $sample->tests->map(fn ($t) => [
             'parameter' => $t->parameter?->code,

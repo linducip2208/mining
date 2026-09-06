@@ -24,7 +24,7 @@ class BudgetService
         return strtolower((string) Setting::get('budget.enforce', 'warning'));
     }
 
-    public static function activeBudget(int $companyId, ?int $siteId, string $type, int $year): ?Budget
+    public static function activeBudget(int $companyId, ?int $siteId, string $type, int $year, ?int $divisionId = null, ?int $departmentId = null): ?Budget
     {
         return Budget::where('company_id', $companyId)
             ->where('type', $type)
@@ -32,6 +32,12 @@ class BudgetService
             ->whereIn('status', ['APPROVED', 'REVISED'])
             ->when($siteId, fn ($q) => $q->where(function ($w) use ($siteId) {
                 $w->whereNull('site_id')->orWhere('site_id', $siteId);
+            }))
+            ->when($divisionId, fn ($q) => $q->where(function ($w) use ($divisionId) {
+                $w->whereNull('division_id')->orWhere('division_id', $divisionId);
+            }))
+            ->when($departmentId, fn ($q) => $q->where(function ($w) use ($departmentId) {
+                $w->whereNull('department_id')->orWhere('department_id', $departmentId);
             }))
             ->orderByRaw('site_id IS NULL')
             ->first();
@@ -114,11 +120,12 @@ class BudgetService
      * Check whether amount fits available budget for a COA+scope+period.
      * Returns ['ok'=>bool,'message'=>?]. No budget line = no control.
      */
-    public static function check(int $companyId, ?int $siteId, int $coaId, string $periodMonth, float $amount): array
+    public static function check(int $companyId, ?int $siteId, int $coaId, string $periodMonth, float $amount, ?string $type = null, ?int $divisionId = null, ?int $departmentId = null): array
     {
         $year = (int) substr($periodMonth, 0, 4);
         $budget = Budget::where('company_id', $companyId)
             ->where('year', $year)
+            ->when($type, fn ($q) => $q->where('type', $type))
             ->whereIn('status', ['APPROVED', 'REVISED'])
             ->where(function ($q) use ($siteId) {
                 $q->whereNull('site_id');
@@ -126,6 +133,12 @@ class BudgetService
                     $q->orWhere('site_id', $siteId);
                 }
             })
+            ->when($divisionId, fn ($q) => $q->where(function ($w) use ($divisionId) {
+                $w->whereNull('division_id')->orWhere('division_id', $divisionId);
+            }))
+            ->when($departmentId, fn ($q) => $q->where(function ($w) use ($departmentId) {
+                $w->whereNull('department_id')->orWhere('department_id', $departmentId);
+            }))
             ->orderByRaw('site_id IS NULL')
             ->first();
         if (!$budget) {
@@ -152,9 +165,9 @@ class BudgetService
         return ['ok' => true, 'message' => null];
     }
 
-    public static function assertAvailable(int $companyId, ?int $siteId, int $coaId, string $periodMonth, float $amount): ?string
+    public static function assertAvailable(int $companyId, ?int $siteId, int $coaId, string $periodMonth, float $amount, ?string $type = null, ?int $divisionId = null, ?int $departmentId = null): ?string
     {
-        $check = self::check($companyId, $siteId, $coaId, $periodMonth, $amount);
+        $check = self::check($companyId, $siteId, $coaId, $periodMonth, $amount, $type, $divisionId, $departmentId);
         $mode = self::enforceMode();
         if (!$check['ok'] && $mode === 'block') {
             throw new \DomainException($check['message']);
@@ -189,6 +202,13 @@ class BudgetService
             ->update(['status' => 'CONSUMED']);
     }
 
+    public static function reopen(string $refType, $refId): void
+    {
+        BudgetCommitment::where('ref_type', $refType)->where('ref_id', $refId)
+            ->where('status', 'CONSUMED')
+            ->update(['status' => 'COMMITTED']);
+    }
+
     /** Find best budget line for a COA (for commitment attach). */
     public static function findLine(int $companyId, ?int $siteId, int $coaId, string $periodMonth): ?BudgetLine
     {
@@ -216,7 +236,7 @@ class BudgetService
         if (!$line) {
             return null;
         }
-        $warn = self::assertAvailable($pr->company_id, $pr->site_id, $coaId, $month, $amount);
+        $warn = self::assertAvailable($pr->company_id, $pr->site_id, $coaId, $month, $amount, null, $pr->division_id ?? null, $pr->department_id ?? null);
         self::commit('PURCHASE_REQUEST', $pr->id, $pr->number, $line->budget_id, $line->id, $amount);
         return $warn;
     }

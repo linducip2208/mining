@@ -44,6 +44,23 @@ class ComplianceService
     }
 
     /**
+     * Renew/extend: perpanjang masa berlaku, status kembali ACTIVE.
+     */
+    public static function renew(ComplianceRegister $reg, string $expiryDate, ?string $documentNumber = null): ComplianceRegister
+    {
+        if (!in_array($reg->status, ['ACTIVE', 'EXPIRING_SOON', 'EXPIRED'])) {
+            throw new \DomainException('Status ' . $reg->status . ' tidak dapat diperpanjang.');
+        }
+        $reg->update([
+            'expiry_date' => $expiryDate,
+            'document_number' => $documentNumber ?? $reg->document_number,
+            'status' => 'ACTIVE',
+        ]);
+        AuditService::log('UPDATE', 'COMPLIANCE', $reg->id, ComplianceRegister::class, null, ['renewed_until' => $expiryDate]);
+        return $reg->fresh();
+    }
+
+    /**
      * Evaluate all active registers; update EXPIRING_SOON/EXPIRED and
      * notify once per threshold crossing.
      */

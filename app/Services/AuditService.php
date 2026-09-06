@@ -30,17 +30,22 @@ class AuditService
         if (!self::$enabled) {
             return;
         }
+        $user = auth()->user();
         AuditLog::create([
-            'user_id' => auth()->id(),
+            'user_id' => $user?->id,
+            'role' => $user?->roles()->first()?->code,
             'action' => $action,
             'module' => $module,
             'record_id' => $recordId,
             'record_type' => $recordType,
+            'company_id' => $newValues['company_id'] ?? $oldValues['company_id'] ?? null,
+            'site_id' => $newValues['site_id'] ?? $oldValues['site_id'] ?? null,
             'old_values' => $oldValues,
             'new_values' => $newValues,
             'reason' => $reason,
             'ip_address' => request()?->ip(),
             'user_agent' => substr((string) request()?->userAgent(), 0, 255),
+            'device' => substr((string) request()?->header('User-Agent'), 0, 100) ?: null,
         ]);
     }
 

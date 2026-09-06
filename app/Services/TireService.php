@@ -22,6 +22,13 @@ class TireService
             if ($tire->status === 'SCRAP') {
                 throw new \DomainException('Ban scrap tidak dapat dipasang.');
             }
+            // satu slot hanya boleh ditempati satu ban aktif
+            if (Tire::where('equipment_id', $equipmentId)
+                ->where('position', $position)
+                ->where('status', 'INSTALLED')
+                ->exists()) {
+                throw new \DomainException('Slot ' . $position . ' pada unit tersebut sudah ditempati ban lain.');
+            }
             $tire->update([
                 'status' => 'INSTALLED',
                 'equipment_id' => $equipmentId,
@@ -64,8 +71,17 @@ class TireService
             if ($tire->status !== 'INSTALLED') {
                 throw new \DomainException('Hanya ban terpasang yang dapat dirotasi.');
             }
+            if (Tire::where('equipment_id', $tire->equipment_id)
+                ->where('position', $newPosition)
+                ->where('status', 'INSTALLED')
+                ->where('id', '!=', $tire->id)
+                ->exists()) {
+                throw new \DomainException('Slot ' . $newPosition . ' sudah ditempati ban lain.');
+            }
             $tire->update(['position' => $newPosition]);
-            return self::record($tire->id, $date, 'ROTATE', $tire->equipment_id, $newPosition, $hm, $km);
+            $move = self::record($tire->id, $date, 'ROTATE', $tire->equipment_id, $newPosition, $hm, $km);
+            AuditService::log('UPDATE', 'TIRE', $tire->id, Tire::class, null, ['rotated_to' => $newPosition]);
+            return $move;
         });
     }
 

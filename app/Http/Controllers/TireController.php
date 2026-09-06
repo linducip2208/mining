@@ -18,8 +18,9 @@ class TireController extends Controller
     {
         $items = Tire::with(['equipment', 'company'])
             ->when($request->q, fn ($q) => $q->where('serial_no', 'like', "%{$request->q}%"))
-            ->when($request->status, fn ($q) => $q->where('status', $request->status))
-            ->orderBy('serial_no')->paginate(20)->withQueryString();
+            ->when($request->status, fn ($q) => $q->where('status', $request->status));
+        $this->applyCompanyScope($items);
+        $items = $items->orderBy('serial_no')->paginate(20)->withQueryString();
         return view('tire.index', ['items' => $items, 'statuses' => ['NEW', 'INSTALLED', 'REPAIR', 'STOCK', 'SCRAP']]);
     }
 
@@ -46,7 +47,7 @@ class TireController extends Controller
             'purchase_date' => 'nullable|date',
         ]);
         $this->ensureCompanyInScope($validated['company_id'] ?? null);
-        $tire = Tire::create($validated + ['status' => 'NEW', 'created_by' => auth()->id()]);
+        $tire = Tire::create($validated + ['status' => 'STOCK', 'created_by' => auth()->id()]);
         AuditService::created('TIRE', $tire);
         return redirect()->route('tires.show', $tire)->with('success', 'Ban terdaftar.');
     }

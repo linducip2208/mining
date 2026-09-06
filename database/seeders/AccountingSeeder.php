@@ -119,6 +119,7 @@ class AccountingSeeder extends Seeder
         Setting::updateOrCreate(['key' => 'notification.whatsapp_webhook_url'], ['value' => '', 'type' => 'string']);
         Setting::updateOrCreate(['key' => 'budget.enforce'], ['value' => 'warning', 'type' => 'string']);
         Setting::updateOrCreate(['key' => 'hse.severity_levels'], ['value' => json_encode(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL', 'LTI', 'FATALITY']), 'type' => 'json']);
+        Setting::updateOrCreate(['key' => 'fuel.dip_threshold_pct'], ['value' => '2', 'type' => 'number']);
 
         // open fiscal periods for this + next year
         foreach (range(now()->year, now()->year + 1) as $y) {

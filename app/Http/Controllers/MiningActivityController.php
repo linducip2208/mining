@@ -23,9 +23,46 @@ class MiningActivityController extends Controller
 {
     use AppliesDataScope;
 
-    public function index(Request $request)
+    public function dashboard(Request $request)
     {
-        $items = MiningActivity::with(['site', 'pit', 'shift', 'equipment', 'operator', 'item'])
+        $date = $request->date ?? today()->toDateString();
+        $siteId = $request->integer('site_id') ?: null;
+        $this->ensureSiteInScope($siteId);
+        $sites = auth()->user()?->accessibleSiteIds();
+
+        $base = MiningActivity::whereDate('date', $date)
+            ->when($siteId, fn ($q) => $q->where('mining_activities.site_id', $siteId))
+            ->when($sites !== null, fn ($q) => $q->whereIn('mining_activities.site_id', $sites))
+            ->whereIn('mining_activities.status', ['APPROVED', 'POSTED']);
+
+        $tons = (float) (clone $base)->sum('tonnage');
+        $trips = (clone $base)->count();
+        $units = (clone $base)->distinct('equipment_id')->count('equipment_id');
+        $byShift = (clone $base)->join('shifts', 'shifts.id', '=', 'mining_activities.shift_id')
+            ->selectRaw('shifts.name, COALESCE(SUM(tonnage),0) tons, COUNT(*) trips')
+            ->groupBy('shifts.name')->orderByDesc('tons')->get();
+        $byPit = (clone $base)->join('pits', 'pits.id', '=', 'mining_activities.pit_id')
+            ->selectRaw('pits.name, COALESCE(SUM(tonnage),0) tons, COUNT(*) trips')
+            ->groupBy('pits.name')->orderByDesc('tons')->get();
+        $latest = MiningActivity::with(['site', 'pit', 'shift', 'equipment'])
+            ->when($siteId, fn ($q) => $q->where('mining_activities.site_id', $siteId))
+            ->when($sites !== null, fn ($q) => $q->whereIn('mining_activities.site_id', $sites))
+            ->orderByDesc('date')->orderByDesc('id')->limit(10)->get();
+        $byStatus = MiningActivity::whereDate('date', $date)
+            ->when($siteId, fn ($q) => $q->where('mining_activities.site_id', $siteId))
+            ->when($sites !== null, fn ($q) => $q->whereIn('mining_activities.site_id', $sites))
+            ->selectRaw('status, COUNT(*) c')->groupBy('status')->pluck('c', 'status');
+
+        return view('mining.dashboard', [
+            'date' => $date, 'tons' => $tons, 'trips' => $trips, 'units' => $units,
+            'avgPayload' => $trips ? round($tons / $trips, 1) : 0,
+            'byShift' => $byShift, 'byPit' => $byPit, 'latest' => $latest, 'byStatus' => $byStatus,
+            'sites' => Site::pluck('name', 'id')->all(),
+        ]);
+    }
+
+    public function index(Request $request)
+    {        $items = MiningActivity::with(['site', 'pit', 'shift', 'equipment', 'operator', 'item'])
             ->when($request->q, fn ($q) => $q->where('number', 'like', "%{$request->q}%"))
             ->when($request->site_id, fn ($q) => $q->where('site_id', $request->site_id))
             ->when($request->status, fn ($q) => $q->where('status', $request->status))

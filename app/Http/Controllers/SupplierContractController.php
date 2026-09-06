@@ -18,8 +18,9 @@ class SupplierContractController extends Controller
     public function index(Request $request)
     {
         $items = SupplierContract::with(['supplier', 'item'])
-            ->when($request->status, fn ($q) => $q->where('status', $request->status))
-            ->orderByDesc('id')->paginate(20)->withQueryString();
+            ->when($request->status, fn ($q) => $q->where('status', $request->status));
+        $this->applyCompanyScope($items);
+        $items = $items->orderByDesc('id')->paginate(20)->withQueryString();
         return view('contract.suppliers.index', ['items' => $items, 'statuses' => ['DRAFT', 'ACTIVE', 'COMPLETED', 'EXPIRED', 'CANCELLED']]);
     }
 
@@ -72,14 +73,12 @@ class SupplierContractController extends Controller
 
     public function approve(SupplierContract $supplier_contract)
     {
-        if (!auth()->user()->hasPermission('contract.approve')) {
-            abort(403);
-        }
         if ($supplier_contract->status !== 'DRAFT') {
             return back()->with('error', 'Status tidak valid.');
         }
-        $supplier_contract->update(['status' => 'ACTIVE', 'approved_by' => auth()->id()]);
-        AuditService::log('APPROVE', 'CONTRACT', $supplier_contract->id, SupplierContract::class);
-        return back()->with('success', 'Kontrak aktif.');
+        \App\Services\ApprovalService::submit('CONTRACT', 'SUPPLIER_CONTRACT', $supplier_contract);
+        return back()->with('success', $supplier_contract->fresh()->status === 'SUBMITTED'
+            ? 'Kontrak diajukan ke approval center.'
+            : 'Kontrak aktif.');
     }
 }

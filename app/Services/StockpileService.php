@@ -29,7 +29,7 @@ class StockpileService
             if (!$pile) {
                 throw new \InvalidArgumentException('Stockpile tidak ditemukan.');
             }
-            if (!in_array($type, ['OPENING', 'PRODUCTION_IN', 'TRANSFER_IN', 'TRANSFER_OUT', 'SALES_OUT', 'ADJUSTMENT_PLUS', 'ADJUSTMENT_MINUS'])) {
+            if (!in_array($type, ['OPENING', 'PRODUCTION_IN', 'TRANSFER_IN', 'TRANSFER_OUT', 'SALES_OUT', 'ADJUSTMENT_PLUS', 'ADJUSTMENT_MINUS', 'SURVEY_ADJUSTMENT'])) {
                 throw new \InvalidArgumentException('Tipe pergerakan tidak dikenal: ' . $type);
             }
             if ($out > 0 && self::balance($stockpileId) < $out - 0.0001) {
@@ -50,6 +50,23 @@ class StockpileService
             AuditService::log('POST', 'STOCKPILE', $move->id, StockpileMovement::class, null, ['pile' => $pile->code, 'type' => $type, 'in' => $in, 'out' => $out]);
             return $move;
         });
+    }
+
+    /**
+     * Post ke pile yang terhubung ke gudang+item (jembatan warehouse ↔ stockpile).
+     * No-op bila site tidak memakai stockpile (warehouse-only) — ledger gudang tetap sumber.
+     */
+    public static function moveForWarehouse(int $warehouseId, int $itemId, string $type, float $in, float $out, $refId = null, ?string $refType = null, ?string $refNumber = null, ?string $date = null, ?string $notes = null): ?StockpileMovement
+    {
+        $pile = Stockpile::where('warehouse_id', $warehouseId)
+            ->where('item_id', $itemId)
+            ->where('status', true)
+            ->orderBy('id')
+            ->first();
+        if (!$pile) {
+            return null;
+        }
+        return self::move($pile->id, $type, $in, $out, $refId, $refType, $refNumber, $date, $notes);
     }
 
     /**
@@ -108,11 +125,12 @@ class StockpileService
             if ($survey->status === 'INVESTIGATE' && empty($investigation) && empty($survey->investigation)) {
                 throw new \DomainException('Variansi di atas threshold wajib diisi hasil investigasi.');
             }
-            $variance = (float) $survey->variance;
+            // rebase: hitung ulang selisih terhadap saldo TERKINI (mutasi antara
+            // survei ↔ approve ikut diperhitungkan, ledger tidak pernah misalign)
+            $variance = round((float) $survey->survey_balance - self::balance($pile->id), 4);
             if (abs($variance) > 0.0001) {
-                $type = $variance > 0 ? 'ADJUSTMENT_PLUS' : 'ADJUSTMENT_MINUS';
                 self::move(
-                    $pile->id, $type,
+                    $pile->id, 'SURVEY_ADJUSTMENT',
                     $variance > 0 ? $variance : 0,
                     $variance < 0 ? abs($variance) : 0,
                     $survey->id, 'STOCKPILE_SURVEY', 'SURV-' . $survey->id,

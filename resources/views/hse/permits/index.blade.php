@@ -96,9 +96,9 @@
         <td class="px-4 py-2.5">{{ $item->requester?->name ?? '—' }}</td>
         <td class="px-4 py-2.5"><x-status-badge :status="$item->status" /></td>
         <td class="px-4 py-2.5 text-right">
-            @can('hse.approve')
+            @can('hse.create')
             @if ($item->status === 'DRAFT')
-            <form method="POST" action="{{ route('hse.permits.approve', $item) }}" class="inline">@csrf<button class="text-green-600 hover:underline text-xs">Approve</button></form>
+            <form method="POST" action="{{ route('hse.permits.approve', $item) }}" class="inline">@csrf<button class="text-green-600 hover:underline text-xs">Ajukan</button></form>
             @endif
             @endcan
         </td>

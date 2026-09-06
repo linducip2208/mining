@@ -25,8 +25,10 @@ class BudgetController extends Controller
         $items = Budget::with(['company', 'site'])
             ->when($request->year, fn ($q) => $q->where('year', $request->year))
             ->when($request->status, fn ($q) => $q->where('status', $request->status))
-            ->when($request->type, fn ($q) => $q->where('type', $request->type))
-            ->orderByDesc('year')->paginate(20)->withQueryString();
+            ->when($request->type, fn ($q) => $q->where('type', $request->type));
+        $this->applyCompanyScope($items);
+        $this->applySiteScope($items);
+        $items = $items->orderByDesc('year')->paginate(20)->withQueryString();
         return view('budget.index', [
             'items' => $items,
             'statuses' => ['DRAFT', 'APPROVED', 'REVISED', 'CLOSED', 'CANCELLED'],
@@ -104,15 +106,13 @@ class BudgetController extends Controller
 
     public function approve(Budget $budget)
     {
-        if (!auth()->user()->hasPermission('budget.approve')) {
-            abort(403);
-        }
         if (!in_array($budget->status, ['DRAFT', 'REVISED'])) {
             return back()->with('error', 'Status tidak valid.');
         }
-        $budget->update(['status' => 'APPROVED', 'approved_by' => auth()->id()]);
-        AuditService::log('APPROVE', 'BUDGET', $budget->id, Budget::class);
-        return back()->with('success', 'Budget disetujui.');
+        \App\Services\ApprovalService::submit('BUDGET', 'BUDGET', $budget);
+        return back()->with('success', $budget->fresh()->status === 'SUBMITTED'
+            ? 'Budget diajukan ke approval center.'
+            : 'Budget disetujui.');
     }
 
     public function revise(Budget $budget)

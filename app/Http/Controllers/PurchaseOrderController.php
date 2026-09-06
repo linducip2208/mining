@@ -12,7 +12,7 @@ use App\Models\PurchaseRequest;
 use App\Models\GoodsReceipt;
 use App\Services\AuditService;
 use App\Services\ApprovalService;
-use App\Services\OperationsService;
+use App\Services\ProcurementService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -50,15 +50,19 @@ class PurchaseOrderController extends Controller
         $validated = $this->validateInput($request);
         $this->ensureCompanyInScope($validated['company_id'] ?? null);
         $this->ensureSiteInScope($validated['site_id'] ?? null);
-        $po = DB::transaction(function () use ($validated, $request) {
-            $po = PurchaseOrder::create($validated + [
-                'number' => \App\Services\NumberingService::generate('PO', $validated['company_id']),
-                'status' => 'DRAFT',
-                'created_by' => auth()->id(),
-            ]);
-            $this->syncLines($po, $request);
-            return $po;
-        });
+        try {
+            $po = DB::transaction(function () use ($validated, $request) {
+                $po = PurchaseOrder::create($validated + [
+                    'number' => \App\Services\NumberingService::generate('PO', $validated['company_id']),
+                    'status' => 'DRAFT',
+                    'created_by' => auth()->id(),
+                ]);
+                $this->syncLines($po, $request);
+                return $po;
+            });
+        } catch (\DomainException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
         AuditService::created('PROCUREMENT', $po);
         return redirect()->route('purchase-orders.index')->with('success', 'PO dibuat.');
     }
@@ -68,17 +72,30 @@ class PurchaseOrderController extends Controller
         return view('procurement.po.index', ['po' => $purchase_order->load(['items.item', 'supplier']), 'items' => PurchaseOrder::orderByDesc('id')->paginate(20), 'statuses' => ['DRAFT', 'SUBMITTED', 'APPROVED', 'PARTIALLY_RECEIVED', 'COMPLETED', 'CANCELLED']]);
     }
 
-    public function approve(PurchaseOrder $purchase_order)
+    public function cancel(PurchaseOrder $purchase_order)
     {
+        if (!in_array($purchase_order->status, ['DRAFT', 'SUBMITTED'])) {
+            return back()->with('error', 'Hanya DRAFT/SUBMITTED yang dapat dibatalkan.');
+        }
+        $purchase_order->update(['status' => 'CANCELLED']);
+        \App\Services\BudgetService::release('PURCHASE_ORDER', $purchase_order->id);
+        \App\Services\AuditService::log('CANCEL', 'PROCUREMENT', $purchase_order->id, PurchaseOrder::class);
+        return back()->with('success', 'PO dibatalkan — komitmen budget dilepas.');
+    }
+
+    public function approve(PurchaseOrder $purchase_order)    {
         if (!auth()->user()->hasPermission('purchase_order.approve')) {
             abort(403);
         }
+        $previous = $purchase_order->status;
         $purchase_order->update(['status' => 'APPROVED', 'approved_by' => auth()->id()]);
         AuditService::log('APPROVE', 'PROCUREMENT', $purchase_order->id, PurchaseOrder::class);
         try {
             $warn = \App\Services\BudgetService::commitPurchaseOrder($purchase_order->fresh());
         } catch (\DomainException $e) {
-            return back()->with('error', 'PO disetujui. ' . $e->getMessage());
+            // block-mode: batalkan approval bila budget menolak
+            $purchase_order->update(['status' => $previous, 'approved_by' => null]);
+            return back()->with('error', 'PO tidak dapat disetujui: ' . $e->getMessage());
         }
         return back()->with('success', 'PO disetujui.' . ($warn ? ' Peringatan budget: ' . $warn : ''));
     }
@@ -90,6 +107,11 @@ class PurchaseOrderController extends Controller
         foreach ($request->input('lines', []) as $line) {
             if (!empty($line['item_id']) && $line['qty'] > 0) {
                 $total = round((float) $line['qty'] * (float) $line['unit_price'], 2);
+                // contract guard: block over-contract lines without override permission
+                \App\Services\ContractService::assertPurchaseWithinContract(
+                    $po->supplier_id, (int) $line['item_id'], (float) $line['qty'], $total, $po->id,
+                    $po->order_date?->toDateString()
+                );
                 $subtotal += $total;
                 $po->items()->create(['item_id' => $line['item_id'], 'qty' => $line['qty'], 'unit_price' => $line['unit_price'], 'total_price' => $total, 'remark' => $line['remark'] ?? null]);
             }

@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\Employee;
 use App\Models\Equipment;
 use App\Models\HseActivity;
+use App\Models\HseCorrectiveAction;
 use App\Models\HsePermit;
 use App\Models\HseReport;
 use App\Models\Site;
@@ -100,11 +101,45 @@ class HseController extends Controller
     {
         $validated = $request->validate([
             'action' => 'required|max:2000',
-            'responsible_id' => 'nullable|exists:employees,id',
-            'due_date' => 'nullable|date',
+            'responsible_id' => 'required|exists:employees,id',
+            'due_date' => 'required|date',
         ]);
-        HseService::addAction($hse_report->id, $validated);
+        try {
+            HseService::addAction($hse_report->id, $validated);
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
         return back()->with('success', 'Corrective action ditambahkan.');
+    }
+
+    public function investigate(Request $request, HseReport $hse_report)
+    {
+        if (!auth()->user()->hasPermission('hse.update')) {
+            abort(403);
+        }
+        $validated = $request->validate([
+            'root_cause' => 'required|max:5000',
+            'cause' => 'nullable|max:5000',
+        ]);
+        try {
+            HseService::investigate($hse_report, $validated['root_cause'], $validated['cause'] ?? null);
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+        return back()->with('success', 'Investigasi tersimpan — root cause tercatat.');
+    }
+
+    public function verifyAction(HseCorrectiveAction $action)
+    {
+        if (!auth()->user()->hasPermission('hse.close')) {
+            abort(403);
+        }
+        try {
+            HseService::verifyAction($action);
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+        return back()->with('success', 'Action terverifikasi.');
     }
 
     public function closeAction(Request $request, \App\Models\HseCorrectiveAction $action)
@@ -126,22 +161,22 @@ class HseController extends Controller
 
     public function closeReport(HseReport $hse_report)
     {
-        if (!auth()->user()->hasPermission('hse.close')) {
-            abort(403);
+        if (in_array($hse_report->status, ['CLOSED', 'CANCELLED'])) {
+            return back()->with('error', 'Status tidak valid.');
         }
-        try {
-            HseService::closeReport($hse_report);
-        } catch (\DomainException $e) {
-            return back()->with('error', $e->getMessage());
-        }
-        return back()->with('success', 'Kasus ditutup.');
+        \App\Services\ApprovalService::submit('HSE', 'HSE_CLOSE', $hse_report);
+        return back()->with('success', $hse_report->fresh()->status === 'SUBMITTED'
+            ? 'Penutupan kasus diajukan ke approval center.'
+            : 'Kasus ditutup.');
     }
 
     public function permits(Request $request)
     {
         $items = HsePermit::with(['site', 'requester'])
-            ->when($request->status, fn ($q) => $q->where('status', $request->status))
-            ->orderByDesc('valid_from')->paginate(20)->withQueryString();
+            ->when($request->status, fn ($q) => $q->where('status', $request->status));
+        $this->applyCompanyScope($items);
+        $this->applySiteScope($items);
+        $items = $items->orderByDesc('valid_from')->paginate(20)->withQueryString();
         return view('hse.permits.index', [
             'items' => $items,
             'statuses' => ['DRAFT', 'APPROVED', 'ACTIVE', 'EXPIRED', 'CLOSED', 'REJECTED'],
@@ -177,19 +212,22 @@ class HseController extends Controller
 
     public function approvePermit(HsePermit $permit)
     {
-        if (!auth()->user()->hasPermission('hse.approve')) {
-            abort(403);
+        if ($permit->status !== 'DRAFT') {
+            return back()->with('error', 'Status tidak valid.');
         }
-        $permit->update(['status' => 'APPROVED', 'approved_by' => auth()->id()]);
-        AuditService::log('APPROVE', 'HSE', $permit->id, HsePermit::class);
-        return back()->with('success', 'Permit disetujui.');
+        \App\Services\ApprovalService::submit('HSE', 'HSE_PERMIT', $permit);
+        return back()->with('success', $permit->fresh()->status === 'SUBMITTED'
+            ? 'Permit diajukan ke approval center.'
+            : 'Permit disetujui.');
     }
 
     public function activities(Request $request)
     {
         $items = HseActivity::with(['site'])
-            ->when($request->kind, fn ($q) => $q->where('kind', $request->kind))
-            ->orderByDesc('activity_date')->paginate(20)->withQueryString();
+            ->when($request->kind, fn ($q) => $q->where('kind', $request->kind));
+        $this->applyCompanyScope($items);
+        $this->applySiteScope($items);
+        $items = $items->orderByDesc('activity_date')->paginate(20)->withQueryString();
         return view('hse.activities.index', [
             'items' => $items,
             'kinds' => ['INSPECTION' => 'Inspeksi', 'TOOLBOX' => 'Toolbox Meeting', 'TRAINING' => 'Training', 'PPE_CHECK' => 'Cek APD'],

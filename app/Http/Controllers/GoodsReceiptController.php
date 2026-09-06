@@ -12,7 +12,7 @@ use App\Models\PurchaseRequest;
 use App\Models\GoodsReceipt;
 use App\Services\AuditService;
 use App\Services\ApprovalService;
-use App\Services\OperationsService;
+use App\Services\ProcurementService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -113,7 +113,7 @@ class GoodsReceiptController extends Controller
     public function post(GoodsReceipt $goods_receipt)
     {
         try {
-            OperationsService::postGoodsReceipt($goods_receipt);
+            ProcurementService::postGoodsReceipt($goods_receipt);
         } catch (\DomainException $e) {
             return back()->with('error', $e->getMessage());
         }

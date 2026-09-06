@@ -40,8 +40,13 @@
         <td class="px-4 py-2.5 text-right">Rp {{ number_format($item->total_cost, 0) }}</td>
         <td class="px-4 py-2.5"><x-status-badge :status="$item->status" /></td>
         <td class="px-4 py-2.5 text-right">
-            @can('fuel.post')
+            @can('fuel.create')
             @if ($item->status === 'DRAFT')
+            <form method="POST" action="{{ route('fuel-receipts.approve', $item) }}" class="inline">@csrf<button class="text-green-600 hover:underline text-xs">Ajukan Approval</button></form>
+            @endif
+            @endcan
+            @can('fuel.post')
+            @if ($item->status === 'APPROVED')
             <form method="POST" action="{{ route('fuel-receipts.post', $item) }}" onsubmit="return confirm('Posting penerimaan ini?')">
                 @csrf<button class="text-amber-600 hover:underline text-xs">Posting</button>
             </form>

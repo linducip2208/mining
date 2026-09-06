@@ -2,24 +2,28 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
     /**
      * Seed the application's database.
+     *
+     * Urutan penting: Core (roles/permissions/superadmin) → Accounting (COA/mapping)
+     * → Alert & Approval workflow → Demo master → Demo users → Demo transaksi.
+     * Semua seeder idempotent (guard di masing-masing run()).
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        $this->call([
+            CoreSeeder::class,
+            AccountingSeeder::class,
+            AlertRuleSeeder::class,
+            ApprovalWorkflowSeeder::class,
+            DemoSeeder::class,
+            UserSeeder::class,
+            TransactionSeeder::class,
+            NewModulesSeeder::class,
         ]);
     }
 }

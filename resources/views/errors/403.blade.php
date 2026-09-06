@@ -1,18 +1,1 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="utf-8">
-    <title>Akses Ditolak</title>
-    @vite(['resources/css/app.css'])
-</head>
-<body class="bg-slate-100">
-<div class="min-h-screen flex items-center justify-center p-6">
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-10 max-w-md text-center">
-        <div class="text-6xl mb-4">🔒</div>
-        <h1 class="text-xl font-bold text-slate-800">403 — Akses Ditolak</h1>
-        <p class="text-sm text-slate-500 mt-2">Anda tidak memiliki izin untuk mengakses halaman ini. Hubungi administrator jika Anda merasa ini keliru.</p>
-        <a href="{{ url('/dashboard') }}" class="inline-block mt-6 px-5 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold">Kembali ke Dashboard</a>
-    </div>
-</div>
-</body>
-</html>
+@extends('errors.layout', ['code' => 403])

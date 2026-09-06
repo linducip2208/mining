@@ -44,10 +44,12 @@
 </div>
 
 <div class="flex gap-2">
-    @can('budget.approve')
+    @can('budget.create')
     @if (in_array($budget->status, ['DRAFT', 'REVISED']))
-    <form method="POST" action="{{ route('budgets.approve', $budget) }}">@csrf<button class="px-5 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold">Approve</button></form>
+    <form method="POST" action="{{ route('budgets.approve', $budget) }}">@csrf<button class="px-5 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold">Ajukan Approval</button></form>
     @endif
+    @endcan
+    @can('budget.approve')
     @if ($budget->status === 'APPROVED')
     <form method="POST" action="{{ route('budgets.close', $budget) }}" onsubmit="return confirm('Tutup budget ini?')">@csrf<button class="px-5 py-2 rounded-lg bg-slate-700 hover:bg-slate-800 text-white text-sm font-semibold">Tutup</button></form>
     @endif

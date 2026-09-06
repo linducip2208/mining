@@ -22,6 +22,13 @@
     <x-stat-card title="Hari Tanpa Kecelakaan" :value="$safe_days ?? '—'" color="green" />
 </div>
 
+<div class="grid md:grid-cols-2 gap-3 mb-4">
+    <a href="{{ route('hse.permits.index') }}" class="rounded-xl border {{ ($permits_expiring ?? 0) > 0 ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200' }} p-4 block">
+        <div class="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">Permit Kedaluwarsa ≤ 14 hari</div>
+        <div class="mt-1 text-2xl font-bold text-slate-800">{{ $permits_expiring ?? 0 }}</div>
+    </a>
+</div>
+
 <div class="flex gap-2 text-sm">
     <a href="{{ route('hse.reports.index') }}" class="px-4 py-2 rounded-lg bg-white border border-slate-200 hover:border-amber-400">Laporan →</a>
     <a href="{{ route('hse.permits.index') }}" class="px-4 py-2 rounded-lg bg-white border border-slate-200 hover:border-amber-400">Permit Kerja →</a>

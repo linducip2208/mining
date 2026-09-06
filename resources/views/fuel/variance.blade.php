@@ -11,6 +11,8 @@
 <x-filter-bar :route="route('fuel.variance')">
     <x-filter-input name="from" label="Dari" type="date" />
     <x-filter-input name="to" label="Sampai" type="date" />
+    <x-filter-input name="company_id" label="Perusahaan" type="select" :options="$companies ?? []" />
+    <x-filter-input name="site_id" label="Site" type="select" :options="$sites ?? []" />
 </x-filter-bar>
 
 <x-table>

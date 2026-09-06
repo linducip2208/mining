@@ -88,9 +88,9 @@
         <td class="px-4 py-2.5 text-right">Rp {{ number_format($item->amount, 0) }}</td>
         <td class="px-4 py-2.5"><x-status-badge :status="$item->status" /></td>
         <td class="px-4 py-2.5 text-right whitespace-nowrap">
-            @can('cost.approve')
+            @can('cost.create')
             @if ($item->status === 'DRAFT')
-            <form method="POST" action="{{ route('cost.others.approve', $item) }}" class="inline">@csrf<button class="text-green-600 hover:underline text-xs">Approve</button></form>
+            <form method="POST" action="{{ route('cost.others.approve', $item) }}" class="inline">@csrf<button class="text-green-600 hover:underline text-xs">Ajukan</button></form>
             @endif
             @endcan
             @can('cost.post')

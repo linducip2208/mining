@@ -74,11 +74,10 @@
                     @csrf<button class="text-green-600 hover:underline text-xs">Release</button>
                 </form>
                 @endcan
-                @can('quality.approve')
-                <form method="POST" action="{{ route('quality-holds.special-approve', $item) }}" class="inline ml-2" onsubmit="return confirm('Special approve: delivery boleh jalan dengan catatan. Lanjut?')">
+                @can('quality.create')
+                <form method="POST" action="{{ route('quality-holds.special-approve', $item) }}" class="inline ml-2" onsubmit="return confirm('Ajukan special approval ke approval center?')">
                     @csrf
-                    <input type="hidden" name="note" value="Special approval via daftar hold">
-                    <button class="text-amber-600 hover:underline text-xs">Special Approve</button>
+                    <button class="text-amber-600 hover:underline text-xs">Ajukan Special</button>
                 </form>
                 @endcan
             @endif

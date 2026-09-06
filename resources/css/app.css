@@ -1,3 +1,107 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+ * Mining ERP design tokens (single source of truth for color).
+ * Light default on :root, dark overrides under html.dark.
+ * Tailwind classes surface/ink/muted/line map to these variables.
+ */
+:root {
+    --color-sidebar: 13 20 32;        /* navy-900 */
+    --color-sidebar-active: 20 28 43; /* navy-800 */
+    --color-primary: 245 158 11;      /* amber-500 */
+    --color-accent: 217 119 6;        /* amber-600 */
+    --color-surface: 255 255 255;     /* white cards */
+    --color-appbg: 241 245 249;       /* slate-100 page bg */
+    --color-border: 226 232 240;      /* slate-200 */
+    --color-text: 30 41 59;           /* slate-800 */
+    --color-muted: 100 116 139;       /* slate-500 */
+    --color-success: 22 163 74;
+    --color-warning: 217 119 6;
+    --color-danger: 220 38 38;
+    --color-info: 37 99 235;
+    --radius-card: 0.75rem;
+    --radius-ctl: 0.5rem;
+    --sidebar-w: 16rem;      /* 256px */
+    --sidebar-collapsed: 4.75rem; /* 76px */
+}
+
+html.dark {
+    --color-surface: 20 28 43;
+    --color-appbg: 8 13 22;
+    --color-border: 38 50 70;
+    --color-text: 226 232 240;
+    --color-muted: 148 163 184;
+}
+
+@layer base {
+    html { scroll-behavior: smooth; }
+    body { @apply bg-slate-100 text-slate-800 antialiased; }
+    html.dark body { background-color: rgb(var(--color-appbg)); color: rgb(var(--color-text)); }
+
+    /* visible keyboard focus everywhere */
+    :focus-visible {
+        outline: 2px solid rgb(var(--color-primary));
+        outline-offset: 2px;
+        border-radius: 4px;
+    }
+
+    ::selection { background: rgb(var(--color-primary) / 0.25); }
+}
+
+/* ------- app sidebar: fixed width var + collapsed + mobile ------- */
+#sidebar { width: var(--sidebar-w); }
+#appMain { transition: margin 0.2s ease; }
+@media (min-width: 1024px) {
+    html.sb-collapsed #sidebar { width: var(--sidebar-collapsed); }
+    html.sb-collapsed .sb-label { display: none; }
+    html.sb-collapsed #sidebar .sb-groupbtn,
+    html.sb-collapsed #sidebar nav a { justify-content: center; padding-left: 0; padding-right: 0; }
+    html.sb-collapsed #appMain { margin-left: var(--sidebar-collapsed); }
+}
+
+/* ------- scrollbars (sidebar, drawers, tables) ------- */
+.nice-scroll { scrollbar-width: thin; scrollbar-color: rgb(148 163 184 / 0.5) transparent; }
+.nice-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.nice-scroll::-webkit-scrollbar-thumb { background: rgb(148 163 184 / 0.45); border-radius: 8px; }
+.nice-scroll::-webkit-scrollbar-track { background: transparent; }
+
+/* ------- skeleton loading ------- */
+.skeleton { position: relative; overflow: hidden; background: rgb(148 163 184 / 0.18); border-radius: 6px; }
+.skeleton::after {
+    content: ''; position: absolute; inset: 0; transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.55), transparent);
+    animation: shimmer 1.4s infinite;
+}
+html.dark .skeleton::after { background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.12), transparent); }
+@keyframes shimmer { 100% { transform: translateX(100%); } }
+
+/* ------- docs prose (documentation-first readability) ------- */
+.docs-prose { font-size: 0.9375rem; line-height: 1.75; }
+.docs-prose h2 { font-size: 1.125rem; font-weight: 700; margin: 1.75rem 0 0.625rem; letter-spacing: -0.01em; }
+.docs-prose h3 { font-size: 1rem; font-weight: 700; margin: 1.25rem 0 0.5rem; }
+.docs-prose p { margin: 0.625rem 0; }
+.docs-prose ol.steps { list-style: decimal; padding-left: 1.5rem; display: grid; gap: 0.5rem; }
+.docs-prose ul { list-style: disc; padding-left: 1.5rem; display: grid; gap: 0.375rem; }
+html.dark .docs-prose h2, html.dark .docs-prose h3 { color: #f1f5f9; }
+
+/* ------- process flow (workflow cards) ------- */
+.flow-track { display: flex; align-items: stretch; gap: 0; overflow-x: auto; }
+.flow-node { min-width: 9.5rem; }
+.flow-arrow { align-self: center; flex: none; }
+
+/* ------- print: docs pages ------- */
+@media print {
+    aside, header .no-print, .docs-toc, .docs-pager, .no-print { display: none !important; }
+    main { margin: 0 !important; max-width: 100% !important; }
+    body { background: #fff !important; }
+}
+
+/* ------- charts stay readable in dark mode ------- */
+html.dark canvas { filter: brightness(0.92); }
+
+/* ------- reduced motion ------- */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

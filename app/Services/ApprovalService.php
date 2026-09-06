@@ -100,6 +100,17 @@ class ApprovalService
             $first = $request->actions()->where('action', 'PENDING')->orderBy('sequence')->first();
             if ($first) {
                 self::notify($first->approver_id, $request);
+            } else {
+                // tidak ada approver ter-resolve (role tanpa holder) → auto-approve
+                // agar request tidak stuck selamanya; tercatat di audit
+                $request->status = 'APPROVED';
+                $request->finished_at = now();
+                $request->save();
+                if ($transaction->isFillable('status')) {
+                    $transaction->status = 'APPROVED';
+                    $transaction->save();
+                }
+                AuditService::log('APPROVE', $module, $transaction->id, $transaction::class, null, ['status' => 'APPROVED', 'auto' => 'no-approver']);
             }
 
             AuditService::log('SUBMIT', $module, $transaction->id, $transaction::class, null, ['status' => 'SUBMITTED', 'approval_request' => $request->number]);

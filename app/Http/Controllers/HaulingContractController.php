@@ -18,8 +18,9 @@ class HaulingContractController extends Controller
     public function index(Request $request)
     {
         $items = HaulingContract::with(['supplier', 'route'])
-            ->when($request->status, fn ($q) => $q->where('status', $request->status))
-            ->orderByDesc('id')->paginate(20)->withQueryString();
+            ->when($request->status, fn ($q) => $q->where('status', $request->status));
+        $this->applyCompanyScope($items);
+        $items = $items->orderByDesc('id')->paginate(20)->withQueryString();
         return view('contract.hauling.index', ['items' => $items, 'statuses' => ['DRAFT', 'ACTIVE', 'COMPLETED', 'EXPIRED', 'CANCELLED']]);
     }
 
@@ -58,16 +59,22 @@ class HaulingContractController extends Controller
         return redirect()->route('hauling-contracts.index')->with('success', 'Kontrak hauling dibuat.');
     }
 
+    public function show(HaulingContract $hauling_contract)
+    {
+        return view('contract.hauling.show', [
+            'contract' => $hauling_contract->load(['supplier', 'route']),
+            'real' => \App\Services\ContractService::haulingRealization($hauling_contract),
+        ]);
+    }
+
     public function approve(HaulingContract $hauling_contract)
     {
-        if (!auth()->user()->hasPermission('contract.approve')) {
-            abort(403);
-        }
         if ($hauling_contract->status !== 'DRAFT') {
             return back()->with('error', 'Status tidak valid.');
         }
-        $hauling_contract->update(['status' => 'ACTIVE']);
-        AuditService::log('APPROVE', 'CONTRACT', $hauling_contract->id, HaulingContract::class);
-        return back()->with('success', 'Kontrak aktif.');
+        \App\Services\ApprovalService::submit('CONTRACT', 'HAULING_CONTRACT', $hauling_contract);
+        return back()->with('success', $hauling_contract->fresh()->status === 'SUBMITTED'
+            ? 'Kontrak diajukan ke approval center.'
+            : 'Kontrak aktif.');
     }
 }

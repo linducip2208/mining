@@ -182,6 +182,13 @@ class AlertService
                 'detect' => fn () => \App\Models\ComplianceRegister::whereIn('status', ['EXPIRING_SOON', 'EXPIRED'])
                     ->whereNotNull('expiry_date')->limit(50)->get(),
             ],
+            'HSE_PERMIT_EXPIRY' => [
+                'title' => 'Permit kerja kedaluwarsa dalam 14 hari',
+                'enabled' => true,
+                'detect' => fn () => \App\Models\HsePermit::whereIn('status', ['APPROVED', 'ACTIVE'])
+                    ->whereNotNull('valid_until')
+                    ->whereDate('valid_until', '<=', now()->addDays(14))->limit(50)->get(),
+            ],
         ];
     }
 }

@@ -208,7 +208,7 @@ class CoreSeeder extends Seeder
         );
 
         Role::where('code', 'FINANCE_MANAGER')->first()->permissions()->sync(
-            Permission::whereIn('module', ['dashboard', 'finance', 'journal', 'ledger', 'tax', 'fiscal', 'budget', 'contract', 'cost', 'report', 'vendor_bill', 'payment', 'invoice', 'deposit', 'price', 'price_variance', 'audit'])->get()
+            Permission::whereIn('module', ['dashboard', 'finance', 'journal', 'ledger', 'tax', 'fiscal', 'budget', 'contract', 'cost', 'report', 'vendor_bill', 'payment', 'invoice', 'deposit', 'price', 'price_variance', 'audit', 'approval'])->get()
         );
 
         Role::where('code', 'SALES_MANAGER')->first()->permissions()->sync(
@@ -226,7 +226,7 @@ class CoreSeeder extends Seeder
         );
 
         Role::where('code', 'WAREHOUSE_MANAGER')->first()->permissions()->sync(
-            Permission::whereIn('module', ['dashboard', 'inventory', 'stock', 'goods_receipt', 'report'])->get()
+            Permission::whereIn('module', ['dashboard', 'inventory', 'stock', 'goods_receipt', 'report', 'approval'])->get()
         );
 
         Role::where('code', 'WEIGHBRIDGE_OPERATOR')->first()->permissions()->sync(
@@ -270,7 +270,7 @@ class CoreSeeder extends Seeder
         );
 
         Role::where('code', 'QUALITY_OFFICER')->first()->permissions()->sync(
-            Permission::whereIn('module', ['dashboard', 'quality', 'production', 'report'])->get()
+            Permission::whereIn('module', ['dashboard', 'quality', 'production', 'report', 'approval'])->get()
         );
 
         Role::where('code', 'LAB_OFFICER')->first()->permissions()->sync(

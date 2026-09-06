@@ -124,6 +124,7 @@ class AccountingService
             $rev->is_reversal = true;
             $rev->reversal_of_id = $entry->id;
             $rev->save();
+            AuditService::log('REVERSE', 'ACCOUNTING', $rev->id, JournalEntry::class, null, ['reversal_of' => $entry->number], $reason);
 
             return $rev;
         });

@@ -101,6 +101,8 @@ require __DIR__.'/auth.php';
 // ===== DOCUMENTATION PORTAL (public/login per setting docs.public) =====
 Route::get('/docs', [DocsController::class, 'index'])->name('docs.index');
 Route::get('/docs/search', [DocsController::class, 'search'])->name('docs.search');
+Route::get('/docs/suggest', [DocsController::class, 'suggest'])->name('docs.suggest');
+Route::get('/docs/health', [DocsController::class, 'health'])->name('docs.health');
 Route::get('/docs/sitemap.xml', [DocsController::class, 'sitemap'])->name('docs.sitemap');
 Route::get('/docs/{section}', [DocsController::class, 'section'])->name('docs.section');
 Route::get('/docs/{section}/{page}', [DocsController::class, 'page'])->name('docs.page');
@@ -119,20 +121,20 @@ Route::middleware(['auth'])->group(function () {
 
     // Profile / security
     Route::get('/profile/security', [ProfileSecurityController::class, 'password'])->name('password.change');
-    Route::put('/profile/password', [ProfileSecurityController::class, 'updatePassword'])->name('password.update');
+    Route::put('/profile/password', [ProfileSecurityController::class, 'updatePassword'])->name('password.profile-update');
 
     // Approval center
     Route::get('/approvals', [ApprovalCenterController::class, 'index'])->name('approval.index');
     Route::post('/approvals/{action}/act', [ApprovalCenterController::class, 'act'])->name('approval.act')->middleware('permission:approval.approve');
 
     // ===== ADMINISTRATION =====
-    Route::resource('users', UserController::class)->middleware('permission:user.view');
-    Route::post('users/{user}/toggle', [UserController::class, 'toggle'])->name('users.toggle')->middleware('permission:user.view');
-    Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password')->middleware('permission:user.view');
-    Route::post('users/{user}/unlock', [UserController::class, 'unlock'])->name('users.unlock')->middleware('permission:user.view');
-    Route::get('users/{user}/login-history', [UserController::class, 'loginHistory'])->name('users.login-history')->middleware('permission:user.view');
-    Route::post('users/{user}/logout-all', [UserController::class, 'logoutAll'])->name('users.logout-all')->middleware('permission:user.view');
-    Route::post('users/{user}/roles', [UserController::class, 'assignRoles'])->name('users.assign-roles')->middleware('permission:user.view');
+    Route::resource('users', UserController::class)->except(['show'])->middleware('permission:user.view');
+    Route::post('users/{user}/toggle', [UserController::class, 'toggle'])->name('users.toggle')->middleware('permission:user.update');
+    Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password')->middleware('permission:user.update');
+    Route::post('users/{user}/unlock', [UserController::class, 'unlock'])->name('users.unlock')->middleware('permission:user.update');
+    Route::get('users/{user}/login-history', [UserController::class, 'loginHistory'])->name('users.login-history')->middleware('permission:user.view_login_history');
+    Route::post('users/{user}/logout-all', [UserController::class, 'logoutAll'])->name('users.logout-all')->middleware('permission:user.update');
+    Route::post('users/{user}/roles', [UserController::class, 'assignRoles'])->name('users.assign-roles')->middleware('permission:user.assign_role');
 
     Route::get('roles', [RoleController::class, 'index'])->name('role.index')->middleware('permission:role.view');
     Route::get('roles/{role}', [RoleController::class, 'show'])->name('role.show')->whereNumber('role');
@@ -170,13 +172,14 @@ Route::middleware(['auth'])->group(function () {
     Route::post('operator-incentives/{operator_incentive}/approve', [OperatorIncentiveController::class, 'approve'])->name('operator-incentives.approve')->middleware('permission:incentive.approve');
 
     // ===== MINING =====
+    Route::get('mining-dashboard', [MiningActivityController::class, 'dashboard'])->name('mining.dashboard')->middleware('permission:mining.view');
     Route::resource('mining-activities', MiningActivityController::class)->middleware('permission:mining.view');
     Route::post('mining-activities/{mining_activity}/submit', [MiningActivityController::class, 'submit'])->name('mining.submit')->middleware('permission:mining.update');
     Route::post('mining-activities/{mining_activity}/approve', [MiningActivityController::class, 'approve'])->name('mining.approve')->middleware('permission:mining.approve');
     Route::post('mining-activities/{mining_activity}/post', [MiningActivityController::class, 'post'])->name('mining.post')->middleware('permission:mining.post');
 
     // ===== WEIGHBRIDGE =====
-    Route::resource('weighbridge-tickets', WeighbridgeTicketController::class)->middleware('permission:weighbridge.view');
+    Route::resource('weighbridge-tickets', WeighbridgeTicketController::class)->only(['index', 'create', 'show', 'destroy'])->middleware('permission:weighbridge.view');
     Route::post('weighbridge-tickets/first-weigh', [WeighbridgeTicketController::class, 'firstWeigh'])->name('weighbridge.first')->middleware('permission:weighbridge.create');
     Route::post('weighbridge-tickets/{weighbridge_ticket}/second-weigh', [WeighbridgeTicketController::class, 'secondWeigh'])->name('weighbridge.second')->middleware('permission:weighbridge.create');
     Route::post('weighbridge-tickets/{weighbridge_ticket}/override', [WeighbridgeTicketController::class, 'overrideWeight'])->name('weighbridge.override')->middleware('permission:weighbridge.update');
@@ -195,22 +198,25 @@ Route::middleware(['auth'])->group(function () {
     Route::get('stock/card', [StockController::class, 'card'])->name('stock.card')->middleware('permission:stock.view');
     Route::resource('items', ItemController::class)->middleware('permission:inventory.view');
     Route::resource('warehouses', WarehouseController::class)->middleware('permission:inventory.view');
-    Route::resource('stock-transfers', StockTransferController::class)->middleware('permission:stock.view');
+    Route::resource('stock-transfers', StockTransferController::class)->only(['index', 'create', 'store', 'show'])->middleware('permission:stock.view');
     Route::post('stock-transfers/{stock_transfer}/post', [StockTransferController::class, 'post'])->name('stock-transfers.post')->middleware('permission:stock.post');
-    Route::resource('stock-adjustments', StockAdjustmentController::class)->middleware('permission:stock.view');
+    Route::resource('stock-adjustments', StockAdjustmentController::class)->only(['index', 'create', 'store', 'show'])->middleware('permission:stock.view');
     Route::post('stock-adjustments/{stock_adjustment}/post', [StockAdjustmentController::class, 'post'])->name('stock-adjustments.post')->middleware('permission:stock.post');
 
     // ===== PROCUREMENT =====
     Route::resource('purchase-requests', PurchaseRequestController::class)->middleware('permission:purchase_request.view');
+    Route::post('purchase-requests/{purchase_request}/cancel', [PurchaseRequestController::class, 'cancel'])->name('purchase-requests.cancel')->middleware('permission:purchase_request.cancel');
     Route::post('purchase-requests/{purchase_request}/submit', [PurchaseRequestController::class, 'submit'])->name('purchase-requests.submit')->middleware('permission:purchase_request.update');
     Route::post('purchase-requests/{purchase_request}/approve', [PurchaseRequestController::class, 'approve'])->name('purchase-requests.approve')->middleware('permission:purchase_request.approve');
     Route::resource('purchase-orders', PurchaseOrderController::class)->middleware('permission:purchase_order.view');
+    Route::post('purchase-orders/{purchase_order}/cancel', [PurchaseOrderController::class, 'cancel'])->name('purchase-orders.cancel')->middleware('permission:purchase_order.cancel');
     Route::post('purchase-orders/{purchase_order}/approve', [PurchaseOrderController::class, 'approve'])->name('purchase-orders.approve')->middleware('permission:purchase_order.approve');
     Route::resource('goods-receipts', GoodsReceiptController::class)->middleware('permission:goods_receipt.view');
     Route::post('goods-receipts/{goods_receipt}/post', [GoodsReceiptController::class, 'post'])->name('goods-receipts.post')->middleware('permission:goods_receipt.post');
     Route::resource('vendor-bills', VendorBillController::class)->middleware('permission:vendor_bill.view');
     Route::post('vendor-bills/{vendor_bill}/post', [VendorBillController::class, 'post'])->name('vendor-bills.post')->middleware('permission:vendor_bill.post');
     Route::post('vendor-bills/{vendor_bill}/pay', [VendorBillController::class, 'pay'])->name('vendor-bills.pay')->middleware('permission:vendor_bill.post');
+    Route::post('vendor-bills/{vendor_bill}/void', [VendorBillController::class, 'void'])->name('vendor-bills.void')->middleware('permission:vendor_bill.void');
 
     // ===== SALES =====
     Route::resource('customers', CustomerController::class)->middleware('permission:sales.view');
@@ -244,8 +250,7 @@ Route::middleware(['auth'])->group(function () {
 
     // ===== FINANCE & ACCOUNTING =====
     Route::resource('coa', CoaController::class)->middleware('permission:finance.view');
-    Route::resource('journals', JournalController::class)->middleware('permission:journal.view');
-    Route::post('journals/{journal}/post', [JournalController::class, 'post'])->name('journals.post')->middleware('permission:journal.post');
+    Route::resource('journals', JournalController::class)->only(['index', 'create', 'store', 'show'])->middleware('permission:journal.view');
     Route::post('journals/{journal}/reverse', [JournalController::class, 'reverse'])->name('journals.reverse')->middleware('permission:journal.unpost');
     Route::resource('cash-accounts', CashAccountController::class)->middleware('permission:finance.view');
     Route::get('finance/trial-balance', [FinanceReportController::class, 'trialBalance'])->name('finance.trial_balance')->middleware('permission:ledger.view');
@@ -273,6 +278,14 @@ Route::middleware(['auth'])->group(function () {
     Route::get('reports/sales', [ReportController::class, 'sales'])->name('report.sales')->middleware('permission:report.view');
     Route::get('reports/hr', [ReportController::class, 'hr'])->name('report.hr')->middleware('permission:report.view');
     Route::get('reports/maintenance', [ReportController::class, 'maintenance'])->name('report.maintenance')->middleware('permission:report.view');
+    Route::get('reports/fleet', [ReportController::class, 'fleet'])->name('report.fleet')->middleware('permission:report.view');
+    Route::get('reports/fuel', [ReportController::class, 'fuel'])->name('report.fuel')->middleware('permission:report.view');
+    Route::get('reports/tire', [ReportController::class, 'tire'])->name('report.tire')->middleware('permission:report.view');
+    Route::get('reports/dispatch', [ReportController::class, 'dispatch'])->name('report.dispatch')->middleware('permission:report.view');
+    Route::get('reports/stockpile', [ReportController::class, 'stockpile'])->name('report.stockpile')->middleware('permission:report.view');
+    Route::get('reports/quality', [ReportController::class, 'quality'])->name('report.quality')->middleware('permission:report.view');
+    Route::get('reports/contract', [ReportController::class, 'contract'])->name('report.contract')->middleware('permission:report.view');
+    Route::get('reports/budget', [ReportController::class, 'budget'])->name('report.budget')->middleware('permission:report.view');
 
     // ===== FLEET =====
     Route::get('fleet', [FleetController::class, 'dashboard'])->name('fleet.dashboard')->middleware('permission:fleet.view');
@@ -296,14 +309,16 @@ Route::middleware(['auth'])->group(function () {
     Route::get('fuel/variance', [FuelController::class, 'variance'])->name('fuel.variance')->middleware('permission:fuel.view');
     Route::resource('fuel-tanks', FuelTankController::class)->middleware('permission:fuel.view');
     Route::resource('fuel-issues', FuelIssueController::class)->only(['index', 'create', 'store', 'show'])->middleware('permission:fuel.view');
-    Route::post('fuel-issues/{fuel_issue}/approve', [FuelIssueController::class, 'approve'])->name('fuel-issues.approve')->middleware('permission:fuel.approve');
+    Route::post('fuel-issues/{fuel_issue}/approve', [FuelIssueController::class, 'approve'])->name('fuel-issues.approve')->middleware('permission:fuel.create');
     Route::post('fuel-issues/{fuel_issue}/post', [FuelIssueController::class, 'post'])->name('fuel-issues.post')->middleware('permission:fuel.post');
     Route::resource('fuel-receipts', FuelReceiptController::class)->only(['index', 'create', 'store'])->middleware('permission:fuel.view');
+    Route::post('fuel-receipts/{fuel_receipt}/approve', [FuelReceiptController::class, 'approve'])->name('fuel-receipts.approve')->middleware('permission:fuel.create');
     Route::post('fuel-receipts/{fuel_receipt}/post', [FuelReceiptController::class, 'post'])->name('fuel-receipts.post')->middleware('permission:fuel.post');
     Route::resource('fuel-transfers', FuelTransferController::class)->only(['index', 'create', 'store'])->middleware('permission:fuel.view');
     Route::post('fuel-transfers/{fuel_transfer}/post', [FuelTransferController::class, 'post'])->name('fuel-transfers.post')->middleware('permission:fuel.post');
     Route::get('fuel-dips', [FuelDipController::class, 'index'])->name('fuel-dips.index')->middleware('permission:fuel.view');
     Route::post('fuel-dips', [FuelDipController::class, 'store'])->name('fuel-dips.store')->middleware('permission:fuel.create');
+    Route::post('fuel-dips/{dip}/approve', [FuelDipController::class, 'approve'])->name('fuel-dips.approve')->middleware('permission:fuel.approve');
 
     // ===== TIRE =====
     Route::resource('tires', TireController::class)->only(['index', 'create', 'store', 'show'])->middleware('permission:tire.view');
@@ -349,26 +364,26 @@ Route::middleware(['auth'])->group(function () {
     Route::get('quality-holds', [QualityHoldController::class, 'index'])->name('quality-holds.index')->middleware('permission:quality.view');
     Route::post('quality-holds', [QualityHoldController::class, 'store'])->name('quality-holds.store')->middleware('permission:quality.create');
     Route::post('quality-holds/{quality_hold}/release', [QualityHoldController::class, 'release'])->name('quality-holds.release')->middleware('permission:quality.release');
-    Route::post('quality-holds/{quality_hold}/special-approve', [QualityHoldController::class, 'specialApprove'])->name('quality-holds.special-approve')->middleware('permission:quality.approve');
+    Route::post('quality-holds/{quality_hold}/special-approve', [QualityHoldController::class, 'specialApprove'])->name('quality-holds.special-approve')->middleware('permission:quality.create');
 
     // ===== MINING COST =====
     Route::get('cost', [CostController::class, 'dashboard'])->name('cost.dashboard')->middleware('permission:cost.view');
     Route::get('cost/others', [CostController::class, 'others'])->name('cost.others.index')->middleware('permission:cost.view');
     Route::post('cost/others', [CostController::class, 'storeOther'])->name('cost.others.store')->middleware('permission:cost.create');
-    Route::post('cost/others/{other_cost}/approve', [CostController::class, 'approveOther'])->name('cost.others.approve')->middleware('permission:cost.approve');
+    Route::post('cost/others/{other_cost}/approve', [CostController::class, 'approveOther'])->name('cost.others.approve')->middleware('permission:cost.create');
     Route::post('cost/others/{other_cost}/post', [CostController::class, 'postOther'])->name('cost.others.post')->middleware('permission:cost.post');
 
     // ===== CONTRACTS =====
     Route::resource('customer-contracts', CustomerContractController::class)->only(['index', 'create', 'store', 'show'])->middleware('permission:contract.view');
-    Route::post('customer-contracts/{customer_contract}/approve', [CustomerContractController::class, 'approve'])->name('customer-contracts.approve')->middleware('permission:contract.approve');
+    Route::post('customer-contracts/{customer_contract}/approve', [CustomerContractController::class, 'approve'])->name('customer-contracts.approve')->middleware('permission:contract.create');
     Route::resource('supplier-contracts', SupplierContractController::class)->only(['index', 'create', 'store', 'show'])->middleware('permission:contract.view');
     Route::post('supplier-contracts/{supplier_contract}/approve', [SupplierContractController::class, 'approve'])->name('supplier-contracts.approve')->middleware('permission:contract.approve');
-    Route::resource('hauling-contracts', HaulingContractController::class)->only(['index', 'create', 'store'])->middleware('permission:contract.view');
-    Route::post('hauling-contracts/{hauling_contract}/approve', [HaulingContractController::class, 'approve'])->name('hauling-contracts.approve')->middleware('permission:contract.approve');
+    Route::resource('hauling-contracts', HaulingContractController::class)->only(['index', 'create', 'store', 'show'])->middleware('permission:contract.view');
+    Route::post('hauling-contracts/{hauling_contract}/approve', [HaulingContractController::class, 'approve'])->name('hauling-contracts.approve')->middleware('permission:contract.create');
 
     // ===== BUDGET =====
     Route::resource('budgets', BudgetController::class)->only(['index', 'create', 'store', 'show'])->middleware('permission:budget.view');
-    Route::post('budgets/{budget}/approve', [BudgetController::class, 'approve'])->name('budgets.approve')->middleware('permission:budget.approve');
+    Route::post('budgets/{budget}/approve', [BudgetController::class, 'approve'])->name('budgets.approve')->middleware('permission:budget.create');
     Route::post('budgets/{budget}/revise', [BudgetController::class, 'revise'])->name('budgets.revise')->middleware('permission:budget.revise');
     Route::post('budgets/{budget}/close', [BudgetController::class, 'close'])->name('budgets.close')->middleware('permission:budget.approve');
 
@@ -379,11 +394,13 @@ Route::middleware(['auth'])->group(function () {
     Route::post('hse/reports', [HseController::class, 'storeReport'])->name('hse.reports.store')->middleware('permission:hse.create');
     Route::get('hse/reports/{hse_report}', [HseController::class, 'showReport'])->name('hse.reports.show')->middleware('permission:hse.view');
     Route::post('hse/reports/{hse_report}/actions', [HseController::class, 'addAction'])->name('hse.reports.actions.store')->middleware('permission:hse.create');
+    Route::post('hse/reports/{hse_report}/investigate', [HseController::class, 'investigate'])->name('hse.reports.investigate')->middleware('permission:hse.update');
+    Route::post('hse/actions/{action}/verify', [HseController::class, 'verifyAction'])->name('hse.actions.verify')->middleware('permission:hse.close');
     Route::post('hse/actions/{action}/close', [HseController::class, 'closeAction'])->name('hse.actions.close')->middleware('permission:hse.update');
-    Route::post('hse/reports/{hse_report}/close', [HseController::class, 'closeReport'])->name('hse.reports.close')->middleware('permission:hse.close');
+    Route::post('hse/reports/{hse_report}/close', [HseController::class, 'closeReport'])->name('hse.reports.close')->middleware('permission:hse.update');
     Route::get('hse/permits', [HseController::class, 'permits'])->name('hse.permits.index')->middleware('permission:hse.view');
     Route::post('hse/permits', [HseController::class, 'storePermit'])->name('hse.permits.store')->middleware('permission:hse.create');
-    Route::post('hse/permits/{permit}/approve', [HseController::class, 'approvePermit'])->name('hse.permits.approve')->middleware('permission:hse.approve');
+    Route::post('hse/permits/{permit}/approve', [HseController::class, 'approvePermit'])->name('hse.permits.approve')->middleware('permission:hse.create');
     Route::get('hse/activities', [HseController::class, 'activities'])->name('hse.activities.index')->middleware('permission:hse.view');
     Route::post('hse/activities', [HseController::class, 'storeActivity'])->name('hse.activities.store')->middleware('permission:hse.create');
 
@@ -393,6 +410,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('compliance/create', [ComplianceController::class, 'create'])->name('compliance.create')->middleware('permission:compliance.view');
     Route::post('compliance', [ComplianceController::class, 'store'])->name('compliance.store')->middleware('permission:compliance.update');
     Route::get('compliance/{compliance}', [ComplianceController::class, 'show'])->name('compliance.show')->middleware('permission:compliance.view');
+    Route::post('compliance/{compliance}/renew', [ComplianceController::class, 'renew'])->name('compliance.renew')->middleware('permission:compliance.update');
 
     // ===== FISCAL PERIOD =====
     Route::get('fiscal-periods', [FiscalPeriodController::class, 'index'])->name('fiscal-periods.index')->middleware('permission:fiscal.view');

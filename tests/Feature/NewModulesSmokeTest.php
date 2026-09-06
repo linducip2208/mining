@@ -60,12 +60,18 @@ class NewModulesSmokeTest extends TestCase
             '/fiscal-periods',
             // telematics, weighbridge devices, ai, forecast, executive
             '/telematics', '/weighbridge/devices', '/ai', '/forecast', '/executive',
+            // consolidated reports
+            '/reports/fleet', '/reports/fuel', '/reports/tire', '/reports/dispatch',
+            '/reports/stockpile', '/reports/quality', '/reports/contract', '/reports/budget',
         ];
 
         foreach ($urls as $url) {
             $resp = $this->actingAs($this->admin)->get($url);
             $this->assertEquals(200, $resp->status(), "GET {$url}");
         }
+
+        // export path on one report
+        $this->actingAs($this->admin)->get('/reports/fuel?export=1')->assertOk();
     }
 
     public function test_weighbridge_api_requires_token(): void

@@ -30,13 +30,13 @@ class DocsScreenshot extends Command
         $jobs = $this->buildJobs($base);
         if ($only = $this->option('only')) {
             $mods = explode(',', $only);
-            $jobs = array_values(array_filter($jobs, fn ($j) => in_array(explode('/', $j['file'])[0], $mods)));
+            $jobs = array_values(array_filter($jobs, fn ($j) => in_array(explode('/', $j['file'] ?? $j['flow'] ?? '?')[0], $mods)));
         }
 
         $this->info('Total screenshot: ' . count($jobs));
         if ($this->option('dry')) {
             foreach ($jobs as $j) {
-                $this->line("  {$j['file']}  <=  {$j['url']}" . (isset($j['flow']) ? '  [flow]' : ''));
+                $this->line('  ' . ($j['file'] ?? '[flow] ' . ($j['flow'] ?? '?')) . '  <=  ' . ($j['url'] ?? $j['createUrl'] ?? '?') . (isset($j['flow']) ? '  [flow]' : ''));
             }
             return self::SUCCESS;
         }
@@ -240,6 +240,59 @@ class DocsScreenshot extends Command
 
         // 15. Approval
         $shot($R('approval.index'), 'approval/center.png');
+
+        // 16. New modules (Part5) — butuh data demo NewModulesSeeder
+        $tireId = $this->firstId('tires');
+        $pileId = $this->firstId('stockpiles');
+        $budgetId = $this->firstId('budgets');
+        $haulContractId = $this->firstId('hauling_contracts');
+        $deviceId = $this->firstId('weighbridge_devices');
+        $shot($R('fleet.dashboard'), 'fleet/dashboard.png');
+        $shot($R('fleet.meters'), 'fleet/meters.png');
+        $shot($R('fleet.inspections'), 'fleet/inspections.png');
+        $shot($R('vehicles.index'), 'fleet/vehicles.png');
+        $shot($R('fuel.dashboard'), 'fuel/dashboard.png');
+        $shot($R('fuel-receipts.index'), 'fuel/receipts.png');
+        $shot($R('fuel-issues.index'), 'fuel/issues.png');
+        $shot($R('fuel-dips.index'), 'fuel/dips.png');
+        $shot($R('tires.index'), 'tire/overview.png');
+        if ($tireId) {
+            $shot($R('tires.show', ['tire' => $tireId]), 'tire/detail.png');
+        }
+        $shot($R('dispatch.dashboard'), 'dispatch/board.png');
+        $shot($R('dispatch.trips.index'), 'dispatch/trips.png');
+        $shot($R('loading-points.index'), 'dispatch/master.png');
+        $shot($R('hauling-contracts.index'), 'contract/hauling.png');
+        if ($haulContractId) {
+            $shot($R('hauling-contracts.show', ['hauling_contract' => $haulContractId]), 'contract/hauling-settlement.png');
+        }
+        $shot($R('stockpiles.dashboard'), 'stockpile/board.png');
+        if ($pileId) {
+            $shot($R('stockpiles.show', ['stockpile' => $pileId]), 'stockpile/detail.png');
+        }
+        $shot($R('samples.index'), 'quality/samples.png');
+        $shot($R('specs.index'), 'quality/specs.png');
+        $shot($R('quality-holds.index'), 'quality/holds.png');
+        $shot($R('cost.dashboard'), 'cost/dashboard.png');
+        $shot($R('cost.others.index'), 'cost/manual.png');
+        $shot($R('customer-contracts.index'), 'contract/customers.png');
+        $shot($R('supplier-contracts.index'), 'contract/suppliers.png');
+        $shot($R('report.contract'), 'reports/contract.png');
+        $shot($R('budgets.index'), 'budget/index.png');
+        if ($budgetId) {
+            $shot($R('budgets.show', ['budget' => $budgetId]), 'budget/detail.png');
+        }
+        $shot($R('report.budget'), 'reports/budget.png');
+        $shot($R('hse.dashboard'), 'hse/dashboard.png');
+        $shot($R('hse.reports.index'), 'hse/reports.png');
+        $shot($R('hse.permits.index'), 'hse/permits.png');
+        $shot($R('compliance.index'), 'compliance/register.png');
+        $shot($R('compliance.calendar'), 'compliance/calendar.png');
+        $shot($R('telematics.index'), 'telematics/overview.png');
+        $shot($R('weighbridge.devices.index'), 'iot/devices.png');
+        if ($deviceId) {
+            $shot($R('weighbridge.devices.live', ['device' => $deviceId]), 'iot/api.png');
+        }
 
         return array_values(array_filter($jobs));
     }

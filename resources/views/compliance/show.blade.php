@@ -24,5 +24,21 @@
     @if ($item->notes)
     <div class="mt-3 text-sm"><div class="text-[11px] uppercase text-slate-500">Catatan</div><div>{{ $item->notes }}</div></div>
     @endif
+    @can('compliance.update')
+    @if (in_array($item->status, ['ACTIVE', 'EXPIRING_SOON', 'EXPIRED']))
+    <form method="POST" action="{{ route('compliance.renew', $item) }}" class="mt-4 flex flex-wrap items-end gap-2 border-t border-slate-100 pt-3">
+        @csrf
+        <div>
+            <label class="text-xs font-semibold text-slate-600 uppercase">Perpanjang Hingga</label>
+            <input type="date" name="expiry_date" required class="mt-1 px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none">
+        </div>
+        <div>
+            <label class="text-xs font-semibold text-slate-600 uppercase">No Dokumen Baru</label>
+            <input type="text" name="document_number" maxlength="100" class="mt-1 px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none">
+        </div>
+        <button class="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-semibold">Perpanjang</button>
+    </form>
+    @endif
+    @endcan
 </div>
 @endsection

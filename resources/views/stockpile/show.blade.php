@@ -54,7 +54,7 @@
                     <form method="POST" action="{{ route('stockpile-surveys.approve', $s) }}" class="inline-flex gap-1" onsubmit="return confirm('Setujui rekonsiliasi ini? Sistem akan selaras dengan survei.')">
                         @csrf
                         <input type="text" name="investigation" maxlength="2000" placeholder="Hasil investigasi..." class="px-2 py-1 rounded border border-slate-200 text-xs w-32">
-                        <button class="text-green-600 hover:underline text-xs">Approve</button>
+                        <button class="text-green-600 hover:underline text-xs">Ajukan</button>
                     </form>
                     @endif
                     @endcan

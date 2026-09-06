@@ -12,7 +12,7 @@ use App\Models\Employee;
 use App\Models\Warehouse;
 use App\Models\ProductionBatch;
 use App\Services\AuditService;
-use App\Services\OperationsService;
+use App\Services\ProductionService;
 use App\Services\ApprovalService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -136,7 +136,7 @@ class ProductionBatchController extends Controller
     public function post(ProductionBatch $production_batch)
     {
         try {
-            OperationsService::post($production_batch);
+            ProductionService::post($production_batch);
         } catch (\DomainException $e) {
             return back()->with('error', $e->getMessage());
         }

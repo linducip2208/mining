@@ -12,7 +12,7 @@ use App\Models\PurchaseRequest;
 use App\Models\GoodsReceipt;
 use App\Services\AuditService;
 use App\Services\ApprovalService;
-use App\Services\OperationsService;
+use App\Services\ProcurementService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -110,17 +110,31 @@ class PurchaseRequestController extends Controller
         return back()->with('success', 'PR diajukan untuk persetujuan.');
     }
 
+    public function cancel(PurchaseRequest $purchase_request)
+    {
+        if (!in_array($purchase_request->status, ['DRAFT', 'SUBMITTED'])) {
+            return back()->with('error', 'Hanya DRAFT/SUBMITTED yang dapat dibatalkan.');
+        }
+        $purchase_request->update(['status' => 'CANCELLED']);
+        \App\Services\BudgetService::release('PURCHASE_REQUEST', $purchase_request->id);
+        AuditService::log('CANCEL', 'PROCUREMENT', $purchase_request->id, PurchaseRequest::class);
+        return back()->with('success', 'PR dibatalkan — komitmen budget dilepas.');
+    }
+
     public function approve(PurchaseRequest $purchase_request)
     {
         if (!auth()->user()->hasPermission('purchase_request.approve')) {
             abort(403);
         }
+        $previous = $purchase_request->status;
         $purchase_request->update(['status' => 'APPROVED', 'approved_by' => auth()->id()]);
         AuditService::log('APPROVE', 'PROCUREMENT', $purchase_request->id, PurchaseRequest::class);
         try {
             $warn = \App\Services\BudgetService::commitPurchaseRequest($purchase_request->fresh());
         } catch (\DomainException $e) {
-            return back()->with('error', 'PR disetujui. ' . $e->getMessage());
+            // block-mode: batalkan approval bila budget menolak
+            $purchase_request->update(['status' => $previous, 'approved_by' => null]);
+            return back()->with('error', 'PR tidak dapat disetujui: ' . $e->getMessage());
         }
         return back()->with('success', 'PR disetujui.' . ($warn ? ' Peringatan budget: ' . $warn : ''));
     }

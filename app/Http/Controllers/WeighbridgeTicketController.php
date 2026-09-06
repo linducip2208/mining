@@ -158,7 +158,7 @@ class WeighbridgeTicketController extends Controller
             'override_reason' => $validated['override_reason'],
         ]);
 
-        AuditService::log('UPDATE', 'WEIGHBRIDGE', $weighbridge_ticket->id, WeighbridgeTicket::class, null, [
+        AuditService::log('OVERRIDE', 'WEIGHBRIDGE', $weighbridge_ticket->id, WeighbridgeTicket::class, null, [
             'override' => ['gross' => $validated['gross'], 'tare' => $validated['tare'], 'net' => $weighbridge_ticket->net],
         ], $validated['override_reason']);
 

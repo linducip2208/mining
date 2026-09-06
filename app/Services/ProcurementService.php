@@ -96,6 +96,21 @@ class ProcurementService
             $lines[] = ['code' => AccountingService::map('AP_TRADE'), 'credit' => (float) $bill->total, 'memo' => 'Hutang supplier ' . $bill->supplier->name];
 
             $companyId = $bill->purchaseOrder->company_id ?? 1;
+            // block-mode: tagihan yang melebihi sisa budget ditolak di sini
+            $month = substr($bill->bill_date->toDateString(), 0, 7);
+            $poSite = $bill->purchaseOrder?->site_id;
+            if ($inventoryAmount > 0) {
+                $coaId = \App\Models\ChartOfAccount::where('code', AccountingService::map('INVENTORY_GENERAL'))->value('id');
+                if ($coaId) {
+                    BudgetService::assertAvailable($companyId, $poSite, $coaId, $month, $inventoryAmount);
+                }
+            }
+            if ($adminAmount > 0) {
+                $coaId = \App\Models\ChartOfAccount::where('code', AccountingService::map('ADMIN_EXPENSE'))->value('id');
+                if ($coaId) {
+                    BudgetService::assertAvailable($companyId, $poSite, $coaId, $month, $adminAmount);
+                }
+            }
             $journal = AccountingService::post($companyId, $bill->bill_date->toDateString(), $lines, 'VENDOR_BILL', $bill->id, $bill->number, 'Tagihan supplier ' . $bill->number, 'BILL');
 
             $bill->status = 'POSTED';

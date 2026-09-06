@@ -20,6 +20,7 @@ class UserController extends Controller
                 ->orWhere('email', 'like', "%{$request->q}%"));
         })
         ->when($request->status, fn ($q) => $q->where('status', $request->status))
+        ->when($request->role, fn ($q) => $q->whereHas('roles', fn ($r) => $r->where('code', $request->role)))
         ->orderBy('id')->paginate(20)->withQueryString();
 
         return view('users.index', compact('users'));
@@ -27,6 +28,9 @@ class UserController extends Controller
 
     public function create()
     {
+        if (!auth()->user()->hasPermission('user.create')) {
+            abort(403);
+        }
         return view('users.form', ['roles' => Role::all(), 'user' => null]);
     }
 
@@ -59,11 +63,17 @@ class UserController extends Controller
 
     public function edit(User $user)
     {
+        if (!auth()->user()->hasPermission('user.update')) {
+            abort(403);
+        }
         return view('users.form', ['user' => $user, 'roles' => Role::all()]);
     }
 
     public function update(Request $request, User $user)
     {
+        if (!auth()->user()->hasPermission('user.update')) {
+            abort(403);
+        }
         $old = $user->toArray();
         $validated = $request->validate([
             'name' => 'required|max:150',
@@ -85,6 +95,9 @@ class UserController extends Controller
 
     public function destroy(User $user)
     {
+        if (!auth()->user()->hasPermission('user.delete')) {
+            abort(403);
+        }
         if ($user->isSuperAdmin()) {
             return back()->with('error', 'Super Admin tidak dapat dihapus.');
         }
@@ -112,6 +125,7 @@ class UserController extends Controller
         $this->requireAnyUserPerm(['user.unlock', 'user.update']);
         $this->guardNotSelf($user, 'membuka kunci akun sendiri');
         $user->update(['status' => 'ACTIVE', 'failed_login_count' => 0, 'locked_until' => null]);
+        AuditService::log('UPDATE', 'USER', $user->id, User::class, null, ['unlocked' => true]);
         return back()->with('success', 'Akun dibuka kunci.');
     }
 
@@ -140,6 +154,7 @@ class UserController extends Controller
     {
         $this->requireAnyUserPerm(['user.logout_session', 'user.update']);
         $user->sessions()->delete();
+        AuditService::log('UPDATE', 'USER', $user->id, User::class, null, ['sessions_terminated' => true]);
         return back()->with('success', 'Semua sesi pengguna diakhiri.');
     }
 

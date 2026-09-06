@@ -53,8 +53,8 @@ class FuelIssueController extends Controller
             'issue_date' => 'required|date',
             'shift_id' => 'nullable|exists:shifts,id',
             'fuel_tank_id' => 'required|exists:fuel_tanks,id',
-            'equipment_id' => 'nullable|exists:equipment,id',
-            'vehicle_plate' => 'nullable|max:30',
+            'equipment_id' => 'nullable|required_without:vehicle_plate|exists:equipment,id',
+            'vehicle_plate' => 'nullable|required_without:equipment_id|max:30',
             'operator_id' => 'nullable|exists:employees,id',
             'hm_before' => 'nullable|numeric|min:0',
             'hm_after' => 'nullable|numeric|min:0',
@@ -85,15 +85,13 @@ class FuelIssueController extends Controller
 
     public function approve(FuelIssue $fuel_issue)
     {
-        if (!auth()->user()->hasPermission('fuel.approve')) {
-            abort(403);
-        }
         if ($fuel_issue->status !== 'DRAFT') {
             return back()->with('error', 'Status tidak valid.');
         }
-        $fuel_issue->update(['status' => 'APPROVED', 'approved_by' => auth()->id()]);
-        AuditService::log('APPROVE', 'FUEL', $fuel_issue->id, FuelIssue::class);
-        return back()->with('success', 'Fuel issue disetujui.');
+        \App\Services\ApprovalService::submit('FUEL', 'FUEL_ISSUE', $fuel_issue);
+        return back()->with('success', $fuel_issue->fresh()->status === 'SUBMITTED'
+            ? 'Diajukan ke approval center.'
+            : 'Fuel issue disetujui.');
     }
 
     public function post(FuelIssue $fuel_issue)

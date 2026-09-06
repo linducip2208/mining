@@ -4,8 +4,16 @@
 
 @section('content')
 <div class="mb-4">
-    <h1 class="text-xl font-bold text-slate-800">Biaya Tambang (Cost per Ton)</h1>
-    <p class="text-sm text-slate-500">{{ $from }} s.d. {{ $to }} · <a href="{{ route('cost.others.index') }}" class="text-indigo-600 hover:underline">Biaya manual →</a></p>
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-xl font-bold text-slate-800">Biaya Tambang (Cost per Ton)</h1>
+            <p class="text-sm text-slate-500">{{ $from }} s.d. {{ $to }} · <a href="{{ route('cost.others.index') }}" class="text-indigo-600 hover:underline">Biaya manual →</a></p>
+        </div>
+        <div class="flex gap-2">
+            <a href="{{ url()->current() . (count(request()->query()) ? '?' . http_build_query(array_merge(request()->query(), ['export' => 1])) : '?export=1') }}" class="px-4 py-2 rounded-lg bg-green-700 text-white text-sm print:hidden">Export CSV</a>
+            <button onclick="window.print()" class="px-4 py-2 rounded-lg bg-slate-700 text-white text-sm print:hidden">Cetak / PDF</button>
+        </div>
+    </div>
 </div>
 
 <x-filter-bar :route="route('cost.dashboard')">

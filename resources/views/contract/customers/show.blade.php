@@ -23,10 +23,10 @@
         <div><div class="text-[11px] uppercase text-slate-500">Harga / Ton</div><div class="font-semibold">Rp {{ number_format($contract->price, 0) }}</div></div>
         <div><div class="text-[11px] uppercase text-slate-500">Termin / Delivery</div><div class="font-semibold">{{ $contract->paymentTerm?->name ?? '—' }} / {{ $contract->delivery_term ?? '—' }}</div></div>
     </div>
-    @can('contract.approve')
+    @can('contract.create')
     @if ($contract->status === 'DRAFT')
     <form method="POST" action="{{ route('customer-contracts.approve', $contract) }}" class="mt-4" onsubmit="return confirm('Aktifkan kontrak ini?')">
-        @csrf<button class="px-5 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold">Aktifkan Kontrak</button>
+        @csrf<button class="px-5 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold">Ajukan Approval</button>
     </form>
     @endif
     @endcan

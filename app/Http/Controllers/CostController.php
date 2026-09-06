@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\AppliesDataScope;
+use App\Http\Controllers\Concerns\ExportsCsv;
 use App\Models\Company;
 use App\Models\MiningOtherCost;
 use App\Models\Pit;
@@ -13,7 +14,7 @@ use Illuminate\Http\Request;
 
 class CostController extends Controller
 {
-    use AppliesDataScope;
+    use AppliesDataScope, ExportsCsv;
 
     public function dashboard(Request $request)
     {
@@ -31,6 +32,16 @@ class CostController extends Controller
         }
 
         $data = CostEngine::compute($companyId, $siteId, $from, $to);
+        if ($request->boolean('export')) {
+            AuditService::log('EXPORT', 'COST', null, null, null, ['filters' => $request->query()]);
+            return $this->exportCsv('biaya-per-ton', ['Komponen', 'Jumlah', 'Rp/Ton', 'Share%'],
+                collect($data['components'] ?? [])->map(fn ($c) => [
+                    $c['label'],
+                    $c['amount'],
+                    ($data['saleable_ton'] ?? 0) > 0 ? round($c['amount'] / $data['saleable_ton'], 0) : 0,
+                    ($data['total_cost'] ?? 0) > 0 ? round($c['amount'] / $data['total_cost'] * 100, 1) : 0,
+                ]));
+        }
         return view('cost.dashboard', $data + [
             'from' => $from, 'to' => $to,
             'companies' => Company::pluck('name', 'id')->all(),
@@ -42,8 +53,10 @@ class CostController extends Controller
     {
         $items = MiningOtherCost::with(['site', 'pit'])
             ->when($request->status, fn ($q) => $q->where('status', $request->status))
-            ->when($request->period, fn ($q) => $q->where('period', $request->period))
-            ->orderByDesc('period')->paginate(20)->withQueryString();
+            ->when($request->period, fn ($q) => $q->where('period', $request->period));
+        $this->applyCompanyScope($items);
+        $this->applySiteScope($items);
+        $items = $items->orderByDesc('period')->paginate(20)->withQueryString();
         return view('cost.others.index', [
             'items' => $items,
             'statuses' => ['DRAFT', 'APPROVED', 'POSTED'],
@@ -74,12 +87,13 @@ class CostController extends Controller
 
     public function approveOther(MiningOtherCost $other_cost)
     {
-        if (!auth()->user()->hasPermission('cost.approve')) {
-            abort(403);
+        if ($other_cost->status !== 'DRAFT') {
+            return back()->with('error', 'Status tidak valid.');
         }
-        $other_cost->update(['status' => 'APPROVED']);
-        AuditService::log('APPROVE', 'COST', $other_cost->id, MiningOtherCost::class);
-        return back()->with('success', 'Biaya disetujui.');
+        \App\Services\ApprovalService::submit('COST', 'MINING_COST', $other_cost);
+        return back()->with('success', $other_cost->fresh()->status === 'SUBMITTED'
+            ? 'Biaya diajukan ke approval center.'
+            : 'Biaya disetujui.');
     }
 
     public function postOther(MiningOtherCost $other_cost)

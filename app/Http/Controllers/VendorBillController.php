@@ -12,7 +12,7 @@ use App\Models\PurchaseRequest;
 use App\Models\GoodsReceipt;
 use App\Services\AuditService;
 use App\Services\ApprovalService;
-use App\Services\OperationsService;
+use App\Services\ProcurementService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -110,15 +110,47 @@ class VendorBillController extends Controller
     public function post(VendorBill $vendor_bill)
     {
         try {
-            OperationsService::postVendorBill($vendor_bill);
+            ProcurementService::postVendorBill($vendor_bill);
         } catch (\DomainException|\InvalidArgumentException $e) {
             return back()->with('error', $e->getMessage());
         }
         return back()->with('success', 'Tagihan diposting — AP & jurnal tersimpan.');
     }
 
-    public function pay(Request $request, VendorBill $vendor_bill)
+    public function void(Request $request, VendorBill $vendor_bill)
     {
+        if (!auth()->user()->hasPermission('vendor_bill.void')) {
+            abort(403);
+        }
+        $validated = $request->validate(['reason' => 'required|max:500']);
+        try {
+            DB::transaction(function () use ($vendor_bill, $validated) {
+                if (!in_array($vendor_bill->status, ['POSTED', 'PARTIALLY_PAID'])) {
+                    throw new \DomainException('Hanya tagihan POSTED yang dapat di-void.');
+                }
+                if ((float) $vendor_bill->paid_amount > 0) {
+                    throw new \DomainException('Tagihan yang sudah dibayar (sebagian) tidak dapat di-void.');
+                }
+                if ($vendor_bill->journal_entry_id) {
+                    $journal = \App\Models\JournalEntry::find($vendor_bill->journal_entry_id);
+                    if ($journal) {
+                        \App\Services\AccountingService::reverse($journal, $validated['reason']);
+                    }
+                }
+                $vendor_bill->update(['status' => 'CANCELLED']);
+                // aktual berbalik via jurnal reversal → komitmen PO dibuka kembali
+                if ($vendor_bill->purchase_order_id) {
+                    \App\Services\BudgetService::reopen('PURCHASE_ORDER', $vendor_bill->purchase_order_id);
+                }
+                AuditService::log('VOID', 'PROCUREMENT', $vendor_bill->id, VendorBill::class, null, null, $validated['reason']);
+            });
+        } catch (\DomainException|\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+        return back()->with('success', 'Tagihan di-void — jurnal di-reverse.');
+    }
+
+    public function pay(Request $request, VendorBill $vendor_bill)    {
         $validated = $request->validate([
             'amount' => 'required|numeric|min:0.01',
             'payment_date' => 'required|date',
@@ -126,7 +158,7 @@ class VendorBillController extends Controller
             'reference_no' => 'nullable|max:100',
         ]);
         try {
-            OperationsService::payVendorBill($vendor_bill, (float) $validated['amount'], $validated['payment_date'], $validated['cash_account_id'] ?? null, $validated['reference_no'] ?? null);
+            ProcurementService::payVendorBill($vendor_bill, (float) $validated['amount'], $validated['payment_date'], $validated['cash_account_id'] ?? null, $validated['reference_no'] ?? null);
         } catch (\DomainException $e) {
             return back()->with('error', $e->getMessage());
         }

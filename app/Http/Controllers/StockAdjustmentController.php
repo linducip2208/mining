@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AppliesDataScope;
 use App\Models\Company;
 use App\Models\Item;
 use App\Models\Site;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\DB;
 
 class StockAdjustmentController extends Controller
 {
+    use AppliesDataScope;
     public function index(Request $request)
     {
         $items = StockAdjustment::with(['warehouse', 'items'])
@@ -46,9 +48,12 @@ class StockAdjustmentController extends Controller
         ]);
 
         $adjustment = DB::transaction(function () use ($validated) {
+            $warehouse = \App\Models\Warehouse::findOrFail($validated['warehouse_id']);
+            $this->ensureCompanyInScope($warehouse->company_id);
+            $this->ensureSiteInScope($warehouse->site_id);
             $adjustment = StockAdjustment::create([
                 'number' => \App\Services\NumberingService::generate('ADJ'),
-                'company_id' => auth()->user()->accessibleCompanyIds()[0] ?? Company::value('id'),
+                'company_id' => $warehouse->company_id,
                 'warehouse_id' => $validated['warehouse_id'],
                 'adjustment_date' => $validated['adjustment_date'],
                 'type' => $validated['type'],
@@ -80,7 +85,14 @@ class StockAdjustmentController extends Controller
 
     public function post(StockAdjustment $stock_adjustment)
     {
-        if ($stock_adjustment->status !== 'DRAFT') {
+        if ($stock_adjustment->status === 'DRAFT') {
+            // wajib lewat approval center dulu (workflow ADJ-APPROVAL)
+            \App\Services\ApprovalService::submit('STOCK', 'STOCK_ADJUSTMENT', $stock_adjustment);
+            return back()->with('success', $stock_adjustment->fresh()->status === 'SUBMITTED'
+                ? 'Penyesuaian diajukan ke approval center.'
+                : 'Penyesuaian disetujui — klik Posting sekali lagi.');
+        }
+        if ($stock_adjustment->status !== 'APPROVED') {
             return back()->with('error', 'Status tidak dapat diposting.');
         }
 

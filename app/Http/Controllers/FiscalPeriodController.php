@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AppliesDataScope;
 use App\Models\Company;
 use App\Models\FiscalPeriod;
 use App\Services\AuditService;
@@ -10,11 +11,21 @@ use Illuminate\Http\Request;
 
 class FiscalPeriodController extends Controller
 {
+    use AppliesDataScope;
+
     public function index(Request $request)
     {
         $year = $request->integer('year', now()->year);
+        $this->ensureCompanyInScope($request->company_id ? (int) $request->company_id : null);
         $items = FiscalPeriod::with(['closer'])
             ->when($request->company_id, fn ($q) => $q->where('company_id', $request->company_id))
+            ->where(function ($q) {
+                $companies = auth()->user()?->accessibleCompanyIds();
+                if ($companies !== null) {
+                    // periode global (company null) tetap terlihat
+                    $q->whereNull('company_id')->orWhereIn('company_id', $companies);
+                }
+            })
             ->where('period', 'like', $year . '-%')
             ->orderBy('company_id')->orderBy('period')
             ->paginate(30)->withQueryString();
@@ -62,6 +73,7 @@ class FiscalPeriodController extends Controller
             'company_id' => 'required|exists:companies,id',
             'year' => 'required|integer|min:2000|max:2100',
         ]);
+        $this->ensureCompanyInScope((int) $validated['company_id']);
         try {
             $journal = PeriodService::closeYear((int) $validated['company_id'], (int) $validated['year']);
         } catch (\DomainException|\InvalidArgumentException $e) {
@@ -79,6 +91,7 @@ class FiscalPeriodController extends Controller
             'company_id' => 'required|exists:companies,id',
             'period' => 'required|date_format:Y-m',
         ]);
+        $this->ensureCompanyInScope((int) $validated['company_id']);
         try {
             $journal = PeriodService::depreciationRun((int) $validated['company_id'], $validated['period']);
         } catch (\DomainException|\InvalidArgumentException $e) {

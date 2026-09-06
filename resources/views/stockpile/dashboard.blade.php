@@ -3,10 +3,12 @@
 @section('title', ' - Stockpile Board')
 
 @section('content')
-<div class="mb-4">
-    <h1 class="text-xl font-bold text-slate-800">Stockpile Board</h1>
-    <p class="text-sm text-slate-500">Level & status survei semua pile · <a href="{{ route('stockpiles.index') }}" class="text-indigo-600 hover:underline">Daftar →</a></p>
-</div>
+<x-ui.page-header title="Stockpile Board" description="Level & status survei semua pile.">
+    <x-slot:actions>
+        <x-ui.button variant="secondary" size="sm" :href="route('stockpiles.index')">Daftar Pile</x-ui.button>
+        <x-ui.button variant="secondary" size="sm" :href="route('report.stockpile')">Rekonsiliasi</x-ui.button>
+    </x-slot:actions>
+</x-ui.page-header>
 
 <x-filter-bar :route="route('stockpiles.dashboard')">
     <x-filter-input name="site_id" label="Site" type="select" :options="$sites ?? []" />

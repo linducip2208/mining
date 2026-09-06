@@ -21,6 +21,8 @@ class ScanAlerts extends Command
             'MAINTENANCE_DUE' => fn () => \App\Models\MaintenanceSchedule::where('is_active', true)->whereDate('next_due', '<=', now()->addDays(7))->count(),
             'PRICE_VARIANCE' => fn () => \App\Models\PriceVariance::where('approval_status', 'PENDING')->where('variance_percentage', '>=', 10)->count(),
             'APPROVAL_PENDING' => fn () => \App\Models\ApprovalRequest::where('status', 'PENDING')->whereDate('submitted_at', '<=', now()->subDays(3))->count(),
+            'FUEL_DIP_VARIANCE' => fn () => \App\Models\FuelTankDip::where('status', 'PENDING')->count(),
+            'HSE_PERMIT_EXPIRY' => fn () => \App\Models\HsePermit::whereIn('status', ['APPROVED', 'ACTIVE'])->whereDate('valid_until', '<=', now()->addDays(14))->count(),
         ];
 
         foreach ($checks as $code => $count) {

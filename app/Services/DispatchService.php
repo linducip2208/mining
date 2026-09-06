@@ -15,6 +15,17 @@ class DispatchService
     public static function assign(array $data): DispatchTrip
     {
         return DB::transaction(function () use ($data) {
+            // cegah double-assign: satu truk + shift + tanggal hanya boleh satu trip aktif
+            if (!empty($data['truck_id']) && !empty($data['shift_id']) && !empty($data['trip_date'])) {
+                $dup = DispatchTrip::where('truck_id', $data['truck_id'])
+                    ->where('shift_id', $data['shift_id'])
+                    ->whereDate('trip_date', $data['trip_date'])
+                    ->whereNotIn('status', ['CANCELLED'])
+                    ->exists();
+                if ($dup) {
+                    throw new \DomainException('Truk tersebut sudah memiliki trip pada shift & tanggal ini.');
+                }
+            }
             $trip = DispatchTrip::create([
                 'number' => NumberingService::generate('DSP', $data['company_id'] ?? null),
                 'company_id' => $data['company_id'],

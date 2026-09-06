@@ -19,4 +19,13 @@ class FuelTankController extends BaseCrudController
         'fuel_type' => 'required|in:SOLAR,BENSIN,LISTRIK',
         'status' => 'boolean',
     ];
+
+    public function destroy($id)
+    {
+        $tank = FuelTank::findOrFail($id);
+        if (\App\Models\FuelLedger::where('fuel_tank_id', $tank->id)->exists()) {
+            return back()->with('error', 'Tangki memiliki riwayat ledger — nonaktifkan saja, jangan hapus.');
+        }
+        return parent::destroy($id);
+    }
 }

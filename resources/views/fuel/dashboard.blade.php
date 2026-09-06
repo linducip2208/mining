@@ -3,17 +3,13 @@
 @section('title', ' - Dashboard BBM')
 
 @section('content')
-<div class="flex items-center justify-between mb-4">
-    <div>
-        <h1 class="text-xl font-bold text-slate-800">Dashboard BBM</h1>
-        <p class="text-sm text-slate-500">Stok tangki & konsumsi {{ $from }} s.d. {{ $to }}</p>
-    </div>
-    <div class="flex gap-2 text-xs">
-        <a href="{{ route('fuel.stock') }}" class="px-3 py-2 rounded-lg bg-white border border-slate-200 hover:border-amber-400">Stok</a>
-        <a href="{{ route('fuel.consumption') }}" class="px-3 py-2 rounded-lg bg-white border border-slate-200 hover:border-amber-400">Konsumsi</a>
-        <a href="{{ route('fuel.variance') }}" class="px-3 py-2 rounded-lg bg-white border border-slate-200 hover:border-amber-400">Anomali</a>
-    </div>
-</div>
+<x-ui.page-header title="Dashboard BBM" description="Stok tangki & konsumsi {{ $from }} s.d. {{ $to }}.">
+    <x-slot:actions>
+        <x-ui.button variant="secondary" size="sm" :href="route('fuel.stock')">Stok</x-ui.button>
+        <x-ui.button variant="secondary" size="sm" :href="route('fuel.consumption')">Konsumsi</x-ui.button>
+        <x-ui.button variant="secondary" size="sm" :href="route('fuel.variance')">Anomali</x-ui.button>
+    </x-slot:actions>
+</x-ui.page-header>
 
 <x-filter-bar :route="route('fuel.dashboard')">
     <x-filter-input name="from" label="Dari" type="date" />

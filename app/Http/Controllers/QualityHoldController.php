@@ -49,16 +49,10 @@ class QualityHoldController extends Controller
 
     public function specialApprove(Request $request, QualityHold $quality_hold)
     {
-        if (!auth()->user()->hasPermission('quality.approve')) {
-            abort(403);
+        if ($quality_hold->status !== 'HOLD') {
+            return back()->with('error', 'Hold tidak dalam status HOLD.');
         }
-        $validated = $request->validate(['note' => 'required|max:1000']);
-        try {
-            QualityService::specialApprove($quality_hold, $validated['note']);
-        } catch (\DomainException $e) {
-            return back()->with('error', $e->getMessage());
-        }
-        AuditService::log('APPROVE', 'QUALITY', $quality_hold->id, QualityHold::class, null, ['special' => true]);
-        return back()->with('success', 'Special approval tercatat — delivery dapat jalan.');
+        \App\Services\ApprovalService::submit('QUALITY', 'QUALITY_SPECIAL', $quality_hold);
+        return back()->with('success', 'Special approval diajukan ke approval center.');
     }
 }

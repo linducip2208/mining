@@ -20,8 +20,10 @@ class CustomerContractController extends Controller
     {
         $items = CustomerContract::with(['customer', 'item'])
             ->when($request->status, fn ($q) => $q->where('status', $request->status))
-            ->when($request->q, fn ($q) => $q->where('number', 'like', "%{$request->q}%"))
-            ->orderByDesc('id')->paginate(20)->withQueryString();
+            ->when($request->q, fn ($q) => $q->where('number', 'like', "%{$request->q}%"));
+        $this->applyCompanyScope($items);
+        $this->applySiteScope($items);
+        $items = $items->orderByDesc('id')->paginate(20)->withQueryString();
         return view('contract.customers.index', ['items' => $items, 'statuses' => ['DRAFT', 'ACTIVE', 'COMPLETED', 'EXPIRED', 'CANCELLED']]);
     }
 
@@ -79,14 +81,12 @@ class CustomerContractController extends Controller
 
     public function approve(CustomerContract $customer_contract)
     {
-        if (!auth()->user()->hasPermission('contract.approve')) {
-            abort(403);
-        }
         if ($customer_contract->status !== 'DRAFT') {
             return back()->with('error', 'Status tidak valid.');
         }
-        $customer_contract->update(['status' => 'ACTIVE', 'approved_by' => auth()->id()]);
-        AuditService::log('APPROVE', 'CONTRACT', $customer_contract->id, CustomerContract::class);
-        return back()->with('success', 'Kontrak aktif.');
+        \App\Services\ApprovalService::submit('CONTRACT', 'CUSTOMER_CONTRACT', $customer_contract);
+        return back()->with('success', $customer_contract->fresh()->status === 'SUBMITTED'
+            ? 'Kontrak diajukan ke approval center.'
+            : 'Kontrak aktif.');
     }
 }

@@ -31,7 +31,7 @@
     </x-slot:head>
     @forelse ($items as $item)
     <tr class="hover:bg-slate-50">
-        <td class="px-4 py-2.5 font-mono">{{ $item->number }}</td>
+        <td class="px-4 py-2.5"><a href="{{ route('hauling-contracts.show', $item) }}" class="font-mono text-indigo-600 hover:underline">{{ $item->number }}</a></td>
         <td class="px-4 py-2.5">{{ $item->supplier?->name }}</td>
         <td class="px-4 py-2.5">{{ $item->route?->name ?? '—' }}</td>
         <td class="px-4 py-2.5">{{ $item->rate_type }}</td>

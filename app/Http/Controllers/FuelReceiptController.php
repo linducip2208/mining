@@ -65,6 +65,17 @@ class FuelReceiptController extends Controller
         return redirect()->route('fuel-receipts.index')->with('success', 'Penerimaan BBM dibuat.');
     }
 
+    public function approve(FuelReceipt $fuel_receipt)
+    {
+        if ($fuel_receipt->status !== 'DRAFT') {
+            return back()->with('error', 'Status tidak valid.');
+        }
+        \App\Services\ApprovalService::submit('FUEL', 'FUEL_RECEIPT', $fuel_receipt);
+        return back()->with('success', $fuel_receipt->fresh()->status === 'SUBMITTED'
+            ? 'Diajukan ke approval center.'
+            : 'Penerimaan disetujui.');
+    }
+
     public function post(FuelReceipt $fuel_receipt)
     {
         if (!auth()->user()->hasPermission('fuel.post')) {
