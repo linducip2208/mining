@@ -1,16 +1,16 @@
 # Test Report — Mining ERP
 
-Tanggal: 2026-09-06 · Runner: `php artisan test` (PHPUnit 12, SQLite in-memory) + smoke HTTP + ledger check.
+Tanggal: 2026-09-07 · Runner: `php artisan test` (PHPUnit 12, SQLite in-memory) + smoke HTTP + ledger check.
 
 ## Ringkasan
 
 | Metrik | Hasil |
 |---|---|
-| Total tests | 39 |
-| Passed | 39 |
+| Total tests | 150 |
+| Passed | 150 |
 | Failed | 0 |
-| Assertions | 146 |
-| Smoke HTTP (miningerp.test) | 39/39 endpoint 200 |
+| Assertions | 2523 |
+| Playwright responsive (17 halaman × 8 viewport) | 136/136 PASS |
 | Trial Balance (data demo) | BALANCED |
 | Stok negatif | 0 baris |
 
@@ -27,6 +27,12 @@ Submit → assign approver, unauthorized ditolak, approve/reject menerapkan stat
 
 ### PasswordChangeTest (3 test)
 Ganti password OK, password lama salah ditolak, user LOCKED tidak bisa login.
+
+### FlowIntegrationTest (7 test) — wiring antar modul
+GRN post → PO PARTIALLY_RECEIVED → COMPLETED; PR via Center → komitmen budget; overtime approve + index (relasi approver); SO submit → approve → reserve (reservasi tercatat); invoice create menawarkan SO COMPLETED tanpa faktur; jadwal → next_due + generate WO sekali; `Setting::get` tahan tanpa tabel.
+
+### PwaTest (4 test)
+Manifest valid + ikon default + display standalone saat enabled; halaman offline publik; service worker & ikon ada di disk.
 
 ### EndToEndTest (5 test) — §29 TEST A–E
 - **TEST A (Mine→Cash)**: raw 1000 → batch (800 in/650 net) → DO net 495 → invoice 109,89jt (deposit 50jt teralokasi + jurnal) → lunasi → PAID; verifikasi stok (200/155), revenue −99jt, AR 0, deposit 0, jurnal alokasi ada, balance global.

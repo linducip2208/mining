@@ -23,6 +23,13 @@ class Setting extends BaseModel
 
     public static function get($key, $default = null, string $scopeType = 'GLOBAL', ?int $scopeId = null)
     {
+        try {
+            if (! Schema::hasTable('settings')) {
+                return $default;
+            }
+        } catch (\Throwable) {
+            return $default;
+        }
         $query = static::where('key', $key);
         if (static::hasScopeColumns()) {
             $query->where('scope_type', $scopeType)->where('scope_id', $scopeId);

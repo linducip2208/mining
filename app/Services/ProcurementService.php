@@ -2,15 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\CashAccount;
+use App\Models\ChartOfAccount;
 use App\Models\GoodsReceipt;
-use App\Models\Item;
-use App\Models\MaintenanceCost;
-use App\Models\MaintenancePart;
-use App\Models\ProductionBatch;
-use App\Models\PurchaseOrder;
+use App\Models\GoodsReceiptItem;
 use App\Models\VendorBill;
-use App\Models\WorkOrder;
-use App\Services\SalesService as SalesServiceAlias;
 use Illuminate\Support\Facades\DB;
 
 class ProcurementService
@@ -25,7 +21,7 @@ class ProcurementService
                 throw new \DomainException('GRN sudah diposting.');
             }
             $po = $gr->purchaseOrder;
-            if (!in_array($po->status, ['APPROVED', 'SUBMITTED', 'PARTIALLY_RECEIVED'])) {
+            if (! in_array($po->status, ['APPROVED', 'SUBMITTED', 'PARTIALLY_RECEIVED'])) {
                 throw new \DomainException('PO belum disetujui.');
             }
 
@@ -56,6 +52,16 @@ class ProcurementService
             $gr->posted_at = now();
             $gr->save();
 
+            // roll up PO receipt status from all POSTED GRNs of this PO
+            if (in_array($po->status, ['APPROVED', 'SUBMITTED', 'PARTIALLY_RECEIVED'])) {
+                $ordered = (float) $po->items()->sum('qty');
+                $received = (float) GoodsReceiptItem::whereHas('receipt', fn ($q) => $q->where('purchase_order_id', $po->id)->where('status', 'POSTED'))->sum('qty_accepted');
+                if ($ordered > 0) {
+                    $po->status = $received + 0.0001 >= $ordered ? 'COMPLETED' : 'PARTIALLY_RECEIVED';
+                    $po->save();
+                }
+            }
+
             AuditService::log('POST', 'PROCUREMENT', $gr->id, GoodsReceipt::class, null, ['grn' => $gr->number]);
         });
     }
@@ -84,34 +90,34 @@ class ProcurementService
             }
 
             if ($inventoryAmount > 0) {
-                $lines[] = ['code' => AccountingService::map('INVENTORY_GENERAL'), 'debit' => $inventoryAmount, 'memo' => 'Pembelian inventory ' . $bill->number];
+                $lines[] = ['code' => AccountingService::map('INVENTORY_GENERAL'), 'debit' => $inventoryAmount, 'memo' => 'Pembelian inventory '.$bill->number];
             }
             if ($adminAmount > 0) {
-                $lines[] = ['code' => AccountingService::map('ADMIN_EXPENSE'), 'debit' => $adminAmount, 'memo' => 'Beban administrasi ' . $bill->number];
+                $lines[] = ['code' => AccountingService::map('ADMIN_EXPENSE'), 'debit' => $adminAmount, 'memo' => 'Beban administrasi '.$bill->number];
             }
             $tax = (float) $bill->tax_amount;
             if ($tax > 0) {
-                $lines[] = ['code' => AccountingService::map('TAX_PPN_IN'), 'debit' => $tax, 'memo' => 'PPN masukan ' . $bill->number];
+                $lines[] = ['code' => AccountingService::map('TAX_PPN_IN'), 'debit' => $tax, 'memo' => 'PPN masukan '.$bill->number];
             }
-            $lines[] = ['code' => AccountingService::map('AP_TRADE'), 'credit' => (float) $bill->total, 'memo' => 'Hutang supplier ' . $bill->supplier->name];
+            $lines[] = ['code' => AccountingService::map('AP_TRADE'), 'credit' => (float) $bill->total, 'memo' => 'Hutang supplier '.$bill->supplier->name];
 
             $companyId = $bill->purchaseOrder->company_id ?? 1;
             // block-mode: tagihan yang melebihi sisa budget ditolak di sini
             $month = substr($bill->bill_date->toDateString(), 0, 7);
             $poSite = $bill->purchaseOrder?->site_id;
             if ($inventoryAmount > 0) {
-                $coaId = \App\Models\ChartOfAccount::where('code', AccountingService::map('INVENTORY_GENERAL'))->value('id');
+                $coaId = ChartOfAccount::where('code', AccountingService::map('INVENTORY_GENERAL'))->value('id');
                 if ($coaId) {
                     BudgetService::assertAvailable($companyId, $poSite, $coaId, $month, $inventoryAmount);
                 }
             }
             if ($adminAmount > 0) {
-                $coaId = \App\Models\ChartOfAccount::where('code', AccountingService::map('ADMIN_EXPENSE'))->value('id');
+                $coaId = ChartOfAccount::where('code', AccountingService::map('ADMIN_EXPENSE'))->value('id');
                 if ($coaId) {
                     BudgetService::assertAvailable($companyId, $poSite, $coaId, $month, $adminAmount);
                 }
             }
-            $journal = AccountingService::post($companyId, $bill->bill_date->toDateString(), $lines, 'VENDOR_BILL', $bill->id, $bill->number, 'Tagihan supplier ' . $bill->number, 'BILL');
+            $journal = AccountingService::post($companyId, $bill->bill_date->toDateString(), $lines, 'VENDOR_BILL', $bill->id, $bill->number, 'Tagihan supplier '.$bill->number, 'BILL');
 
             $bill->status = 'POSTED';
             $bill->journal_entry_id = $journal->id;
@@ -131,7 +137,7 @@ class ProcurementService
      */
     public static function payVendorBill(VendorBill $bill, float $amount, $date, ?int $cashAccountId, ?string $referenceNo = null): void
     {
-        DB::transaction(function () use ($bill, $amount, $date, $cashAccountId, $referenceNo) {
+        DB::transaction(function () use ($bill, $amount, $date, $cashAccountId) {
             $outstanding = (float) $bill->total - (float) $bill->paid_amount;
             if ($amount > $outstanding + 0.001) {
                 throw new \DomainException('Pembayaran melebihi outstanding tagihan.');
@@ -153,11 +159,12 @@ class ProcurementService
     protected static function cashCoa(?int $cashAccountId): string
     {
         if ($cashAccountId) {
-            $acc = \App\Models\CashAccount::find($cashAccountId);
+            $acc = CashAccount::find($cashAccountId);
             if ($acc?->coa_id && $acc->coa) {
                 return $acc->coa->code;
             }
         }
+
         return AccountingService::map('CASH_MAIN');
     }
 }

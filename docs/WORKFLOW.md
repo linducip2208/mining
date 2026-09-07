@@ -56,13 +56,14 @@ Diuji di `ApprovalEngineTest`: submit → assign approver → unauthorized ditol
 | Mining Activity | DRAFT → SUBMITTED → APPROVED → POSTED (stok masuk) |
 | Production Batch | DRAFT → SUBMITTED → APPROVED → POSTED (stok + jurnal) |
 | Weighbridge Void | CANCEL/VOID wajib alasan + approval bila dikonfigurasi |
-| PR / PO | DRAFT → SUBMITTED → APPROVED |
-| SO | DRAFT → APPROVED → PARTIALLY_DELIVERED → COMPLETED |
+| PR / PO | DRAFT → SUBMITTED → APPROVED (komitmen budget identik via direct maupun Center; PO → PARTIALLY_RECEIVED → COMPLETED otomatis dari GRN) |
+| SO | DRAFT → SUBMITTED → APPROVED → reserve → PARTIALLY_DELIVERED → COMPLETED |
 | Payroll | DRAFT → CALCULATED → APPROVED → POSTED (jurnal) → PAID |
 | Insentif Operator | DRAFT → APPROVED → INCLUDED_IN_PAYROLL |
 | Stock Adjustment / Transfer | DRAFT → APPROVED → POSTED (ledger) |
-| Work Order | DRAFT → APPROVED → IN_PROGRESS → COMPLETED → CLOSED |
-| Faktur | DRAFT → POSTED → PARTIALLY_PAID → PAID |
+| Work Order | DRAFT → APPROVED → IN_PROGRESS → COMPLETED → CLOSED (complete terkunci APPROVED/IN_PROGRESS) |
+| Jadwal → WO | next_due dihitung (DAY/MONTH) → `maintenance:generate-wo` / tombol Generate → WO DRAFT (anti-duplikat) |
+| Faktur | POSTED saat pembuatan (dari qty terkirim, satu SO satu faktur aktif) → PARTIALLY_PAID → PAID |
 | Price List | DRAFT → APPROVED (+ price history) |
 | Document | DRAFT → SUBMITTED → APPROVED |
 | CSR | PROPOSAL → APPROVED → IN_PROGRESS → COMPLETED |

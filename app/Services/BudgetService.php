@@ -5,11 +5,11 @@ namespace App\Services;
 use App\Models\Budget;
 use App\Models\BudgetCommitment;
 use App\Models\BudgetLine;
+use App\Models\ChartOfAccount;
 use App\Models\JournalLine;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseRequest;
 use App\Models\Setting;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Budget vs Actual with commitments.
@@ -65,12 +65,13 @@ class BudgetService
         if ($line->period) {
             $q->where('journal_entries.period', $line->period);
         } else {
-            $q->where('journal_entries.period', 'like', $budget->year . '-%');
+            $q->where('journal_entries.period', 'like', $budget->year.'-%');
         }
         // expenses & assets accumulate on debit side; revenue/others on credit
         $type = $line->chartOfAccount->type ?? 'EXPENSE';
         $row = $q->selectRaw('COALESCE(SUM(debit),0) d, COALESCE(SUM(credit),0) c')->first();
         $net = in_array($type, ['ASSET', 'EXPENSE']) ? ($row->d - $row->c) : ($row->c - $row->d);
+
         return round(max($net, 0), 2);
     }
 
@@ -87,6 +88,7 @@ class BudgetService
         $actual = self::actualForLine($line);
         $committed = self::committedForLine($line);
         $available = round($budget - $committed - $actual, 2);
+
         return [
             'line' => $line,
             'budget' => $budget,
@@ -104,6 +106,7 @@ class BudgetService
         foreach ($budget->lines()->with('chartOfAccount')->get() as $line) {
             $rows[] = self::lineReport($line);
         }
+
         return [
             'budget' => $budget,
             'rows' => $rows,
@@ -141,7 +144,7 @@ class BudgetService
             }))
             ->orderByRaw('site_id IS NULL')
             ->first();
-        if (!$budget) {
+        if (! $budget) {
             return ['ok' => true, 'message' => null];
         }
         $line = $budget->lines()
@@ -151,17 +154,19 @@ class BudgetService
             })
             ->orderByRaw('period IS NULL')
             ->first();
-        if (!$line) {
+        if (! $line) {
             return ['ok' => true, 'message' => null];
         }
         $report = self::lineReport($line);
         if ($amount > $report['available'] + 0.01) {
-            $msg = 'Melebihi budget tersedia ' . $budget->number . ' (' . $line->chartOfAccount->code . '): tersedia Rp ' . number_format($report['available'], 0, ',', '.') . ', dibutuhkan Rp ' . number_format($amount, 0, ',', '.') . '.';
+            $msg = 'Melebihi budget tersedia '.$budget->number.' ('.$line->chartOfAccount->code.'): tersedia Rp '.number_format($report['available'], 0, ',', '.').', dibutuhkan Rp '.number_format($amount, 0, ',', '.').'.';
             if (auth()->user()?->hasPermission('budget.override')) {
-                return ['ok' => true, 'message' => $msg . ' (dilanjutkan dengan izin budget.override)'];
+                return ['ok' => true, 'message' => $msg.' (dilanjutkan dengan izin budget.override)'];
             }
+
             return ['ok' => false, 'message' => $msg];
         }
+
         return ['ok' => true, 'message' => null];
     }
 
@@ -169,9 +174,10 @@ class BudgetService
     {
         $check = self::check($companyId, $siteId, $coaId, $periodMonth, $amount, $type, $divisionId, $departmentId);
         $mode = self::enforceMode();
-        if (!$check['ok'] && $mode === 'block') {
+        if (! $check['ok'] && $mode === 'block') {
             throw new \DomainException($check['message']);
         }
+
         return $check['message']; // warning text or null
     }
 
@@ -215,9 +221,10 @@ class BudgetService
         $year = (int) substr($periodMonth, 0, 4);
         $budget = self::activeBudget($companyId, $siteId, 'OPEX', $year)
             ?? self::activeBudget($companyId, $siteId, 'CAPEX', $year);
-        if (!$budget) {
+        if (! $budget) {
             return null;
         }
+
         return $budget->lines()
             ->where('chart_of_account_id', $coaId)
             ->where(function ($q) use ($periodMonth) {
@@ -229,31 +236,47 @@ class BudgetService
 
     public static function commitPurchaseRequest(PurchaseRequest $pr): ?string
     {
-        $coaId = \App\Models\ChartOfAccount::where('code', AccountingService::map('INVENTORY_GENERAL'))->value('id');
+        try {
+            $coaId = ChartOfAccount::where('code', AccountingService::map('INVENTORY_GENERAL'))->value('id');
+        } catch (\InvalidArgumentException) {
+            return null;
+        }
+        if (! $coaId) {
+            return null;
+        }
         $month = substr($pr->request_date instanceof \DateTimeInterface ? $pr->request_date->format('Y-m-d') : (string) $pr->request_date, 0, 7);
         $amount = (float) $pr->items()->get()->sum(fn ($i) => (float) $i->qty * (float) ($i->item?->standard_cost ?? 0));
         $line = self::findLine($pr->company_id, $pr->site_id, $coaId, $month);
-        if (!$line) {
+        if (! $line) {
             return null;
         }
         $warn = self::assertAvailable($pr->company_id, $pr->site_id, $coaId, $month, $amount, null, $pr->division_id ?? null, $pr->department_id ?? null);
         self::commit('PURCHASE_REQUEST', $pr->id, $pr->number, $line->budget_id, $line->id, $amount);
+
         return $warn;
     }
 
     public static function commitPurchaseOrder(PurchaseOrder $po): ?string
     {
-        $coaId = \App\Models\ChartOfAccount::where('code', AccountingService::map('INVENTORY_GENERAL'))->value('id');
+        try {
+            $coaId = ChartOfAccount::where('code', AccountingService::map('INVENTORY_GENERAL'))->value('id');
+        } catch (\InvalidArgumentException) {
+            return null;
+        }
+        if (! $coaId) {
+            return null;
+        }
         $month = substr($po->order_date instanceof \DateTimeInterface ? $po->order_date->format('Y-m-d') : (string) $po->order_date, 0, 7);
         $line = self::findLine($po->company_id, $po->site_id, $coaId, $month);
         if ($po->purchase_request_id) {
             self::release('PURCHASE_REQUEST', $po->purchase_request_id);
         }
-        if (!$line) {
+        if (! $line) {
             return null;
         }
         $warn = self::assertAvailable($po->company_id, $po->site_id, $coaId, $month, (float) $po->subtotal);
         self::commit('PURCHASE_ORDER', $po->id, $po->number, $line->budget_id, $line->id, (float) $po->subtotal);
+
         return $warn;
     }
 }

@@ -33,10 +33,10 @@ Batch: input raw → output produk → loss (DEBU/MOISTURE/WASTE/PROCESS_LOSS/AD
 Multi warehouse/stockpile, kartu stok dengan saldo berjalan, transfer antar gudang, stock opname/penyesuaian (selisih dihitung dari ledger), reservasi SO, min stock/reorder point, nilai stok.
 
 ## 9. Procurement
-PR → approval → PO → GRN (posting = stok masuk, QC status) → Vendor Bill (Dr Inventory / Dr Admin Expense / Dr PPN Masukan / Cr AP — biaya inventory & admin **terpisah**) → pembayaran AP.
+PR → approval → PO → GRN (posting = stok masuk, QC status, **status PO otomatis PARTIALLY_RECEIVED/COMPLETED**) → Vendor Bill (Dr Inventory / Dr Admin Expense / Dr PPN Masukan / Cr AP — biaya inventory & admin **terpisah**) → pembayaran AP.
 
 ## 10. Penjualan
-SO (harga auto dari price list berjenjang: customer → grup → site → standar) → DO (anti over-delivery) → timbangan → **complete DO** (stok keluar + update SO) → Faktur (dari qty terkirim, PPN otomatis, jurnal Dr AR/Cr Revenue/Cr PPN, alokasi deposit opsional) → Pembayaran (FIFO ke faktur outstanding).
+SO (DRAFT → Ajukan → APPROVED → Reservasi stok, harga auto dari price list berjenjang: customer → grup → site → standar) → DO (anti over-delivery) → timbangan → **complete DO** (stok keluar + update SO) → Faktur (dari qty terkirim termasuk SO COMPLETED tanpa faktur, PPN otomatis, jurnal Dr AR/Cr Revenue/Cr PPN, alokasi deposit opsional) → Pembayaran (FIFO ke faktur outstanding).
 
 ## 11. Harga & Margin
 Price List per tipe (STANDARD/CUSTOMER/SITE/CONTRACT/RETAIL/SPECIAL) dengan effective/expiry, approval, price history. **Price Variance**: reference (ritel) vs realization, favorable/unfavorable, wajib approval — *informatif, makna akuntansi via mapping*.
@@ -45,7 +45,7 @@ Price List per tipe (STANDARD/CUSTOMER/SITE/CONTRACT/RETAIL/SPECIAL) dengan effe
 Ledger: DEPOSIT_IN → DEPOSIT_USED → DEPOSIT_REFUND. Saldo dihitung dari ledger, anti overdraft. Statement per customer dengan saldo berjalan. Integrasi jurnal (Dr Cash / Cr Customer Deposit) + auto-alokasi ke faktur.
 
 ## 13. Aset & Maintenance
-Asset register (status lifecycle), peralatan, jadwal pemeliharaan (interval jam/km/hari/bulan), Work Order (task, teknisi, sparepart) dengan flow DRAFT → APPROVED → IN_PROGRESS → COMPLETED. **Issue sparepart = stok keluar + biaya + jurnal Dr Maintenance Exp / Cr Inventory Sparepart**. Downtime tercatat.
+Asset register (status lifecycle), peralatan, jadwal pemeliharaan (interval jam/km/hari/bulan; **next_due otomatis untuk DAY/MONTH + generate WO draft anti-duplikat via tombol/`maintenance:generate-wo`**), Work Order (task, teknisi, sparepart) dengan flow DRAFT → APPROVED → IN_PROGRESS → COMPLETED. **Issue sparepart = stok keluar + biaya + jurnal Dr Maintenance Exp / Cr Inventory Sparepart**. Downtime tercatat.
 
 ## 14. Keuangan & Akuntansi
 - Bagan akun standar pertambangan (30 akun) + 27 mapping configurable

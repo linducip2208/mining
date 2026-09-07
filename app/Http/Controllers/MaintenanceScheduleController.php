@@ -3,16 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Asset;
-use App\Models\Crusher;
+use App\Models\Equipment;
 use App\Models\MaintenanceSchedule;
-use App\Models\MaintenancePart;
-use App\Models\Item;
-use App\Models\Site;
-use App\Models\WorkOrder;
 use App\Services\AuditService;
 use App\Services\MaintenanceService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class MaintenanceScheduleController extends Controller
 {
@@ -21,6 +16,7 @@ class MaintenanceScheduleController extends Controller
         $items = MaintenanceSchedule::with(['asset', 'equipment'])
             ->when($request->type, fn ($q) => $q->where('type', $request->type))
             ->orderBy('next_due')->paginate(20)->withQueryString();
+
         return view('maintenance.schedule.index', ['items' => $items, 'schedule' => null, 'types' => ['PREVENTIVE', 'CORRECTIVE'], 'intervalTypes' => ['RUNNING_HOUR', 'KM', 'DAY', 'MONTH']]);
     }
 
@@ -29,7 +25,7 @@ class MaintenanceScheduleController extends Controller
         return view('maintenance.schedule.form', [
             'schedule' => null,
             'assets' => Asset::all(),
-            'equipment' => \App\Models\Equipment::all(),
+            'equipment' => Equipment::all(),
             'types' => ['PREVENTIVE', 'CORRECTIVE'],
             'intervalTypes' => ['RUNNING_HOUR', 'KM', 'DAY', 'MONTH'],
         ]);
@@ -46,7 +42,18 @@ class MaintenanceScheduleController extends Controller
             'interval_value' => 'required|integer|min:1',
             'last_done' => 'nullable|date',
         ]);
-        MaintenanceSchedule::create($validated);
+        $schedule = MaintenanceSchedule::create($validated);
+        $schedule->next_due = MaintenanceService::computeNextDue($schedule);
+        $schedule->save();
+        AuditService::created('MAINTENANCE', $schedule);
+
         return redirect()->route('maintenance-schedules.index')->with('success', 'Jadwal dibuat.');
+    }
+
+    public function generate()
+    {
+        $count = MaintenanceService::generateDueWorkOrders();
+
+        return redirect()->route('maintenance-schedules.index')->with('success', "WO draft dibuat dari jadwal jatuh tempo: {$count}.");
     }
 }

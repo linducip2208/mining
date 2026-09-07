@@ -1,15 +1,14 @@
 <?php
 
 namespace App\Http\Controllers;
-use App\Http\Controllers\Concerns\AppliesDataScope;
 
-use App\Models\Attendance;
+use App\Http\Controllers\Concerns\AppliesDataScope;
 use App\Models\Employee;
-use App\Models\Leave;
 use App\Models\Overtime;
+use App\Models\Site;
 use App\Services\AuditService;
+use App\Services\NumberingService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class OvertimeController extends Controller
 {
@@ -21,12 +20,13 @@ class OvertimeController extends Controller
             ->when($request->status, fn ($q) => $q->where('status', $request->status))
             ->when($request->from, fn ($q) => $q->whereDate('date', '>=', $request->from))
             ->orderByDesc('date')->paginate(20)->withQueryString();
+
         return view('hr.overtime.index', ['items' => $items, 'statuses' => ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'CANCELLED']]);
     }
 
     public function create()
     {
-        return view('hr.overtime.form', ['overtime' => null, 'employees' => Employee::where('status', 'ACTIVE')->get(), 'sites' => \App\Models\Site::pluck('name', 'id')->all()]);
+        return view('hr.overtime.form', ['overtime' => null, 'employees' => Employee::where('status', 'ACTIVE')->get(), 'sites' => Site::pluck('name', 'id')->all()]);
     }
 
     public function store(Request $request)
@@ -38,19 +38,25 @@ class OvertimeController extends Controller
             'reason' => 'required|max:255',
             'site_id' => 'nullable|exists:sites,id',
         ]);
-        $validated['number'] = \App\Services\NumberingService::generate('OT');
+        $validated['number'] = NumberingService::generate('OT');
         $validated['status'] = 'DRAFT';
         $validated['created_by'] = auth()->id();
         $ot = Overtime::create($validated);
-        $this->ensureInScope(\App\Models\Employee::find($validated['employee_id']));
+        $this->ensureInScope(Employee::find($validated['employee_id']));
         $this->ensureSiteInScope($validated['site_id'] ?? null);
         AuditService::created('HR', $ot);
+
         return redirect()->route('overtimes.index')->with('success', 'Lembur dicatat.');
     }
 
     public function approve(Overtime $overtime)
     {
+        if ($overtime->status === 'APPROVED') {
+            return back()->with('error', 'Lembur sudah disetujui.');
+        }
         $overtime->update(['status' => 'APPROVED', 'approved_by' => auth()->id()]);
+        AuditService::log('APPROVE', 'HR', $overtime->id, Overtime::class);
+
         return back()->with('success', 'Lembur disetujui.');
     }
 }

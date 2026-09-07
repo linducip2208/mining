@@ -2,9 +2,12 @@
 @php use App\Support\HumanLabel; @endphp
 @section('title', ' - Jadwal Pemeliharaan')
 @section('content')
-<div class="flex items-center justify-between mb-4">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-4">
     <h1 class="text-xl font-bold text-slate-800">Jadwal Pemeliharaan</h1>
-    @can('maintenance.create')<x-btn-create :href="route('maintenance-schedules.create')" />@endcan
+    <div class="flex flex-wrap gap-2">
+        @can('work_order.create')<form action="{{ route('maintenance-schedules.generate') }}" method="POST" class="inline">@csrf<button class="px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-medium min-h-[38px]">Generate WO Jatuh Tempo</button></form>@endcan
+        @can('maintenance.create')<x-btn-create :href="route('maintenance-schedules.create')" />@endcan
+    </div>
 </div>
 <x-table>
     <x-slot:head>

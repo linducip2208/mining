@@ -94,6 +94,16 @@ ApprovalService::actOnActionId($actionId, $user, 'APPROVE'|'REJECT'|'RETURN', $n
 - `lockForUpdate()` pada numbering & stock
 - Unique constraint pada nomor dokumen
 
+### 5. Resilience & Side-Effect Parity
+- `Setting::get()` mengembalikan default bila tabel `settings` belum ada
+  (installer, error pages) — branding tidak pernah meledakkan render.
+- `ApprovalResolver` memiliki handler side-effect per tipe (`PURCHASE_REQUEST`
+  → komitmen budget, survei, kontrak, HSE) sehingga approval via Center dan
+  via tombol direct menghasilkan efek yang identik; `commit()` idempoten via
+  `updateOrCreate`, dan fase `act()` terbungkus transaksi (gagal = rollback).
+- `BudgetService::commit*` mengembalikan `null` (no-control) bila mapping/COA
+  belum dikonfigurasi — approval tidak boleh mati di fresh install.
+
 ## Alur Bisnis End-to-End
 
 ```mermaid

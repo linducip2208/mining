@@ -33,7 +33,9 @@ class InvoiceController extends Controller
     public function create()
     {
         return view('sales.invoice.create', [
-            'salesOrders' => SalesOrder::where('status', 'PARTIALLY_DELIVERED')->with(['customer', 'items'])->get(),
+            'salesOrders' => SalesOrder::whereIn('status', ['PARTIALLY_DELIVERED', 'COMPLETED'])
+                ->whereDoesntHave('invoice', fn ($q) => $q->whereNotIn('status', ['CANCELLED', 'VOID']))
+                ->with(['customer', 'items'])->get(),
             'customers' => Customer::where('status', true)->get(),
         ]);
     }

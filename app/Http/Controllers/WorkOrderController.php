@@ -1,17 +1,20 @@
 <?php
 
 namespace App\Http\Controllers;
-use App\Http\Controllers\Concerns\AppliesDataScope;
 
+use App\Http\Controllers\Concerns\AppliesDataScope;
 use App\Models\Asset;
-use App\Models\Crusher;
-use App\Models\MaintenanceSchedule;
-use App\Models\MaintenancePart;
+use App\Models\Company;
+use App\Models\Employee;
+use App\Models\Equipment;
 use App\Models\Item;
+use App\Models\MaintenancePart;
 use App\Models\Site;
+use App\Models\Warehouse;
 use App\Models\WorkOrder;
 use App\Services\AuditService;
 use App\Services\MaintenanceService;
+use App\Services\NumberingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -25,8 +28,9 @@ class WorkOrderController extends Controller
             ->when($request->status, fn ($q) => $q->where('status', $request->status))
             ->when($request->q, fn ($q) => $q->where('number', 'like', "%{$request->q}%"))
 
-            ->when(!is_null($companies = auth()->user()?->accessibleCompanyIds()), fn ($w) => $w->whereIn('company_id', $companies))
+            ->when(! is_null($companies = auth()->user()?->accessibleCompanyIds()), fn ($w) => $w->whereIn('company_id', $companies))
             ->orderByDesc('id')->paginate(20)->withQueryString();
+
         return view('maintenance.wo.index', ['items' => $items, 'workOrder' => null, 'statuses' => ['DRAFT', 'SUBMITTED', 'APPROVED', 'IN_PROGRESS', 'COMPLETED', 'CLOSED', 'CANCELLED']]);
     }
 
@@ -34,13 +38,13 @@ class WorkOrderController extends Controller
     {
         return view('maintenance.wo.form', [
             'workOrder' => null,
-            'equipment' => \App\Models\Equipment::all(),
+            'equipment' => Equipment::all(),
             'assets' => Asset::all(),
             'sites' => Site::pluck('name', 'id')->all(),
             'items' => Item::where('type', 'SPAREPART')->get(),
-            'warehouses' => \App\Models\Warehouse::where('type', 'WAREHOUSE')->get(),
-            'employees' => \App\Models\Employee::where('status', 'ACTIVE')->get(),
-            'companies' => \App\Models\Company::pluck('name', 'id')->all(),
+            'warehouses' => Warehouse::where('type', 'WAREHOUSE')->get(),
+            'employees' => Employee::where('status', 'ACTIVE')->get(),
+            'companies' => Company::pluck('name', 'id')->all(),
         ]);
     }
 
@@ -52,17 +56,17 @@ class WorkOrderController extends Controller
 
         $wo = DB::transaction(function () use ($validated, $request) {
             $wo = WorkOrder::create($validated + [
-                'number' => \App\Services\NumberingService::generate('WO', $validated['company_id']),
+                'number' => NumberingService::generate('WO', $validated['company_id']),
                 'status' => 'DRAFT',
                 'created_by' => auth()->id(),
             ]);
             foreach ($request->input('tasks', []) as $i => $task) {
-                if (!empty($task['description'])) {
+                if (! empty($task['description'])) {
                     $wo->tasks()->create(['description' => $task['description'], 'sort' => $i]);
                 }
             }
             foreach ($request->input('parts', []) as $part) {
-                if (!empty($part['item_id']) && $part['qty'] > 0) {
+                if (! empty($part['item_id']) && $part['qty'] > 0) {
                     $wo->parts()->create([
                         'item_id' => $part['item_id'],
                         'warehouse_id' => $part['warehouse_id'] ?? null,
@@ -72,14 +76,16 @@ class WorkOrderController extends Controller
                 }
             }
             foreach ($request->input('technicians', []) as $tech) {
-                if (!empty($tech['employee_id'])) {
+                if (! empty($tech['employee_id'])) {
                     $wo->technicians()->create(['employee_id' => $tech['employee_id'], 'hours' => $tech['hours'] ?? 0]);
                 }
             }
+
             return $wo;
         });
 
         AuditService::created('MAINTENANCE', $wo);
+
         return redirect()->route('work-orders.show', $wo)->with('success', 'Work Order dibuat.');
     }
 
@@ -94,11 +100,12 @@ class WorkOrderController extends Controller
 
     public function approve(WorkOrder $work_order)
     {
-        if (!auth()->user()->hasPermission('work_order.approve')) {
+        if (! auth()->user()->hasPermission('work_order.approve')) {
             abort(403);
         }
         $work_order->update(['status' => 'APPROVED', 'approved_by' => auth()->id()]);
         AuditService::log('APPROVE', 'MAINTENANCE', $work_order->id, WorkOrder::class);
+
         return back()->with('success', 'WO disetujui.');
     }
 
@@ -111,11 +118,15 @@ class WorkOrderController extends Controller
         if ($work_order->equipment) {
             $work_order->equipment->update(['status' => 'MAINTENANCE']);
         }
+
         return back()->with('success', 'WO dimulai.');
     }
 
     public function complete(Request $request, WorkOrder $work_order)
     {
+        if (! in_array($work_order->status, ['APPROVED', 'IN_PROGRESS'])) {
+            return back()->with('error', 'WO harus disetujui/dimulai sebelum diselesaikan.');
+        }
         $validated = $request->validate([
             'downtime_hours' => 'nullable|numeric|min:0',
             'labor_cost' => 'nullable|numeric|min:0',
@@ -128,7 +139,7 @@ class WorkOrderController extends Controller
         ]);
         $work_order->tasks()->update(['is_done' => true]);
 
-        if (!empty($validated['labor_cost']) && $validated['labor_cost'] > 0) {
+        if (! empty($validated['labor_cost']) && $validated['labor_cost'] > 0) {
             $work_order->costs()->create(['cost_type' => 'LABOR', 'amount' => $validated['labor_cost']]);
         }
         $work_order->update(['actual_cost' => (float) $work_order->costs()->sum('amount')]);
@@ -138,6 +149,7 @@ class WorkOrderController extends Controller
         }
 
         AuditService::log('UPDATE', 'MAINTENANCE', $work_order->id, WorkOrder::class, null, ['status' => 'COMPLETED']);
+
         return back()->with('success', 'WO selesai.');
     }
 
@@ -151,6 +163,7 @@ class WorkOrderController extends Controller
         } catch (\DomainException $e) {
             return back()->with('error', $e->getMessage());
         }
+
         return back()->with('success', 'Sparepart diterbitkan: stok berkurang & biaya tercatat.');
     }
 

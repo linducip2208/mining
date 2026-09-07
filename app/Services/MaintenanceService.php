@@ -2,19 +2,85 @@
 
 namespace App\Services;
 
-use App\Models\GoodsReceipt;
 use App\Models\Item;
 use App\Models\MaintenanceCost;
 use App\Models\MaintenancePart;
-use App\Models\ProductionBatch;
-use App\Models\PurchaseOrder;
-use App\Models\VendorBill;
+use App\Models\MaintenanceSchedule;
 use App\Models\WorkOrder;
-use App\Services\SalesService as SalesServiceAlias;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class MaintenanceService
 {
+    /**
+     * Compute next due date for DAY/MONTH interval schedules.
+     * RUNNING_HOUR/KM schedules are meter-driven (next_meter) and return null.
+     */
+    public static function computeNextDue(MaintenanceSchedule $schedule, ?string $baseDate = null): ?string
+    {
+        if (! in_array($schedule->interval_type, ['DAY', 'MONTH']) || (int) $schedule->interval_value <= 0) {
+            return null;
+        }
+        $base = $baseDate ? Carbon::parse($baseDate) : ($schedule->last_done ? Carbon::parse($schedule->last_done) : now());
+
+        return $schedule->interval_type === 'DAY'
+            ? $base->copy()->addDays((int) $schedule->interval_value)->toDateString()
+            : $base->copy()->addMonthsNoOverflow((int) $schedule->interval_value)->toDateString();
+    }
+
+    /**
+     * Generate DRAFT work orders for due schedules (next_due <= today) that
+     * have no open work order yet. Returns number of WOs created.
+     */
+    public static function generateDueWorkOrders(): int
+    {
+        $count = 0;
+        $due = MaintenanceSchedule::where('is_active', true)
+            ->whereNotNull('next_due')
+            ->whereDate('next_due', '<=', today())
+            ->with(['asset', 'equipment'])
+            ->get();
+        foreach ($due as $schedule) {
+            $open = WorkOrder::where('maintenance_schedule_id', $schedule->id)
+                ->whereNotIn('status', ['COMPLETED', 'CLOSED', 'CANCELLED'])
+                ->exists();
+            if ($open) {
+                continue;
+            }
+            $companyId = $schedule->asset?->company_id ?? $schedule->equipment?->company_id;
+            if (! $companyId) {
+                continue;
+            }
+            DB::transaction(function () use ($schedule, $companyId, &$count) {
+                $wo = WorkOrder::create([
+                    'number' => NumberingService::generate('WO', $companyId),
+                    'company_id' => $companyId,
+                    'site_id' => $schedule->asset?->site_id ?? $schedule->equipment?->site_id,
+                    'asset_id' => $schedule->asset_id,
+                    'equipment_id' => $schedule->equipment_id,
+                    'maintenance_schedule_id' => $schedule->id,
+                    'type' => $schedule->type === 'CORRECTIVE' ? 'CORRECTIVE' : 'PREVENTIVE',
+                    'date' => today()->toDateString(),
+                    'description' => 'Otomatis dari jadwal: '.$schedule->name,
+                    'status' => 'DRAFT',
+                    'created_by' => auth()->id() ?? 1,
+                ]);
+                $advanced = self::computeNextDue($schedule, $schedule->next_due instanceof \DateTimeInterface
+                    ? $schedule->next_due->format('Y-m-d')
+                    : (string) $schedule->next_due);
+                if ($advanced) {
+                    $schedule->next_due = $advanced;
+                    $schedule->save();
+                }
+                AuditService::log('CREATE', 'MAINTENANCE', $wo->id, WorkOrder::class, null, ['from_schedule' => $schedule->id]);
+                $count++;
+            });
+        }
+
+        return $count;
+    }
+
+    /**
     /**
      * Issue spare part for WO: inventory out + maintenance cost.
      */
@@ -26,7 +92,7 @@ class MaintenanceService
             }
             $wo = $part->workOrder;
             $warehouseId = $part->warehouse_id;
-            if (!$warehouseId) {
+            if (! $warehouseId) {
                 throw new \DomainException('Warehouse sparepart belum ditentukan.');
             }
 
@@ -64,9 +130,9 @@ class MaintenanceService
 
             // Journal: Dr Maintenance Expense, Cr Inventory
             AccountingService::post($wo->company_id, now()->toDateString(), [
-                ['code' => AccountingService::map('MAINTENANCE_EXPENSE'), 'debit' => $part->total_cost, 'memo' => 'Sparepart WO ' . $wo->number],
-                ['code' => AccountingService::map('INVENTORY_SPAREPART'), 'credit' => $part->total_cost, 'memo' => 'Pemakaian sparepart WO ' . $wo->number],
-            ], 'MAINTENANCE_PART', $wo->id, $wo->number, 'Issue sparepart ' . $wo->number, 'MNT');
+                ['code' => AccountingService::map('MAINTENANCE_EXPENSE'), 'debit' => $part->total_cost, 'memo' => 'Sparepart WO '.$wo->number],
+                ['code' => AccountingService::map('INVENTORY_SPAREPART'), 'credit' => $part->total_cost, 'memo' => 'Pemakaian sparepart WO '.$wo->number],
+            ], 'MAINTENANCE_PART', $wo->id, $wo->number, 'Issue sparepart '.$wo->number, 'MNT');
 
             AuditService::log('UPDATE', 'MAINTENANCE', $wo->id, WorkOrder::class, null, ['part_issued' => $part->item_id, 'qty' => $part->qty]);
         });

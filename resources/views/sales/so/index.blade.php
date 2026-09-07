@@ -13,10 +13,10 @@
     <tbody>
         @forelse ($items as $item)
         <tr class="hover:bg-slate-50">
-            <td class="px-4 py-2.5 font-medium">{{ $item->number }}</td>
-            <td class="px-4 py-2.5">{{ $item->order_date?->format('d/m/Y') }}</td>
+            <td class="px-4 py-2.5 font-medium whitespace-nowrap">{{ $item->number }}</td>
+            <td class="px-4 py-2.5 whitespace-nowrap">{{ $item->order_date?->format('d/m/Y') }}</td>
             <td class="px-4 py-2.5">{{ $item->customer?->name }}</td>
-            <td class="px-4 py-2.5 text-right font-semibold">Rp {{ number_format($item->total, 0, ',', '.') }}</td>
+            <td class="px-4 py-2.5 text-right font-semibold whitespace-nowrap">Rp {{ number_format($item->total, 0, ',', '.') }}</td>
             <td class="px-4 py-2.5"><x-status-badge :status="$item->status" /></td>
             <td class="px-4 py-2.5 text-xs">
                 @if ($item->invoice)
@@ -25,11 +25,23 @@
                     <span class="text-slate-300">-</span>
                 @endif
             </td>
-            <td class="px-4 py-2.5 text-right">
+            <td class="px-4 py-2.5 text-right whitespace-nowrap">
+                @if ($item->status === 'DRAFT')
+                @can('sales_order.create')
+                <form action="{{ route('sales-orders.submit', $item) }}" method="POST" class="inline">@csrf
+                <button class="text-xs text-amber-600 hover:underline">Ajukan</button></form>
+                @endcan
+                @endif
                 @if ($item->status === 'SUBMITTED')
                 @can('sales_order.approve')
                 <form action="{{ route('sales-orders.approve', $item) }}" method="POST" class="inline">@csrf
                 <button class="text-xs text-green-600 hover:underline">Setujui</button></form>
+                @endcan
+                @endif
+                @if ($item->status === 'APPROVED')
+                @can('sales_order.approve')
+                <form action="{{ route('sales-orders.reserve', $item) }}" method="POST" class="inline">@csrf
+                <button class="text-xs text-indigo-600 hover:underline">Reservasi</button></form>
                 @endcan
                 @endif
             </td>

@@ -260,12 +260,13 @@ Route::middleware(['auth', 'feature.flags'])->group(function () {
     Route::resource('payment-terms', PaymentTermController::class)->middleware('permission:finance.view');
     Route::resource('sales-orders', SalesOrderController::class)->middleware('permission:sales_order.view');
     Route::post('sales-orders/{sales_order}/approve', [SalesOrderController::class, 'approve'])->name('sales-orders.approve')->middleware('permission:sales_order.approve');
+    Route::post('sales-orders/{sales_order}/submit', [SalesOrderController::class, 'submit'])->name('sales-orders.submit')->middleware('permission:sales_order.create');
+    Route::post('sales-orders/{sales_order}/reserve', [SalesOrderController::class, 'reserve'])->name('sales-orders.reserve')->middleware('permission:sales_order.approve');
     Route::resource('delivery-orders', DeliveryOrderController::class)->middleware('permission:delivery_order.view');
     Route::post('delivery-orders/{delivery_order}/complete', [DeliveryOrderController::class, 'complete'])->name('delivery-orders.complete')->middleware('permission:delivery_order.update');
     Route::resource('invoices', InvoiceController::class)->middleware('permission:invoice.view');
     Route::get('invoices/{invoice}/print', [InvoiceController::class, 'print'])->name('invoices.print')->middleware('permission:invoice.print');
     Route::get('invoices/{invoice}/pdf', [InvoiceController::class, 'pdf'])->name('invoices.pdf')->middleware('permission:invoice.pdf');
-    Route::post('invoices/{invoice}/post', [InvoiceController::class, 'post'])->name('invoices.post')->middleware('permission:invoice.post');
     Route::resource('payments', PaymentController::class)->middleware('permission:payment.view');
     Route::get('deposits', [CustomerDepositController::class, 'index'])->name('deposit.index')->middleware('permission:deposit.view');
     Route::post('deposits/in', [CustomerDepositController::class, 'depositIn'])->name('deposit.in')->middleware('permission:deposit.create');
@@ -284,7 +285,8 @@ Route::middleware(['auth', 'feature.flags'])->group(function () {
     Route::post('work-orders/{work_order}/start', [WorkOrderController::class, 'start'])->name('work-orders.start')->middleware('permission:work_order.update');
     Route::post('work-orders/{work_order}/complete', [WorkOrderController::class, 'complete'])->name('work-orders.complete')->middleware('permission:work_order.update');
     Route::post('work-orders/{work_order}/parts/{part}/issue', [WorkOrderController::class, 'issuePart'])->name('work-orders.issue-part')->middleware('permission:work_order.update');
-    Route::resource('maintenance-schedules', MaintenanceScheduleController::class)->middleware('permission:maintenance.view');
+    Route::resource('maintenance-schedules', MaintenanceScheduleController::class)->only(['index', 'create', 'store'])->middleware('permission:maintenance.view');
+    Route::post('maintenance-schedules/generate', [MaintenanceScheduleController::class, 'generate'])->name('maintenance-schedules.generate')->middleware('permission:work_order.create');
 
     // ===== FINANCE & ACCOUNTING =====
     Route::resource('coa', CoaController::class)->middleware('permission:finance.view');
