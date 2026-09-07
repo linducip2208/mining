@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', ' - Timbangan')
 @section('content')
-<div class="flex items-center justify-between mb-4">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-4">
     <h1 class="text-xl font-bold text-slate-800">Tiket Timbangan</h1>
     @can('weighbridge.create')<x-btn-create label="Timbang Pertama" :href="route('weighbridge-tickets.create')" />@endcan
 </div>
@@ -21,9 +21,9 @@
     <tbody>
         @forelse ($items as $item)
         <tr class="hover:bg-slate-50">
-            <td class="px-4 py-2.5 font-medium">{{ $item->ticket_no }}</td>
-            <td class="px-4 py-2.5 text-xs">{{ $item->first_weigh_at?->format('d/m H:i') }}{{ $item->second_weigh_at ? ' - ' . $item->second_weigh_at->format('H:i') : '' }}</td>
-            <td class="px-4 py-2.5">{{ $item->vehicle_plate }}</td>
+            <td class="px-4 py-2.5 font-medium whitespace-nowrap">{{ $item->ticket_no }}</td>
+            <td class="px-4 py-2.5 text-xs whitespace-nowrap">{{ $item->first_weigh_at?->format('d/m H:i') }}{{ $item->second_weigh_at ? ' - ' . $item->second_weigh_at->format('H:i') : '' }}</td>
+            <td class="px-4 py-2.5 whitespace-nowrap">{{ $item->vehicle_plate }}</td>
             <td class="px-4 py-2.5">{{ $item->direction === 'OUT' ? 'Keluar' : 'Masuk' }}</td>
             <td class="px-4 py-2.5">{{ $item->customer?->name ?? $item->supplier?->name }}</td>
             <td class="px-4 py-2.5">{{ $item->item?->name }}</td>

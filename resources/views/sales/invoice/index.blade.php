@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', ' - Faktur')
 @section('content')
-<div class="flex items-center justify-between mb-4">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-4">
     <h1 class="text-xl font-bold text-slate-800">Faktur Penjualan</h1>
     @can('invoice.create')<x-btn-create label="Dari SO" :href="route('invoices.create')" />@endcan
 </div>
@@ -19,20 +19,20 @@
     <tbody>
         @forelse ($items as $item)
         <tr class="hover:bg-slate-50">
-            <td class="px-4 py-2.5 font-medium">{{ $item->number }}</td>
-            <td class="px-4 py-2.5 text-xs">
+            <td class="px-4 py-2.5 font-medium whitespace-nowrap">{{ $item->number }}</td>
+            <td class="px-4 py-2.5 text-xs whitespace-nowrap">
                 @if ($item->salesOrder)
                     <a href="{{ route('sales-orders.show', $item->salesOrder) }}" class="text-amber-600 hover:underline">{{ $item->salesOrder->number }}</a>
                 @else
                     <span class="text-slate-300">-</span>
                 @endif
             </td>
-            <td class="px-4 py-2.5">{{ $item->invoice_date?->format('d/m/Y') }}</td>
+            <td class="px-4 py-2.5 whitespace-nowrap">{{ $item->invoice_date?->format('d/m/Y') }}</td>
             <td class="px-4 py-2.5">{{ $item->customer?->name }}</td>
-            <td class="px-4 py-2.5 text-right">{{ number_format($item->subtotal, 0, ',', '.') }}</td>
-            <td class="px-4 py-2.5 text-right">{{ number_format($item->tax_amount, 0, ',', '.') }}</td>
-            <td class="px-4 py-2.5 text-right font-semibold">{{ number_format($item->total, 0, ',', '.') }}</td>
-            <td class="px-4 py-2.5 text-right">{{ number_format($item->paid_amount, 0, ',', '.') }}</td>
+            <td class="px-4 py-2.5 text-right whitespace-nowrap">{{ number_format($item->subtotal, 0, ',', '.') }}</td>
+            <td class="px-4 py-2.5 text-right whitespace-nowrap">{{ number_format($item->tax_amount, 0, ',', '.') }}</td>
+            <td class="px-4 py-2.5 text-right font-semibold whitespace-nowrap">{{ number_format($item->total, 0, ',', '.') }}</td>
+            <td class="px-4 py-2.5 text-right whitespace-nowrap">{{ number_format($item->paid_amount, 0, ',', '.') }}</td>
             <td class="px-4 py-2.5"><x-status-badge :status="$item->status" /></td>
             <td class="px-4 py-2.5"><a href="{{ route('invoices.show', $item) }}" class="text-amber-600 text-xs hover:underline">Detail</a></td>
         </tr>

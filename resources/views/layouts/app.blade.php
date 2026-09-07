@@ -28,7 +28,7 @@
 
     <div id="appMain" class="app-shell-main flex-1 flex flex-col min-w-0 md:ml-60">
         <header class="app-topbar sticky top-0 z-20 flex items-center gap-3 px-4 lg:px-6">
-            <button class="p-2 rounded-ctl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-500" onclick="window.toggleSidebar()" aria-label="Buka atau tutup sidebar">
+            <button id="topbarBurger" class="p-2 -ml-2 rounded-ctl min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-slate-100 dark:hover:bg-white/5 text-slate-500" onclick="window.toggleSidebar()" aria-label="Buka atau tutup sidebar" aria-controls="sidebar">
                 <x-ui.icon name="menu" class="w-5 h-5" />
             </button>
 
@@ -52,6 +52,11 @@
                 <x-ui.icon name="search" class="w-4 h-4" />
                 <span class="flex-1 text-left">Cari invoice, DO, PO, tiket…</span>
                 <kbd class="text-[10px] px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-navy-800 font-sans">Ctrl K</kbd>
+            </button>
+            {{-- Mobile search: opens the same command palette (no duplicate component) --}}
+            <button type="button" onclick="document.getElementById('cmdk').classList.remove('hidden');document.getElementById('cmdkInput').focus()"
+                aria-label="Cari dokumen" class="sm:hidden p-2 min-h-[44px] min-w-[36px] rounded-ctl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-500">
+                <x-ui.icon name="search" class="w-5 h-5" />
             </button>
 
             <div class="hidden lg:flex items-center gap-2 ml-auto">
@@ -98,7 +103,7 @@
                             <span class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 text-[10px] font-bold bg-amber-500 text-white rounded-full flex items-center justify-center">{{ $unreadNotif }}</span>
                         @endif
                     </button>
-                    <div x-show="open" @click.outside="open=false" x-cloak class="absolute right-0 mt-2 w-80 bg-white dark:bg-navy-800 rounded-card shadow-pop border border-slate-200 dark:border-slate-700 py-2 max-h-96 overflow-y-auto nice-scroll z-50">
+                    <div x-show="open" @click.outside="open=false" x-cloak class="absolute right-0 mt-2 w-80 max-w-[calc(100vw-1.5rem)] bg-white dark:bg-navy-800 rounded-card shadow-pop border border-slate-200 dark:border-slate-700 py-2 max-h-96 overflow-y-auto nice-scroll z-50">
                         <div class="px-4 py-2 text-xs font-semibold text-slate-400 uppercase">Notifikasi</div>
                         @forelse (auth()->user()->unreadNotifications()->latest()->limit(10)->get() as $notif)
                             @php
@@ -129,7 +134,7 @@
                             <div class="text-[11px] text-slate-400 leading-tight">{{ auth()->user()->roles->first()?->name ?? '—' }}</div>
                         </div>
                     </button>
-                    <div x-show="open" @click.outside="open=false" x-cloak class="absolute right-0 mt-2 w-52 bg-white dark:bg-navy-800 rounded-card shadow-pop border border-slate-200 dark:border-slate-700 py-1.5 z-50 text-sm">
+                    <div x-show="open" @click.outside="open=false" x-cloak class="absolute right-0 mt-2 w-52 max-w-[calc(100vw-1.5rem)] bg-white dark:bg-navy-800 rounded-card shadow-pop border border-slate-200 dark:border-slate-700 py-1.5 z-50 text-sm">
                         <a href="{{ route('profile.edit') }}" class="flex items-center gap-2.5 px-4 py-2 hover:bg-slate-50 dark:hover:bg-white/5 text-slate-700 dark:text-slate-200"><x-ui.icon name="user" class="w-4 h-4 text-slate-400" />Profil Saya</a>
                         <a href="{{ route('password.change') }}" class="flex items-center gap-2.5 px-4 py-2 hover:bg-slate-50 dark:hover:bg-white/5 text-slate-700 dark:text-slate-200"><x-ui.icon name="shield" class="w-4 h-4 text-slate-400" />Keamanan</a>
                         <a href="/docs" target="_blank" class="flex items-center gap-2.5 px-4 py-2 hover:bg-slate-50 dark:hover:bg-white/5 text-slate-700 dark:text-slate-200"><x-ui.icon name="book-open" class="w-4 h-4 text-slate-400" />Dokumentasi</a>

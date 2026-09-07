@@ -52,6 +52,9 @@ html.dark {
 
 /* ------- app sidebar: fixed width var + collapsed + mobile ------- */
 #sidebar { width: var(--sidebar-w); }
+@media (max-width: 767px) {
+    #sidebar { width: min(85vw, var(--sidebar-w)); } /* drawer: max ~85vw (spec #3) */
+}
 #appMain { transition: margin 0.2s ease; }
 @media (min-width: 768px) {
     html.sb-collapsed #sidebar { width: var(--sidebar-collapsed); }
@@ -98,6 +101,64 @@ html.dark {
     .command-filter { overflow-x: auto; }
     .command-filter > * { flex: 1 0 132px; }
 }
+
+/* ------- global responsive safety net -------
+   Prevents any element from pushing the page wider than the viewport.
+   Long words / numbers / emails wrap instead of overflowing. */
+.page-frame, #mainContent { max-width: 100%; overflow-x: clip; }
+h1, h2, h3, .dashboard-card, .kpi-primary { min-width: 0; }
+body { overflow-x: hidden; }
+@media (min-width: 768px) { body { overflow-x: clip; } }
+
+/* dashboard cards: header rows never force width */
+.dashboard-card-header { flex-wrap: wrap; }
+.dashboard-card-header > div { min-width: 0; }
+
+/* KPI values wrap instead of clipping (values can be long: "Rp 12.345.678.901") */
+.kpi-primary .text-\[24px\] { white-space: normal; word-break: break-word; }
+
+/* health rows collapse gracefully */
+.health-row { grid-template-columns: minmax(0, 1fr) auto; }
+
+/* ------- responsive table wrapper (spec #10) -------
+   Wrap any x-ui.table / x-table in .table-responsive to guarantee the
+   scroll happens inside the card, never on the page. */
+.table-responsive { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-responsive table { min-width: max-content; }
+
+/* ------- permission matrix (spec #24): controlled horizontal scroll -------
+   The matrix keeps desktop density; on small screens it scrolls inside the
+   card with a sticky module column and >=20px checkboxes instead of
+   squeezing unreadably. */
+.permission-matrix table { min-width: 780px; }
+.permission-matrix input[type="checkbox"] { width: 20px; height: 20px; }
+
+/* ------- mobile compact table treatment (spec #10C light) ------- */
+@media (max-width: 640px) {
+    .table-responsive table { font-size: 13px; }
+    .table-responsive th, .table-responsive td { padding-block: 10px; }
+}
+
+/* ------- sticky form action bar (spec #14) -------
+   Contained bar: never wider than its parent form. Negative margins
+   removed — they pushed the bar 48px wider than the viewport on mobile. */
+.form-actions-sticky {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin-top: 1.5rem;
+    padding: 0.75rem 1rem;
+    background: rgb(255 255 255 / 0.92);
+    border-top: 1px solid #e5e7eb;
+    backdrop-filter: blur(8px);
+}
+html.dark .form-actions-sticky { background: rgb(20 28 43 / 0.92); border-top-color: rgb(38 50 70); }
+
+/* ------- print preview viewer (spec #20): scale paper, keep true size ------- */
+.print-preview-viewport { overflow: auto; background: #94a3b8; border-radius: 12px; }
+.print-preview-paper { background: #fff; margin: 0 auto; box-shadow: 0 2px 12px rgb(0 0 0 / .25); transform-origin: top center; }
 
 /* ------- scrollbars (sidebar, drawers, tables) ------- */
 .nice-scroll { scrollbar-width: thin; scrollbar-color: rgb(148 163 184 / 0.5) transparent; }

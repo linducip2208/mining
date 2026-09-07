@@ -1,12 +1,12 @@
 @extends('layouts.app')
 @section('title', ' - Tiket Timbangan')
 @section('content')
-<div class="flex items-center justify-between mb-4">
-    <div>
-        <h1 class="text-xl font-bold text-slate-800">{{ $ticket->ticket_no }}</h1>
+<div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+    <div class="min-w-0">
+        <h1 class="text-xl font-bold text-slate-800 break-words">{{ $ticket->ticket_no }}</h1>
         <x-status-badge :status="$ticket->status" class="mt-1" />
     </div>
-    <div class="flex gap-2">
+    <div class="flex flex-wrap gap-2">
         @if ($ticket->status !== 'FIRST_WEIGH' && $ticket->status !== 'VOID' && $ticket->status !== 'CANCELLED')
         <a href="{{ route('weighbridge.print', $ticket) }}" target="_blank" class="px-4 py-2 rounded-lg bg-slate-700 text-white text-sm"><x-ui.icon name="printer" class="inline w-4 h-4 mr-1"/>Cetak Tiket</a>
         @can('weighbridge.reprint')<form action="{{ route('weighbridge.reprint', $ticket) }}" method="POST" onsubmit="return confirm('Cetak ulang tiket ini?')">@csrf<input type="hidden" name="reason" value="Cetak ulang dari detail tiket"><button class="px-4 py-2 rounded-lg border border-slate-200 text-slate-700 text-sm">Cetak Ulang</button></form>@endcan

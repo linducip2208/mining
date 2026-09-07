@@ -17,14 +17,16 @@
     ];
     $isActive = fn ($pattern) => collect((array) $pattern)->contains(fn ($p) => request()->routeIs($p));
 @endphp
-<div id="sbOverlay" class="fixed inset-0 z-20 bg-slate-950/60 hidden md:hidden"></div>
-<aside id="sidebar" aria-label="Navigasi utama" class="fixed inset-y-0 left-0 z-30 flex flex-col text-slate-300 transition-[width,transform] duration-200 w-60 -translate-x-full md:translate-x-0" style="background:var(--brand-sidebar,#101923)">
+<div id="sbOverlay" class="fixed inset-0 z-20 bg-slate-950/60 hidden md:hidden" aria-hidden="true"></div>
+<aside id="sidebar" aria-label="Navigasi utama" role="dialog" aria-modal="true" aria-hidden="true"
+    class="fixed inset-y-0 left-0 z-30 flex flex-col text-slate-300 transition-[width,transform] duration-200 w-[min(85vw,15rem)] -translate-x-full md:translate-x-0 md:w-60"
+    style="background:var(--brand-sidebar,#101923)">
     @php
         $sidebarLogo = \App\Services\BrandingService::assetUrl('branding.logo_sidebar');
     @endphp
-    <div class="h-16 flex items-center gap-3 px-4 border-b border-white/10 shrink-0"><div class="w-9 h-9 flex-none rounded-xl bg-amber-400 text-[#101923] flex items-center justify-center font-black overflow-hidden">@if($sidebarLogo)<img src="{{ $sidebarLogo }}" alt="Logo {{ \App\Services\BrandingService::appName() }}" class="w-full h-full object-contain bg-white">@else{{ mb_substr(\App\Services\BrandingService::appName(), 0, 1) }}@endif</div><div class="sb-label min-w-0"><div class="font-bold text-white text-sm tracking-wide">{{ \App\Services\BrandingService::appName() }}</div><div class="text-[10px] text-slate-500">{{ \App\Services\BrandingService::companyName() }}</div></div><button type="button" id="sbCollapse" title="Ciutkan sidebar" aria-label="Ciutkan sidebar" class="sb-label ml-auto hidden md:flex p-1.5 rounded-md text-slate-500 hover:text-white hover:bg-white/10"><x-ui.icon name="menu" class="w-4 h-4" /></button></div>
+    <div class="h-16 flex items-center gap-3 px-4 border-b border-white/10 shrink-0 min-w-0"><div class="w-9 h-9 flex-none rounded-xl bg-amber-400 text-[#101923] flex items-center justify-center font-black overflow-hidden">@if($sidebarLogo)<img src="{{ $sidebarLogo }}" alt="Logo {{ \App\Services\BrandingService::appName() }}" class="w-full h-full object-contain bg-white">@else{{ mb_substr(\App\Services\BrandingService::appName(), 0, 1) }}@endif</div><div class="sb-label min-w-0"><div class="font-bold text-white text-sm tracking-wide truncate">{{ \App\Services\BrandingService::appName() }}</div><div class="text-[10px] text-slate-500 truncate">{{ \App\Services\BrandingService::companyName() }}</div></div><button type="button" id="sbCollapse" title="Ciutkan sidebar" aria-label="Ciutkan sidebar" class="sb-label ml-auto hidden md:flex p-1.5 rounded-md text-slate-500 hover:text-white hover:bg-white/10"><x-ui.icon name="menu" class="w-4 h-4" /></button><button type="button" id="sbCloseMobile" aria-label="Tutup menu navigasi" class="ml-auto md:hidden p-2 -mr-2 rounded-md text-slate-400 hover:text-white hover:bg-white/10"><x-ui.icon name="x" class="w-5 h-5" /></button></div>
     <div class="sb-label px-4 pt-4 pb-2 text-[10px] text-slate-500">WORKSPACE</div>
-    <nav class="flex-1 overflow-y-auto nice-scroll px-2 pb-4 text-[13px]" aria-label="Menu modul">
+    <nav id="sbNav" class="flex-1 overflow-y-auto nice-scroll px-2 pb-4 text-[13px]" aria-label="Menu modul">
         <a href="{{ route('dashboard') }}" class="flex items-center gap-3 px-3 py-2.5 mb-2 rounded-lg {{ request()->routeIs('dashboard') ? 'bg-white/10 text-white' : 'hover:bg-white/5' }}"><x-ui.icon name="dashboard" class="w-[18px] h-[18px] {{ request()->routeIs('dashboard') ? 'text-amber-400' : 'text-slate-500' }}" /><span class="sb-label">Command Center</span></a>
         <div class="sb-label sidebar-section-label">Recently used</div>
         <a href="{{ route('approval.index') }}" class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:bg-white/5"><x-ui.icon name="check-circle" class="w-4 h-4 text-slate-500" /><span class="sb-label">Approval Center</span></a>
@@ -48,5 +50,78 @@
     <div class="sb-label px-4 py-3 border-t border-white/10 text-[11px] text-slate-500">{{ \App\Services\BrandingService::appName() }} · v1.0</div>
 </aside>
 <script>
-(function () { var sb = document.getElementById('sidebar'), ov = document.getElementById('sbOverlay'); function closeMobile(){ if(window.innerWidth < 768){sb.classList.add('-translate-x-full');ov.classList.add('hidden');} } window.toggleSidebar=function(){ if(window.innerWidth < 768){var hidden=sb.classList.toggle('-translate-x-full');ov.classList.toggle('hidden',hidden);} else {var c=document.documentElement.classList.toggle('sb-collapsed');try{localStorage.setItem('sb-collapsed',c?'1':'0')}catch(e){}} }; ov.addEventListener('click',closeMobile); document.getElementById('sbCollapse').addEventListener('click',window.toggleSidebar); }());
+(function () {
+    var sb = document.getElementById('sidebar'), ov = document.getElementById('sbOverlay');
+    var lastFocus = null;
+
+    function isOpen() { return !sb.classList.contains('-translate-x-full'); }
+
+    function lockScroll() {
+        if (window.innerWidth >= 768) return;
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden';
+    }
+    function unlockScroll() {
+        document.documentElement.style.overflow = '';
+        document.body.style.overflow = '';
+    }
+
+    function openMobile() {
+        if (window.innerWidth >= 768) return;
+        lastFocus = document.activeElement;
+        sb.classList.remove('-translate-x-full');
+        ov.classList.remove('hidden');
+        sb.setAttribute('aria-hidden', 'false');
+        lockScroll();
+        var first = sb.querySelector('a[href], button:not([disabled])');
+        if (first) first.focus();
+    }
+
+    function closeMobile() {
+        if (window.innerWidth >= 768) return;
+        sb.classList.add('-translate-x-full');
+        ov.classList.add('hidden');
+        sb.setAttribute('aria-hidden', 'true');
+        unlockScroll();
+        if (lastFocus && document.contains(lastFocus)) { try { lastFocus.focus(); } catch (e) {} lastFocus = null; }
+    }
+
+    window.toggleSidebar = function () {
+        if (window.innerWidth < 768) { isOpen() ? closeMobile() : openMobile(); return; }
+        var c = document.documentElement.classList.toggle('sb-collapsed');
+        try { localStorage.setItem('sb-collapsed', c ? '1' : '0'); } catch (e) {}
+    };
+    window.closeMobileSidebar = closeMobile;
+
+    ov.addEventListener('click', closeMobile);
+    document.getElementById('sbCollapse').addEventListener('click', window.toggleSidebar);
+    document.getElementById('sbCloseMobile').addEventListener('click', closeMobile);
+
+    // close the drawer when a navigation link inside it is chosen
+    sb.addEventListener('click', function (e) {
+        var link = e.target.closest('a[href]');
+        if (link && window.innerWidth < 768) closeMobile();
+    });
+
+    // ESC closes drawer (mobile only), and focus returns to the trigger
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && isOpen() && window.innerWidth < 768) {
+            e.stopPropagation();
+            closeMobile();
+        }
+    });
+
+    // reset state when crossing the desktop breakpoint
+    window.addEventListener('resize', function () {
+        if (window.innerWidth >= 768) {
+            ov.classList.add('hidden');
+            sb.setAttribute('aria-hidden', 'false');
+            unlockScroll();
+        } else if (!isOpen()) {
+            sb.setAttribute('aria-hidden', 'true');
+        }
+    });
+
+    sb.setAttribute('aria-hidden', window.innerWidth < 768 ? 'true' : 'false');
+}());
 </script>

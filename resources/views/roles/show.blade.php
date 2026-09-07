@@ -13,6 +13,7 @@
         <input type="search" id="permSearch" placeholder="Cari modul…" aria-label="Cari modul izin"
             class="w-full px-3 py-2 rounded-ctl border border-slate-200 dark:border-slate-700 bg-white dark:bg-navy-800 text-sm outline-none focus:border-amber-400">
     </div>
+    <div class="permission-matrix">
     <x-ui.table :sticky="true">
         <x-slot:head>
             <th class="px-4 py-2.5 text-left sticky left-0 bg-slate-50 dark:bg-navy-900/80">Modul</th>
@@ -38,6 +39,7 @@
         </tr>
         @endforeach
     </x-ui.table>
+    </div>
     @can('role.update')
     <div class="mt-4 flex items-center gap-3">
         <x-ui.button>Simpan Matriks</x-ui.button>

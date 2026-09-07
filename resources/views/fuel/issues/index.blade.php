@@ -4,7 +4,7 @@
 @section('title', ' - Issue BBM')
 
 @section('content')
-<div class="flex items-center justify-between mb-4">
+<div class="flex flex-wrap items-center justify-between gap-3 mb-4">
     <div>
         <h1 class="text-xl font-bold text-slate-800">Issue BBM</h1>
         <p class="text-sm text-slate-500">Pengeluaran solar ke unit / kendaraan</p>
@@ -50,12 +50,12 @@
     </x-slot:head>
     @forelse ($items as $item)
     <tr class="hover:bg-slate-50">
-        <td class="px-4 py-2.5">{{ $item->issue_date }}</td>
-        <td class="px-4 py-2.5"><a href="{{ route('fuel-issues.show', $item) }}" class="font-mono text-indigo-600 hover:underline">{{ $item->number }}</a></td>
-        <td class="px-4 py-2.5">{{ $item->tank?->code }}</td>
-        <td class="px-4 py-2.5 font-mono">{{ $item->equipment?->code ?? $item->vehicle_plate }}</td>
-        <td class="px-4 py-2.5 text-right">{{ number_format($item->liter, 1) }}</td>
-        <td class="px-4 py-2.5 text-right">Rp {{ number_format($item->total_cost, 0) }}</td>
+        <td class="px-4 py-2.5 whitespace-nowrap">{{ $item->issue_date }}</td>
+        <td class="px-4 py-2.5 whitespace-nowrap"><a href="{{ route('fuel-issues.show', $item) }}" class="font-mono text-indigo-600 hover:underline">{{ $item->number }}</a></td>
+        <td class="px-4 py-2.5 whitespace-nowrap">{{ $item->tank?->code }}</td>
+        <td class="px-4 py-2.5 font-mono whitespace-nowrap">{{ $item->equipment?->code ?? $item->vehicle_plate }}</td>
+        <td class="px-4 py-2.5 text-right whitespace-nowrap">{{ number_format($item->liter, 1) }}</td>
+        <td class="px-4 py-2.5 text-right whitespace-nowrap">Rp {{ number_format($item->total_cost, 0) }}</td>
         <td class="px-4 py-2.5"><x-status-badge :status="$item->status" /></td>
     </tr>
     @empty

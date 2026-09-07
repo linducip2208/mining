@@ -4,7 +4,7 @@
 <h1 class="text-xl font-bold text-slate-800 mb-4">{{ $batch ? 'Edit' : 'Buat' }} Batch Produksi</h1>
 <form method="POST" action="{{ $batch ? route('production-batches.update', $batch) : route('production-batches.store') }}" class="space-y-4">
     @csrf @if($batch) @method('PUT') @endif
-    <div class="bg-white rounded-xl border border-slate-200 p-6 grid md:grid-cols-4 gap-4">
+    <div class="bg-white rounded-xl border border-slate-200 p-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         <div><label class="text-xs font-semibold text-slate-600 uppercase">Perusahaan</label>
             <select name="company_id" required class="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm">@foreach ($companies as $id => $n)<option value="{{ $id }}" @selected(old('company_id', $batch?->company_id))>{{ $n }}</option>@endforeach</select></div>
         <div><label class="text-xs font-semibold text-slate-600 uppercase">Site</label>
@@ -23,14 +23,14 @@
             <input type="datetime-local" name="finish_time" class="mt-1 w-full px-3 py-2 rounded-lg border border-slate-200 text-sm"></div>
     </div>
 
-    <div class="grid lg:grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div class="bg-white rounded-xl border border-slate-200 p-5">
             <h3 class="font-semibold text-sm mb-3">Input Material</h3>
             <div id="inputs">
-                <div class="flex gap-2 mb-2 line">
-                    <select name="inputs[0][item_id]" class="flex-1 px-2 py-1.5 rounded border border-slate-200 text-sm"><option value="">--</option>@foreach ($rawItems as $i)<option value="{{ $i->id }}">{{ $i->name }}</option>@endforeach</select>
-                    <select name="inputs[0][warehouse_id]" class="flex-1 px-2 py-1.5 rounded border border-slate-200 text-sm"><option value="">Gudang</option>@foreach ($warehouses as $wh)<option value="{{ $wh->id }}">{{ $wh->name }}</option>@endforeach</select>
-                    <input name="inputs[0][tonnage]" type="number" step="0.0001" placeholder="Ton" class="w-24 px-2 py-1.5 rounded border border-slate-200 text-sm">
+                <div class="grid grid-cols-1 sm:grid-cols-[1fr_1fr_6rem] gap-2 mb-2 line">
+                    <select name="inputs[0][item_id]" class="w-full px-2 py-1.5 rounded border border-slate-200 text-sm min-w-0"><option value="">--</option>@foreach ($rawItems as $i)<option value="{{ $i->id }}">{{ $i->name }}</option>@endforeach</select>
+                    <select name="inputs[0][warehouse_id]" class="w-full px-2 py-1.5 rounded border border-slate-200 text-sm min-w-0"><option value="">Gudang</option>@foreach ($warehouses as $wh)<option value="{{ $wh->id }}">{{ $wh->name }}</option>@endforeach</select>
+                    <input name="inputs[0][tonnage]" type="number" step="0.0001" placeholder="Ton" class="w-full px-2 py-1.5 rounded border border-slate-200 text-sm">
                 </div>
             </div>
             <button type="button" onclick="addLine('inputs', 'Ton')" class="text-xs text-amber-600">+ Tambah input</button>
@@ -38,10 +38,10 @@
         <div class="bg-white rounded-xl border border-slate-200 p-5">
             <h3 class="font-semibold text-sm mb-3">Output Produk</h3>
             <div id="outputs">
-                <div class="flex gap-2 mb-2 line">
-                    <select name="outputs[0][item_id]" class="flex-1 px-2 py-1.5 rounded border border-slate-200 text-sm"><option value="">--</option>@foreach ($productItems as $i)<option value="{{ $i->id }}">{{ $i->name }}</option>@endforeach</select>
-                    <select name="outputs[0][warehouse_id]" class="flex-1 px-2 py-1.5 rounded border border-slate-200 text-sm"><option value="">Gudang</option>@foreach ($warehouses as $wh)<option value="{{ $wh->id }}">{{ $wh->name }}</option>@endforeach</select>
-                    <input name="outputs[0][gross_tonnage]" type="number" step="0.0001" placeholder="Ton" class="w-24 px-2 py-1.5 rounded border border-slate-200 text-sm">
+                <div class="grid grid-cols-1 sm:grid-cols-[1fr_1fr_6rem] gap-2 mb-2 line">
+                    <select name="outputs[0][item_id]" class="w-full px-2 py-1.5 rounded border border-slate-200 text-sm min-w-0"><option value="">--</option>@foreach ($productItems as $i)<option value="{{ $i->id }}">{{ $i->name }}</option>@endforeach</select>
+                    <select name="outputs[0][warehouse_id]" class="w-full px-2 py-1.5 rounded border border-slate-200 text-sm min-w-0"><option value="">Gudang</option>@foreach ($warehouses as $wh)<option value="{{ $wh->id }}">{{ $wh->name }}</option>@endforeach</select>
+                    <input name="outputs[0][gross_tonnage]" type="number" step="0.0001" placeholder="Ton" class="w-full px-2 py-1.5 rounded border border-slate-200 text-sm">
                 </div>
             </div>
             <button type="button" onclick="addLine('outputs', 'Ton')" class="text-xs text-amber-600">+ Tambah output</button>
@@ -49,9 +49,9 @@
         <div class="bg-white rounded-xl border border-slate-200 p-5">
             <h3 class="font-semibold text-sm mb-3">Loss & Scrap</h3>
             <div id="losses">
-                <div class="flex gap-2 mb-2 line">
-                    <select name="losses[0][category]" class="flex-1 px-2 py-1.5 rounded border border-slate-200 text-sm">@foreach ($lossCategories as $k => $t)<option value="{{ $k }}">{{ $t }}</option>@endforeach</select>
-                    <input name="losses[0][tonnage]" type="number" step="0.0001" placeholder="Ton" class="w-24 px-2 py-1.5 rounded border border-slate-200 text-sm">
+                <div class="grid grid-cols-1 sm:grid-cols-[1fr_6rem] gap-2 mb-2 line">
+                    <select name="losses[0][category]" class="w-full px-2 py-1.5 rounded border border-slate-200 text-sm min-w-0">@foreach ($lossCategories as $k => $t)<option value="{{ $k }}">{{ $t }}</option>@endforeach</select>
+                    <input name="losses[0][tonnage]" type="number" step="0.0001" placeholder="Ton" class="w-full px-2 py-1.5 rounded border border-slate-200 text-sm">
                 </div>
             </div>
             <button type="button" onclick="addLine('losses', 'Ton')" class="text-xs text-amber-600 mr-3">+ Loss</button>
@@ -61,9 +61,9 @@
     <div class="bg-white rounded-xl border border-slate-200 p-5">
         <textarea name="notes" rows="2" placeholder="Catatan batch" class="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm">{{ old('notes', $batch?->notes) }}</textarea>
     </div>
-    <div class="flex gap-2">
-        <button class="px-5 py-2 rounded-lg bg-amber-500 text-white text-sm font-semibold">Simpan</button>
-        <a href="{{ route('production-batches.index') }}" class="px-5 py-2 rounded-lg bg-slate-100 text-sm">Batal</a>
+    <div class="form-actions-sticky flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-white">
+        <button class="px-5 py-2.5 rounded-lg bg-amber-500 text-white text-sm font-semibold min-h-[44px]">Simpan</button>
+        <a href="{{ route('production-batches.index') }}" class="px-5 py-2.5 rounded-lg bg-slate-100 text-sm min-h-[44px] inline-flex items-center">Batal</a>
     </div>
 </form>
 
