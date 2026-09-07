@@ -6,10 +6,10 @@ Tanggal: 2026-09-07 · Runner: `php artisan test` (PHPUnit 12, SQLite in-memory)
 
 | Metrik | Hasil |
 |---|---|
-| Total tests | 253 |
-| Passed | 253 |
+| Total tests | 255 |
+| Passed | 255 |
 | Failed | 0 |
-| Assertions | 3242 |
+| Assertions | 3250 |
 | Playwright responsive (17 halaman × 8 viewport) | 136/136 PASS |
 | Trial Balance (data demo) | BALANCED |
 | Stok negatif | 0 baris |

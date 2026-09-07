@@ -2,11 +2,14 @@
 
 namespace App\Services;
 
+use App\Models\CashAccount;
 use App\Models\Invoice;
-use App\Models\Setting;
+use App\Models\Item;
 use App\Models\Payment;
 use App\Models\PaymentAllocation;
-use App\Models\VendorBill;
+use App\Models\Setting;
+use App\Models\TaxCode;
+use App\Models\TaxTransaction;
 use App\Models\WeighbridgeTicket;
 use Illuminate\Support\Facades\DB;
 
@@ -20,11 +23,12 @@ class SalesService
         DB::transaction(function () use ($deliveryOrder, $ticket) {
             // idempotency: a completed DO can never post stock twice
             if (in_array($deliveryOrder->status, ['COMPLETED', 'CANCELLED'])) {
-                throw new \DomainException('Surat jalan sudah ' . strtolower($deliveryOrder->status) . ' — posting ganda ditolak.');
+                throw new \DomainException('Surat jalan sudah '.strtolower($deliveryOrder->status).' — posting ganda ditolak.');
             }
             // quality gate: active HOLD blocks delivery (unless released / special-approved)
             QualityService::assertDeliveryClear($deliveryOrder);
             $so = $deliveryOrder->salesOrder;
+            $cogsLines = [];
 
             foreach ($deliveryOrder->items as $line) {
                 $finalQty = (float) $ticket->net;
@@ -64,7 +68,7 @@ class SalesService
                         'DO',
                         $deliveryOrder->number,
                         $deliveryOrder->delivery_date->toDateString(),
-                        'Pengiriman ' . $deliveryOrder->number
+                        'Pengiriman '.$deliveryOrder->number
                     );
                 } catch (\DomainException $e) {
                     AuditService::log('SKIP', 'STOCKPILE', $deliveryOrder->id, $deliveryOrder::class, null, ['reason' => $e->getMessage()]);
@@ -78,6 +82,23 @@ class SalesService
                     }
                     $soItem->save();
                 }
+
+                // HPP: Dr COGS / Cr Inventory at moving-average cost
+                $item = Item::find($line->item_id);
+                $cogsValue = round($finalQty * (float) ($item?->avg_cost ?? 0), 2);
+                if ($cogsValue > 0) {
+                    $invMap = match ($item?->type) {
+                        'PRODUCT' => 'INVENTORY_FG',
+                        'RAW' => 'INVENTORY_RAW',
+                        default => 'INVENTORY_GENERAL',
+                    };
+                    $cogsLines[] = ['code' => AccountingService::map('COGS'), 'debit' => $cogsValue, 'memo' => 'HPP '.$deliveryOrder->number];
+                    $cogsLines[] = ['code' => AccountingService::map($invMap), 'credit' => $cogsValue, 'memo' => 'Persediaan keluar '.$deliveryOrder->number];
+                }
+            }
+
+            if ($cogsLines !== []) {
+                AccountingService::post($so->company_id, $deliveryOrder->delivery_date->toDateString(), $cogsLines, 'SALES_COGS', $deliveryOrder->id, $deliveryOrder->number, 'HPP '.$deliveryOrder->number, 'DO');
             }
 
             StockService::consumeReservations('DO', $deliveryOrder->id);
@@ -102,13 +123,13 @@ class SalesService
      */
     public static function createInvoice($so, $invoiceDate, ?int $cashAccountId = null, bool $useDeposit = false): Invoice
     {
-        return DB::transaction(function () use ($so, $invoiceDate, $cashAccountId, $useDeposit) {
+        return DB::transaction(function () use ($so, $invoiceDate, $useDeposit) {
             // idempotency: one sales order produces at most one active invoice
             $existing = Invoice::where('sales_order_id', $so->id)
                 ->whereNotIn('status', ['CANCELLED', 'VOID'])
                 ->first();
             if ($existing) {
-                throw new \DomainException('SO ini sudah memiliki faktur ' . $existing->number . ' — faktur ganda ditolak.');
+                throw new \DomainException('SO ini sudah memiliki faktur '.$existing->number.' — faktur ganda ditolak.');
             }
             $undelivered = $so->items->sum('qty_delivered') <= 0;
             if ($undelivered) {
@@ -118,7 +139,7 @@ class SalesService
             $customer = $so->customer;
             $subtotal = $so->items->sum(fn ($i) => $i->qty_delivered * $i->unit_price);
             $taxCode = Setting::get('tax.default_sales_tax_code', 'PPN11');
-            $taxRate = (float) (\App\Models\TaxCode::where('code', $taxCode)->value('rate') ?? 0);
+            $taxRate = (float) (TaxCode::where('code', $taxCode)->value('rate') ?? 0);
             $taxAmount = round($subtotal * $taxRate / 100, 2);
 
             $invoice = Invoice::create([
@@ -150,18 +171,18 @@ class SalesService
 
             // Auto journal: Dr AR, Cr Revenue, Cr Tax Payable
             $journal = AccountingService::post($so->company_id, $invoiceDate->toDateString(), [
-                ['code' => AccountingService::map('AR_TRADE'), 'debit' => $invoice->total, 'memo' => 'Invoice ' . $invoice->number],
-                ['code' => AccountingService::map('SALES_REVENUE'), 'credit' => $subtotal, 'memo' => 'Penjualan ' . $so->number],
-                ['code' => AccountingService::map('TAX_PPN_OUT'), 'credit' => $taxAmount, 'memo' => 'PPN keluaran ' . $invoice->number],
-            ], 'SALES_INVOICE', $invoice->id, $invoice->number, 'Invoice penjualan ' . $invoice->number, 'INV');
+                ['code' => AccountingService::map('AR_TRADE'), 'debit' => $invoice->total, 'memo' => 'Invoice '.$invoice->number],
+                ['code' => AccountingService::map('SALES_REVENUE'), 'credit' => $subtotal, 'memo' => 'Penjualan '.$so->number],
+                ['code' => AccountingService::map('TAX_PPN_OUT'), 'credit' => $taxAmount, 'memo' => 'PPN keluaran '.$invoice->number],
+            ], 'SALES_INVOICE', $invoice->id, $invoice->number, 'Invoice penjualan '.$invoice->number, 'INV');
 
             $invoice->journal_entry_id = $journal->id;
             $invoice->save();
 
             // tax transaction record
-            \App\Models\TaxTransaction::create([
+            TaxTransaction::create([
                 'company_id' => $so->company_id,
-                'tax_code_id' => \App\Models\TaxCode::where('code', $taxCode)->value('id') ?? 1,
+                'tax_code_id' => TaxCode::where('code', $taxCode)->value('id') ?? 1,
                 'transaction_type' => 'SALES',
                 'transaction_id' => $invoice->id,
                 'transaction_number' => $invoice->number,
@@ -182,9 +203,9 @@ class SalesService
                     $alloc = min($depositBalance, $invoice->total);
                     DepositService::allocate($so->company_id, $so->customer_id, $alloc, $invoiceDate, $invoice->id, $invoice->number);
                     AccountingService::post($so->company_id, $invoiceDate instanceof \DateTimeInterface ? $invoiceDate->format('Y-m-d') : $invoiceDate, [
-                        ['code' => AccountingService::map('CUSTOMER_DEPOSIT'), 'debit' => $alloc, 'memo' => 'Alokasi deposit ke ' . $invoice->number],
-                        ['code' => AccountingService::map('AR_TRADE'), 'credit' => $alloc, 'memo' => 'Alokasi deposit ke ' . $invoice->number],
-                    ], 'DEPOSIT_ALLOCATION', $invoice->id, $invoice->number, 'Alokasi deposit ' . $invoice->number, 'INV');
+                        ['code' => AccountingService::map('CUSTOMER_DEPOSIT'), 'debit' => $alloc, 'memo' => 'Alokasi deposit ke '.$invoice->number],
+                        ['code' => AccountingService::map('AR_TRADE'), 'credit' => $alloc, 'memo' => 'Alokasi deposit ke '.$invoice->number],
+                    ], 'DEPOSIT_ALLOCATION', $invoice->id, $invoice->number, 'Alokasi deposit '.$invoice->number, 'INV');
                     $invoice->paid_amount += $alloc;
                     self::checkInvoicePaid($invoice);
                 }
@@ -244,7 +265,7 @@ class SalesService
             }
 
             if ($remaining > 0.001) {
-                throw new \DomainException('Jumlah pembayaran melebihi total outstanding invoice sebesar Rp ' . number_format($amount - $remaining, 2));
+                throw new \DomainException('Jumlah pembayaran melebihi total outstanding invoice sebesar Rp '.number_format($amount - $remaining, 2));
             }
 
             $journal = AccountingService::post($companyId, $date instanceof \DateTimeInterface ? $date->format('Y-m-d') : $date, [
@@ -262,11 +283,12 @@ class SalesService
     public static function cashCoa(?int $cashAccountId): string
     {
         if ($cashAccountId) {
-            $acc = \App\Models\CashAccount::find($cashAccountId);
+            $acc = CashAccount::find($cashAccountId);
             if ($acc?->coa_id) {
                 return $acc->coa?->code ?? AccountingService::map('CASH_MAIN');
             }
         }
+
         return AccountingService::map('CASH_MAIN');
     }
 

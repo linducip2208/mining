@@ -15,7 +15,8 @@ Company → Branch → Site (MINE/PLANT/PORT/OFFICE) → Division → Department
 ## 4. HR & Payroll
 - Karyawan (NIP, posisi, tipe kepegawaian, shift, gaji pokok, bank)
 - Absensi (manual + **import CSV fingerprint**: employee_code,date,check_in,check_out — late otomatis dari shift)
-- Cuti & Lembur (dengan approval)
+- Cuti & Lembur (dengan approval; lembur APPROVED otomatis masuk payroll
+  dengan tarif `payroll.overtime_rate`)
 - **Insentif Operator**: basis TONNAGE/SHIFT/ACTIVITY/EQUIPMENT/TARGET, wajib APPROVED sebelum payroll
 - **Payroll Run**: DRAFT → CALCULATE → APPROVE → POST (jurnal) → PAY
 - Slip gaji cetak per karyawan

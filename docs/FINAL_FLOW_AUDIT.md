@@ -24,14 +24,14 @@ Keterbatasan API mobile dicatat di baris modul bila relevan.
 | Quality | sampel + uji | sampling→PASS/FAIL→HOLD/COA | — | `recordTest` auto PASS/FAIL vs spec; `assertDeliveryClear` blokir DO | — (gate, bukan movement) | — | company/site | ya | — | quality report | COA | PASS | WORKING |
 | Inventory | — (sink) | ledger append-only | transfer/adjust via Center | `StockService::move` satu-satunya penulis `stock_ledger` | IN/OUT/transfer/adjust + reservasi | via dokumen asal | company/site | ya | stok kritis | balance/card/nilai | — | PASS | WORKING |
 | Sales Order | SO + lines (kontrak + price list guard) | DRAFT→SUBMITTED→APPROVED (+reserve) | Center/direct | `reserve` → `StockService::reserve` | reservasi DO | — | company/site | APPROVE | approval | sales report | SO | PASS | WORKING |
-| Delivery Order | DO dari SO APPROVED (anti over-delivery) | DRAFT→COMPLETED | — | `completeDelivery`: gate QC + OUT sale + pile OUT + tiket POSTED | OUT sale + pile SALES_OUT | — (tanpa HPP otomatis) | company/site | ya | — | sales report | DO | PASS | WORKING |
+| Delivery Order | DO dari SO APPROVED (anti over-delivery) | DRAFT→COMPLETED | — | `completeDelivery`: gate QC + OUT sale + pile OUT + tiket POSTED + jurnal HPP | OUT sale + pile SALES_OUT | Dr COGS (5-1000) / Cr Inventory (FG/RAW/GENERAL) @avg-cost | company/site | ya | — | sales report | DO | PASS | WORKING |
 | Invoice | generate dari qty terkirim (satu SO → satu faktur aktif) | dibuat langsung POSTED | — | `createInvoice` + idempotency guard | — | Dr AR / Cr Revenue / Cr PPN + TaxTransaction + deposit opsional | company/site | POST/PRINT | — | sales report | invoice/PDF | PASS | WORKING |
 | Payment (customer) | terima bayar + alokasi FIFO | POSTED→PAID/PARTIALLY | — | `receivePayment`, tolak overpay | — | Dr Kas / Cr AR | company/site | ya | — | AR aging | — | PASS | WORKING |
 | Accounting | jurnal manual + otomatis | POSTED, reversal mirror sekali | — | `AccountingService::post` (balance + periode) | — | TB/PL/BS/CF/ledger | — | ya | — | finance reports | jurnal | PASS | WORKING |
 
 Gap rantai 1 yang disengaja (terdokumentasi, bukan rusak): Mining→Dispatch
-manual; WB→stok manual (tiket hanya bukti timbang); tanpa jurnal HPP otomatis
-saat DO/Invoice; tonase mining tanpa jurnal biaya.
+manual; WB→stok manual (tiket hanya bukti timbang); tonase mining tanpa
+jurnal biaya.
 
 ## Rantai 2 — Procure → Pay
 
@@ -68,16 +68,13 @@ GRN→Bill longgar-nullable (validasi di guard, bukan FK keras).
 | Module | Input | Workflow | Approval | Posting | Stock Effect | Accounting Effect | Data Scope | Audit Trail | Notification | Report | Print | Mobile | Status |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | Attendance | manual + import fingerprint | tercatat (late otomatis) | — | dibaca payroll (`overtime_minutes` belum diisi) | — | — | company/site | — | — | HR report | — | PASS | PARTIAL |
-| Overtime | lembur per karyawan | DRAFT→APPROVED (guard ganda + audit) | direct | APPROVED tercatat + relasi approver | — | — (belum dikonsumsi payroll — keputusan desain, lihat bawah) | company/site | APPROVE | — | — | — | PASS | PARTIAL |
+| Overtime | lembur per karyawan | DRAFT→APPROVED (guard ganda + audit) | direct | APPROVED terkonsumsi payroll (jam + attendance, tarif `payroll.overtime_rate`) | — | via jurnal payroll | company/site | APPROVE | — | — | — | PASS | WORKING |
 | Incentive | insentif operator | DRAFT→APPROVED→INCLUDED_IN_PAYROLL | direct | dikonsumsi payroll sebagai earning | — | via jurnal payroll | company/site | create/approve | — | — | — | PASS | WORKING |
 | Payroll Run | kalkulasi per periode | DRAFT→CALCULATED→APPROVED→POSTED→PAID (dienforce) | ya | `post`: jurnal gaji; `pay`: Dr Payable / Cr Bank | — | Dr Salary Exp / Cr PPh21 Payable / Cr Salary Payable | company | calculate/approve/post | — | rekap + slip | slip/PDF | PASS | WORKING |
 | Payment (gaji) | bayar run POSTED | →PAID | — | journal-only (tanpa row Payment) | — | Salary Payable → 0 | company | — | — | — | — | PASS | PARTIAL |
 
-Keputusan desain (bukan defect): agregasi `Overtime APPROVED → payroll`
-belum diimplementasikan — payroll memakai `attendances.overtime_minutes`
-(rumus basic/173×1.5). Mengubahnya mengubah nominal gaji sehingga diputus
-eksplisit bersama owner sebelum di-wire. PPh21 memakai tarif settings;
-pengali lembur masih konstanta (tercatat di kode).
+Overtime APPROVED terkonsumsi payroll (jam record + attendance, tarif dari
+`payroll.overtime_rate`, default 1.5). PPh21 memakai tarif settings.
 
 ## Rantai 5 — Budget → Actual → Variance & HSE → Compliance
 
