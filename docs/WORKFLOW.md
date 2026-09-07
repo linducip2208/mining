@@ -62,6 +62,10 @@ Diuji di `ApprovalEngineTest`: submit → assign approver → unauthorized ditol
 | Insentif Operator | DRAFT → APPROVED → INCLUDED_IN_PAYROLL |
 | Stock Adjustment / Transfer | DRAFT → APPROVED → POSTED (ledger) |
 | Work Order | DRAFT → APPROVED → IN_PROGRESS → COMPLETED → CLOSED (complete terkunci APPROVED/IN_PROGRESS) |
+| Surat | DRAFT → NUMBER_RESERVED → REVIEW → APPROVED → SIGNED → SENT → ARCHIVED (atau DRAFT → PUBLISHED → ARCHIVED; REJECTED/CANCELLED/VOID) |
+| Kwitansi | DRAFT → ISSUED → CONFIRMED/PAID → VOID (wajib dari payment POSTED) |
+| Sparepart | WO → REQUEST → RESERVE → ISSUE (ledger OUT + cost + jurnal) → RETURN (ledger IN ber-referensi) |
+| Opname | COUNTING → REVIEW → APPROVED → POSTED (selisih + jurnal variance) |
 | Jadwal → WO | next_due dihitung (DAY/MONTH) → `maintenance:generate-wo` / tombol Generate → WO DRAFT (anti-duplikat) |
 | Faktur | POSTED saat pembuatan (dari qty terkirim, satu SO satu faktur aktif) → PARTIALLY_PAID → PAID |
 | Price List | DRAFT → APPROVED (+ price history) |

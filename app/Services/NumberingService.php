@@ -10,11 +10,14 @@ class NumberingService
 {
     /**
      * Generate next document number, concurrency-safe (row lock + period reset).
-     * Format placeholders: {PREFIX} {Y} {M} {YM} {YMD} {SEQ}
+     * Format placeholders: {PREFIX} {Y} {M} {YM} {YMD} {SEQ} {SEQ:N}
+     * Context placeholders: {TYPE} {DEPARTMENT} {COMPANY} {SITE} {MONTH_ROMAN} {DAY}
+     *
+     * @param  array<string,string>  $context
      */
-    public static function generate(string $docType, ?int $companyId = null, ?int $siteId = null): string
+    public static function generate(string $docType, ?int $companyId = null, ?int $siteId = null, array $context = []): string
     {
-        return DB::transaction(function () use ($docType, $companyId, $siteId) {
+        return DB::transaction(function () use ($docType, $companyId, $siteId, $context) {
             $cfg = DocumentNumbering::where('doc_type', $docType)
                 ->where(function ($q) use ($companyId) {
                     $q->whereNull('company_id')->orWhere('company_id', $companyId);
@@ -65,8 +68,8 @@ class NumberingService
             $format = preg_replace_callback('/\{SEQ(?::(\d+))?\}/', fn ($match) => str_pad((string) $cfg->current_seq, (int) ($match[1] ?? $cfg->padding), '0', STR_PAD_LEFT), $cfg->format);
 
             return str_replace(
-                ['{PREFIX}', '{Y}', '{YYYY}', '{M}', '{MM}', '{YM}', '{YMD}'],
-                [$cfg->doc_type === $cfg->format ? '' : self::prefixFor($cfg, $docType), $now->format('Y'), $now->format('Y'), $now->format('m'), $now->format('m'), $now->format('Ym'), $now->format('Ymd')],
+                ['{PREFIX}', '{Y}', '{YYYY}', '{YEAR}', '{M}', '{MM}', '{YM}', '{YMD}', '{TYPE}', '{DEPARTMENT}', '{COMPANY}', '{SITE}', '{MONTH_ROMAN}', '{DAY}'],
+                [$cfg->doc_type === $cfg->format ? '' : self::prefixFor($cfg, $docType), $now->format('Y'), $now->format('Y'), $now->format('Y'), $now->format('m'), $now->format('m'), $now->format('Ym'), $now->format('Ymd'), $context['TYPE'] ?? '', $context['DEPARTMENT'] ?? '', $context['COMPANY'] ?? '', $context['SITE'] ?? '', self::romanMonth((int) $now->format('m')), $now->format('d')],
                 $format
             );
         });
@@ -90,8 +93,33 @@ class NumberingService
             'WB', 'WEIGHBRIDGE' => 'weighbridge',
             'JN', 'JOURNAL' => 'journal',
             'WO', 'WORK_ORDER' => 'work_order',
+            'LETTER', 'SURAT' => 'letter',
+            'KWITANSI', 'RECEIPT' => 'receipt',
             default => strtolower($docType),
         };
+    }
+
+    /**
+     * Ensure a counter row exists with the given default format (used when
+     * the format lives outside letter types, e.g. receipts).
+     */
+    public static function ensure(string $docType, string $defaultFormat, string $resetPeriod = 'MONTHLY'): DocumentNumbering
+    {
+        $row = DocumentNumbering::firstOrNew(['doc_type' => $docType, 'company_id' => null, 'site_id' => null]);
+        if (! $row->exists) {
+            $row->format = $defaultFormat;
+            $row->current_seq = 0;
+            $row->padding = 6;
+            $row->reset_period = $resetPeriod;
+            $row->save();
+        }
+
+        return $row;
+    }
+
+    public static function romanMonth(int $month): string
+    {
+        return ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'][max(1, min(12, $month)) - 1];
     }
 
     private static function paddingFromFormat(string $format): int

@@ -12,5 +12,7 @@ class InvoiceItem extends BaseModel
 
     public function creator() { return $this->belongsTo(User::class, 'created_by'); }
     public function updater() { return $this->belongsTo(User::class, 'updated_by'); }
+    public function invoice() { return $this->belongsTo(Invoice::class); }
+    public function item() { return $this->belongsTo(Item::class); }
 
 }

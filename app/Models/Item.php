@@ -14,5 +14,8 @@ class Item extends BaseModel
     
     public function category() { return $this->belongsTo(ItemCategory::class, 'item_category_id'); }
     public function unit() { return $this->belongsTo(Unit::class); }
+    public function storageLocation() { return $this->belongsTo(StorageLocation::class); }
+    public function preferredSupplier() { return $this->belongsTo(Supplier::class, 'preferred_supplier_id'); }
+    public function compatibilities() { return $this->hasMany(SparepartCompatibility::class); }
 
 }

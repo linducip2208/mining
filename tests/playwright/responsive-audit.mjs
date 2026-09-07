@@ -57,6 +57,14 @@ const PAGES = [
     { id: 'user-create', path: '/users/create' },
     { id: 'weighbridge-create', path: '/weighbridge-tickets/create' },
     { id: 'production-create', path: '/production-batches/create' },
+    { id: 'administration', path: '/administration' },
+    { id: 'letters', path: '/letters' },
+    { id: 'invoice-register', path: '/invoice-register' },
+    { id: 'receipts', path: '/receipts' },
+    { id: 'sparepart', path: '/sparepart' },
+    { id: 'sparepart-master', path: '/sparepart/master' },
+    { id: 'sparepart-card', path: '/sparepart/card' },
+    { id: 'imports', path: '/imports' },
 ];
 
 async function login(page) {

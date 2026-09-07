@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\AppliesDataScope;
+use App\Models\CashAccount;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\SalesOrder;
@@ -72,13 +73,13 @@ class InvoiceController extends Controller
     {
         AuditService::log('PRINT', 'SALES', $invoice->id, Invoice::class, null, ['invoice' => $invoice->number]);
 
-        return view('print.invoice', PrintDocumentService::context(['invoice' => $invoice->load(['items.item', 'customer', 'company']), 'documentTitle' => 'Invoice', 'watermark' => $invoice->status === 'VOID' ? 'VOID' : ($invoice->status === 'CANCELLED' ? 'DIBATALKAN' : null)]));
+        return view('print.invoice', PrintDocumentService::context(['invoice' => $invoice->load(['items.item', 'items.item.unit', 'customer', 'company', 'paymentTerm']), 'bank' => CashAccount::where('company_id', $invoice->company_id)->where('type', 'BANK')->where('status', true)->first(), 'printedBy' => auth()->user()?->name, 'documentTitle' => 'Invoice', 'watermark' => $invoice->status === 'VOID' ? 'VOID' : ($invoice->status === 'CANCELLED' ? 'DIBATALKAN' : null)]));
     }
 
     public function pdf(Invoice $invoice)
     {
         AuditService::log('PDF_DOWNLOAD', 'SALES', $invoice->id, Invoice::class, null, ['invoice' => $invoice->number]);
 
-        return PrintDocumentService::pdf('print.invoice', ['invoice' => $invoice->load(['items.item', 'customer', 'company']), 'documentTitle' => 'Invoice', 'watermark' => $invoice->status === 'VOID' ? 'VOID' : ($invoice->status === 'CANCELLED' ? 'DIBATALKAN' : null)], 'Invoice-'.$invoice->number);
+        return PrintDocumentService::pdf('print.invoice', ['invoice' => $invoice->load(['items.item', 'items.item.unit', 'customer', 'company', 'paymentTerm']), 'bank' => CashAccount::where('company_id', $invoice->company_id)->where('type', 'BANK')->where('status', true)->first(), 'printedBy' => auth()->user()?->name, 'documentTitle' => 'Invoice', 'watermark' => $invoice->status === 'VOID' ? 'VOID' : ($invoice->status === 'CANCELLED' ? 'DIBATALKAN' : null)], 'Invoice-'.$invoice->number);
     }
 }

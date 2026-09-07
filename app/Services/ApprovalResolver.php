@@ -53,6 +53,7 @@ class ApprovalResolver
         'OVERTIME' => Overtime::class,
         'OPERATOR_INCENTIVE' => OperatorIncentive::class,
         'DOCUMENT' => Document::class,
+        'LETTER' => LetterRegister::class,
         'MINING_ACTIVITY' => MiningActivity::class,
         'PRODUCTION_BATCH' => ProductionBatch::class,
         'WEIGHBRIDGE_VOID' => WeighbridgeTicket::class,

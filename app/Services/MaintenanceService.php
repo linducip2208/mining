@@ -129,10 +129,11 @@ class MaintenanceService
             $wo->save();
 
             // Journal: Dr Maintenance Expense, Cr Inventory
-            AccountingService::post($wo->company_id, now()->toDateString(), [
+            $journal = AccountingService::post($wo->company_id, now()->toDateString(), [
                 ['code' => AccountingService::map('MAINTENANCE_EXPENSE'), 'debit' => $part->total_cost, 'memo' => 'Sparepart WO '.$wo->number],
                 ['code' => AccountingService::map('INVENTORY_SPAREPART'), 'credit' => $part->total_cost, 'memo' => 'Pemakaian sparepart WO '.$wo->number],
             ], 'MAINTENANCE_PART', $wo->id, $wo->number, 'Issue sparepart '.$wo->number, 'MNT');
+            MaintenanceCost::where('work_order_id', $wo->id)->where('cost_type', 'PART')->orderByDesc('id')->first()?->update(['journal_entry_id' => $journal->id]);
 
             AuditService::log('UPDATE', 'MAINTENANCE', $wo->id, WorkOrder::class, null, ['part_issued' => $part->item_id, 'qty' => $part->qty]);
         });

@@ -136,11 +136,13 @@ final class SettingCatalog
         $number('printer.copies', 'Jumlah Salinan Default', 'Jumlah salinan untuk cetak langsung.', 'Printer & Perangkat', 'integer', 1, 'salinan', ['validation' => 'integer|min:1|max:3']);
         $text('printer.agent_url', 'Alamat Local Print Agent', 'Alamat localhost agent pada workstation pengguna.', 'Printer & Perangkat', 'http://127.0.0.1:17845', ['validation' => 'url|max:255']);
         $secret('printer.pairing_token', 'Token Pairing Local Agent', 'Token rahasia untuk mengamankan komunikasi ERP dan Local Print Agent.', 'Printer & Perangkat');
-        foreach (['invoice' => 'Invoice', 'po' => 'Purchase Order', 'pr' => 'Purchase Request', 'do' => 'Delivery Order', 'gr' => 'Goods Receipt', 'weighbridge' => 'Tiket Timbangan', 'journal' => 'Jurnal', 'work_order' => 'Work Order'] as $suffix => $label) {
+        foreach (['invoice' => 'Invoice', 'po' => 'Purchase Order', 'pr' => 'Purchase Request', 'do' => 'Delivery Order', 'gr' => 'Goods Receipt', 'weighbridge' => 'Tiket Timbangan', 'journal' => 'Jurnal', 'work_order' => 'Work Order', 'letter' => 'Surat', 'receipt' => 'Kwitansi'] as $suffix => $label) {
             $prefix = $suffix === 'work_order' ? 'WO' : strtoupper($suffix);
             $text('numbering.'.$suffix.'_prefix', 'Prefix '.$label, 'Prefix nomor dokumen '.$label.'.', 'Nomor Dokumen', $prefix);
             $text('numbering.'.$suffix.'_format', 'Format '.$label, 'Format nomor '.$label.' menggunakan tahun, bulan, dan urutan.', 'Nomor Dokumen', '{PREFIX}/{YYYY}/{MM}/{SEQ:5}');
         }
+        $text('numbering.letter_format', 'Format Surat Default', 'Format default nomor surat bila tipe tidak mengatur sendiri.', 'Nomor Dokumen', '{SEQ:3}/{TYPE}-{COMPANY}/{MONTH_ROMAN}/{YEAR}');
+        $text('numbering.receipt_format', 'Format Kwitansi', 'Format nomor kwitansi.', 'Nomor Dokumen', 'KW/{SEQ:4}/{MONTH_ROMAN}/{YEAR}');
         $text('email.sender_name', 'Nama Pengirim Email', 'Nama pengirim email aplikasi.', 'Email', 'Mining ERP');
         $text('email.sender_address', 'Alamat Pengirim Email', 'Alamat email pengirim aplikasi.', 'Email', '', ['validation' => 'nullable|email|max:255']);
         $text('email.reply_to', 'Alamat Balasan Email', 'Alamat tujuan balasan email.', 'Email', '', ['validation' => 'nullable|email|max:255']);

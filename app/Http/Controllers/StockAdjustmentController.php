@@ -3,14 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\AppliesDataScope;
-use App\Models\Company;
 use App\Models\Item;
-use App\Models\Site;
-use App\Models\Warehouse;
-use App\Models\StockLedger;
-use App\Models\StockTransfer;
 use App\Models\StockAdjustment;
+use App\Models\Warehouse;
+use App\Services\AccountingService;
+use App\Services\ApprovalService;
 use App\Services\AuditService;
+use App\Services\NumberingService;
 use App\Services\StockService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,11 +17,13 @@ use Illuminate\Support\Facades\DB;
 class StockAdjustmentController extends Controller
 {
     use AppliesDataScope;
+
     public function index(Request $request)
     {
         $items = StockAdjustment::with(['warehouse', 'items'])
             ->when($request->status, fn ($q) => $q->where('status', $request->status))
             ->orderByDesc('id')->paginate(20)->withQueryString();
+
         return view('stock.adjustment.index', ['items' => $items, 'adjustment' => null, 'statuses' => ['DRAFT', 'APPROVED', 'POSTED', 'CANCELLED']]);
     }
 
@@ -48,11 +49,11 @@ class StockAdjustmentController extends Controller
         ]);
 
         $adjustment = DB::transaction(function () use ($validated) {
-            $warehouse = \App\Models\Warehouse::findOrFail($validated['warehouse_id']);
+            $warehouse = Warehouse::findOrFail($validated['warehouse_id']);
             $this->ensureCompanyInScope($warehouse->company_id);
             $this->ensureSiteInScope($warehouse->site_id);
             $adjustment = StockAdjustment::create([
-                'number' => \App\Services\NumberingService::generate('ADJ'),
+                'number' => NumberingService::generate('ADJ'),
                 'company_id' => $warehouse->company_id,
                 'warehouse_id' => $validated['warehouse_id'],
                 'adjustment_date' => $validated['adjustment_date'],
@@ -71,10 +72,12 @@ class StockAdjustmentController extends Controller
                     'diff_qty' => $diff,
                 ]);
             }
+
             return $adjustment;
         });
 
         AuditService::created('STOCK', $adjustment);
+
         return redirect()->route('stock-adjustments.index')->with('success', 'Penyesuaian dibuat.');
     }
 
@@ -85,9 +88,10 @@ class StockAdjustmentController extends Controller
 
     public function post(StockAdjustment $stock_adjustment)
     {
-        if ($stock_adjustment->status === 'DRAFT') {
+        if (in_array($stock_adjustment->status, ['DRAFT', 'COUNTING', 'REVIEW'], true)) {
             // wajib lewat approval center dulu (workflow ADJ-APPROVAL)
-            \App\Services\ApprovalService::submit('STOCK', 'STOCK_ADJUSTMENT', $stock_adjustment);
+            ApprovalService::submit('STOCK', 'STOCK_ADJUSTMENT', $stock_adjustment);
+
             return back()->with('success', $stock_adjustment->fresh()->status === 'SUBMITTED'
                 ? 'Penyesuaian diajukan ke approval center.'
                 : 'Penyesuaian disetujui — klik Posting sekali lagi.');
@@ -98,12 +102,34 @@ class StockAdjustmentController extends Controller
 
         try {
             DB::transaction(function () use ($stock_adjustment) {
+                $varianceGain = 0;
+                $varianceLoss = 0;
                 foreach ($stock_adjustment->items as $line) {
                     $diff = (float) $line->diff_qty;
                     if ($diff > 0) {
                         StockService::move($stock_adjustment->warehouse_id, $line->item_id, 'ADJUSTMENT_PLUS', $diff, 0, $stock_adjustment->company_id, null, $stock_adjustment->id, 'STOCK_ADJUSTMENT', $stock_adjustment->number, null, $stock_adjustment->adjustment_date->toDateString());
                     } elseif ($diff < 0) {
                         StockService::move($stock_adjustment->warehouse_id, $line->item_id, 'ADJUSTMENT_MINUS', 0, abs($diff), $stock_adjustment->company_id, null, $stock_adjustment->id, 'STOCK_ADJUSTMENT', $stock_adjustment->number, null, $stock_adjustment->adjustment_date->toDateString());
+                    }
+                    if ($stock_adjustment->type === 'OPNAME' && $diff != 0) {
+                        $item = Item::find($line->item_id);
+                        $value = round(abs($diff) * (float) ($item?->avg_cost ?? 0), 2);
+                        if ($value > 0) {
+                            $invMap = $item && $item->type === 'SPAREPART' ? 'INVENTORY_SPAREPART' : 'INVENTORY_GENERAL';
+                            if ($diff > 0) {
+                                AccountingService::post($stock_adjustment->company_id, $stock_adjustment->adjustment_date->toDateString(), [
+                                    ['code' => AccountingService::map($invMap), 'debit' => $value, 'memo' => 'Opname plus '.$stock_adjustment->number],
+                                    ['code' => AccountingService::map('VARIANCE_REVENUE'), 'credit' => $value, 'memo' => 'Selisih opname '.$stock_adjustment->number],
+                                ], 'STOCK_OPNAME', $stock_adjustment->id, $stock_adjustment->number, 'Opname '.$stock_adjustment->number, 'ADJ');
+                                $varianceGain += $value;
+                            } else {
+                                AccountingService::post($stock_adjustment->company_id, $stock_adjustment->adjustment_date->toDateString(), [
+                                    ['code' => AccountingService::map('VARIANCE_EXPENSE'), 'debit' => $value, 'memo' => 'Selisih opname '.$stock_adjustment->number],
+                                    ['code' => AccountingService::map($invMap), 'credit' => $value, 'memo' => 'Opname minus '.$stock_adjustment->number],
+                                ], 'STOCK_OPNAME', $stock_adjustment->id, $stock_adjustment->number, 'Opname '.$stock_adjustment->number, 'ADJ');
+                                $varianceLoss += $value;
+                            }
+                        }
                     }
                 }
                 $stock_adjustment->update(['status' => 'POSTED', 'posted_by' => auth()->id(), 'posted_at' => now()]);
@@ -113,6 +139,7 @@ class StockAdjustmentController extends Controller
         }
 
         AuditService::log('POST', 'STOCK', $stock_adjustment->id, StockAdjustment::class, null, ['number' => $stock_adjustment->number]);
+
         return back()->with('success', 'Penyesuaian diposting.');
     }
 }

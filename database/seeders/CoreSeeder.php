@@ -75,6 +75,12 @@ class CoreSeeder extends Seeder
         'forecast' => 'Forecast & Anomali',
         'executive' => 'Executive Dashboard',
         'marketing' => 'Marketing & SEO',
+        'letter' => 'Register Surat',
+        'invoice_register' => 'Register Invoice',
+        'receipt' => 'Kwitansi',
+        'sparepart' => 'Sparepart',
+        'stock_opname' => 'Stock Opname',
+        'legacy_import' => 'Import Legacy',
     ];
 
     public const ACTIONS = [
@@ -179,6 +185,11 @@ class CoreSeeder extends Seeder
         ['compliance.update', 'Compliance - Update', 'compliance', 'update'],
         ['fiscal.close', 'Periode - Close', 'fiscal', 'update'],
         ['fiscal.reopen', 'Periode - Reopen', 'fiscal', 'update'],
+        ['letter.submit', 'Surat - Ajukan', 'letter', 'update'],
+        ['letter.send', 'Surat - Kirim', 'letter', 'update'],
+        ['letter.archive', 'Surat - Arsipkan', 'letter', 'update'],
+        ['legacy_import.execute', 'Import Legacy - Eksekusi', 'legacy_import', 'execute'],
+        ['legacy_import.review', 'Import Legacy - Review', 'legacy_import', 'review'],
     ];
 
     public function run(): void

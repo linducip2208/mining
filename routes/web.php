@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdministrationController;
 use App\Http\Controllers\AiController;
 use App\Http\Controllers\ApprovalCenterController;
 use App\Http\Controllers\ApprovalWorkflowController;
@@ -45,10 +46,14 @@ use App\Http\Controllers\GoodsReceiptController;
 use App\Http\Controllers\HaulingContractController;
 use App\Http\Controllers\HaulingRouteController;
 use App\Http\Controllers\HseController;
+use App\Http\Controllers\ImportController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\InvoiceRegisterController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\JournalController;
 use App\Http\Controllers\LeaveController;
+use App\Http\Controllers\LetterRegisterController;
+use App\Http\Controllers\LetterTypeController;
 use App\Http\Controllers\LoadingPointController;
 use App\Http\Controllers\MaintenanceScheduleController;
 use App\Http\Controllers\MarketingSeoController;
@@ -73,6 +78,7 @@ use App\Http\Controllers\PwaManifestController;
 use App\Http\Controllers\QcSampleController;
 use App\Http\Controllers\QualityHoldController;
 use App\Http\Controllers\QualityParameterController;
+use App\Http\Controllers\ReceiptController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ReportPrintController;
 use App\Http\Controllers\RoleController;
@@ -80,6 +86,7 @@ use App\Http\Controllers\SalesOrderController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\SiteController;
+use App\Http\Controllers\SparepartController;
 use App\Http\Controllers\StockAdjustmentController;
 use App\Http\Controllers\StockController;
 use App\Http\Controllers\StockpileController;
@@ -485,6 +492,64 @@ Route::middleware(['auth', 'feature.flags'])->group(function () {
     Route::post('ai/ask', [AiController::class, 'ask'])->name('ai.ask')->middleware('permission:ai.view');
     Route::get('forecast', [ForecastController::class, 'index'])->name('forecast.index')->middleware('permission:forecast.view');
     Route::get('executive', [ExecutiveController::class, 'index'])->name('executive.index')->middleware('permission:executive.view');
+
+    // ===== ADMINISTRATION: REGISTER SURAT / INVOICE / KWITANSI =====
+    Route::get('administration', [AdministrationController::class, 'dashboard'])->name('administration.dashboard')->middleware('permission:letter.view');
+    Route::resource('letters', LetterRegisterController::class)->only(['index', 'create', 'store', 'show', 'update'])->middleware('permission:letter.view');
+    Route::post('letters/{letter}/reserve', [LetterRegisterController::class, 'reserve'])->name('letters.reserve')->middleware('permission:letter.create');
+    Route::post('letters/{letter}/review', [LetterRegisterController::class, 'review'])->name('letters.review')->middleware('permission:letter.submit');
+    Route::post('letters/{letter}/approve', [LetterRegisterController::class, 'approve'])->name('letters.approve')->middleware('permission:letter.approve');
+    Route::post('letters/{letter}/publish', [LetterRegisterController::class, 'publish'])->name('letters.publish')->middleware('permission:letter.approve');
+    Route::post('letters/{letter}/sign', [LetterRegisterController::class, 'sign'])->name('letters.sign')->middleware('permission:letter.approve');
+    Route::post('letters/{letter}/send', [LetterRegisterController::class, 'send'])->name('letters.send')->middleware('permission:letter.send');
+    Route::post('letters/{letter}/archive', [LetterRegisterController::class, 'archive'])->name('letters.archive')->middleware('permission:letter.archive');
+    Route::post('letters/{letter}/void', [LetterRegisterController::class, 'void'])->name('letters.void')->middleware('permission:letter.void');
+    Route::post('letters/{letter}/cancel', [LetterRegisterController::class, 'cancel'])->name('letters.cancel')->middleware('permission:letter.update');
+    Route::post('letters/{letter}/attach', [LetterRegisterController::class, 'attach'])->name('letters.attach')->middleware('permission:letter.update');
+    Route::get('letters/{letter}/download', [LetterRegisterController::class, 'download'])->name('letters.download')->middleware('permission:letter.view');
+    Route::get('letters/{letter}/print', [LetterRegisterController::class, 'print'])->name('letters.print')->middleware('permission:letter.view');
+    Route::get('letter-types', [LetterTypeController::class, 'index'])->name('letter-types.index')->middleware('permission:letter.view');
+    Route::post('letter-types', [LetterTypeController::class, 'store'])->name('letter-types.store')->middleware('permission:letter.create');
+    Route::put('letter-types/{letter_type}', [LetterTypeController::class, 'update'])->name('letter-types.update')->middleware('permission:letter.update');
+    Route::get('invoice-register', [InvoiceRegisterController::class, 'index'])->name('invoice-register.index')->middleware('permission:invoice_register.view');
+    Route::get('invoice-register/{invoice}', [InvoiceRegisterController::class, 'show'])->name('invoice-register.show')->middleware('permission:invoice_register.view');
+    Route::resource('receipts', ReceiptController::class)->only(['index', 'create', 'store', 'show'])->middleware('permission:receipt.view');
+    Route::post('receipts/{receipt}/issue', [ReceiptController::class, 'issue'])->name('receipts.issue')->middleware('permission:receipt.create');
+    Route::post('receipts/{receipt}/confirm', [ReceiptController::class, 'confirm'])->name('receipts.confirm')->middleware('permission:receipt.create');
+    Route::post('receipts/{receipt}/void', [ReceiptController::class, 'void'])->name('receipts.void')->middleware('permission:receipt.void');
+    Route::get('receipts/{receipt}/print', [ReceiptController::class, 'print'])->name('receipts.print')->middleware('permission:receipt.print');
+
+    // ===== SPAREPART WAREHOUSE =====
+    Route::get('sparepart', [SparepartController::class, 'dashboard'])->name('sparepart.dashboard')->middleware('permission:sparepart.view');
+    Route::get('sparepart/master', [SparepartController::class, 'master'])->name('sparepart.master')->middleware('permission:sparepart.view');
+    Route::post('sparepart/master', [SparepartController::class, 'storeMaster'])->name('sparepart.master.store')->middleware('permission:sparepart.create');
+    Route::put('sparepart/master/{item}', [SparepartController::class, 'updateMaster'])->name('sparepart.master.update')->middleware('permission:sparepart.update');
+    Route::get('sparepart/scan', [SparepartController::class, 'scan'])->name('sparepart.scan')->middleware('permission:sparepart.view');
+    Route::get('sparepart/receipt', [SparepartController::class, 'receiptForm'])->name('sparepart.receipt')->middleware('permission:sparepart_receipt.view');
+    Route::post('sparepart/receipt', [SparepartController::class, 'storeReceipt'])->name('sparepart.receipt.store')->middleware('permission:sparepart_receipt.create');
+    Route::get('sparepart/issue', [SparepartController::class, 'issueForm'])->name('sparepart.issue')->middleware('permission:sparepart_issue.view');
+    Route::post('sparepart/issue', [SparepartController::class, 'storeIssue'])->name('sparepart.issue.store')->middleware('permission:sparepart_issue.create');
+    Route::post('sparepart/reserve', [SparepartController::class, 'reserve'])->name('sparepart.reserve')->middleware('permission:sparepart_issue.create');
+    Route::post('sparepart/return', [SparepartController::class, 'returnStock'])->name('sparepart.return')->middleware('permission:sparepart_issue.create');
+    Route::get('sparepart/card', [SparepartController::class, 'card'])->name('sparepart.card')->middleware('permission:stock_card.view');
+    Route::get('sparepart/opname', [SparepartController::class, 'opnameForm'])->name('sparepart.opname')->middleware('permission:stock_opname.view');
+    Route::post('sparepart/opname', [SparepartController::class, 'storeOpname'])->name('sparepart.opname.store')->middleware('permission:stock_opname.create');
+    Route::post('sparepart/opname/{adjustment}/review', [SparepartController::class, 'opnameReview'])->name('sparepart.opname.review')->middleware('permission:stock_opname.approve');
+    Route::get('sparepart/reports', [SparepartController::class, 'reports'])->name('sparepart.reports')->middleware('permission:stock_report.view');
+    Route::get('sparepart/recommend', [SparepartController::class, 'recommend'])->name('sparepart.recommend')->middleware('permission:sparepart.view');
+    Route::post('sparepart/recommend', [SparepartController::class, 'recommendToPR'])->name('sparepart.recommend.pr')->middleware('permission:sparepart.create');
+    Route::get('sparepart/compatibility', [SparepartController::class, 'compatibility'])->name('sparepart.compatibility')->middleware('permission:sparepart.view');
+    Route::post('sparepart/compatibility', [SparepartController::class, 'storeCompatibility'])->name('sparepart.compatibility.store')->middleware('permission:sparepart.create');
+    Route::match(['get', 'post'], 'sparepart/locations', [SparepartController::class, 'locations'])->name('sparepart.locations')->middleware('permission:sparepart.view');
+
+    // ===== TOOLS: LEGACY IMPORT =====
+    Route::get('imports', [ImportController::class, 'index'])->name('imports.index')->middleware('permission:legacy_import.review');
+    Route::post('imports', [ImportController::class, 'upload'])->name('imports.upload')->middleware('permission:legacy_import.execute');
+    Route::get('imports/{batch}/map', [ImportController::class, 'map'])->name('imports.map')->middleware('permission:legacy_import.review');
+    Route::post('imports/{batch}/map', [ImportController::class, 'validateMap'])->name('imports.validate')->middleware('permission:legacy_import.review');
+    Route::post('imports/{batch}/execute', [ImportController::class, 'execute'])->name('imports.execute')->middleware('permission:legacy_import.execute');
+    Route::get('imports/{batch}/errors', [ImportController::class, 'errors'])->name('imports.errors')->middleware('permission:legacy_import.review');
+    Route::delete('imports/{batch}', [ImportController::class, 'destroy'])->name('imports.destroy')->middleware('permission:legacy_import.execute');
 
     // ===== MARKETING / PROGRAMMATIC SEO =====
     Route::get('marketing/seo', [MarketingSeoController::class, 'dashboard'])->name('marketing.seo.dashboard')->middleware('permission:marketing.view');
