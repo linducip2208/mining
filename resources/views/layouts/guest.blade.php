@@ -7,6 +7,7 @@
         <style>:root{@foreach(\App\Services\BrandingService::cssVariables() as $name=>$value){{ $name }}:{{ $value }};@endforeach}</style>
         <title>{{ \App\Services\BrandingService::appName() }}@yield('title')</title>
         <link rel="icon" href="{{ \App\Services\BrandingService::assetUrl('branding.favicon') ?? url('/favicon.ico') }}">
+        @include('layouts.partials.pwa')
         <script>try { if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark'); } catch (e) {}</script>
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700,800&display=swap" rel="stylesheet" />

@@ -107,6 +107,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/dashboard');
 Route::get('/manifest.webmanifest', PwaManifestController::class)->name('pwa.manifest');
+Route::view('/offline', 'offline')->name('pwa.offline');
 Route::get('/verify/{token}', DocumentVerificationController::class)->name('documents.verify');
 
 require __DIR__.'/auth.php';

@@ -6,7 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ \App\Services\BrandingService::appName() }}@yield('title')</title>
     <link rel="icon" href="{{ \App\Services\BrandingService::assetUrl('branding.favicon') ?? url('/favicon.ico') }}">
-    <link rel="manifest" href="{{ route('pwa.manifest') }}">
+    @include('layouts.partials.pwa')
     <style>:root{@foreach(\App\Services\BrandingService::cssVariables() as $name=>$value){{ $name }}:{{ $value }};@endforeach}.app-topbar{background:color-mix(in srgb,var(--brand-topbar) 92%,transparent)}.bg-amber-400,.bg-amber-500{background-color:var(--brand-primary)!important}.text-amber-600,.text-amber-700{color:var(--brand-primary)!important}</style>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛏️</text></svg>">
     <script>
