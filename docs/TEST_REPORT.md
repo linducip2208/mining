@@ -6,10 +6,10 @@ Tanggal: 2026-09-07 · Runner: `php artisan test` (PHPUnit 12, SQLite in-memory)
 
 | Metrik | Hasil |
 |---|---|
-| Total tests | 150 |
-| Passed | 150 |
+| Total tests | 195 |
+| Passed | 195 |
 | Failed | 0 |
-| Assertions | 2523 |
+| Assertions | 3038 |
 | Playwright responsive (17 halaman × 8 viewport) | 136/136 PASS |
 | Trial Balance (data demo) | BALANCED |
 | Stok negatif | 0 baris |
@@ -33,6 +33,9 @@ GRN post → PO PARTIALLY_RECEIVED → COMPLETED; PR via Center → komitmen bud
 
 ### PwaTest (4 test)
 Manifest valid + ikon default + display standalone saat enabled; halaman offline publik; service worker & ikon ada di disk.
+
+### SEO suite (25 test: 22 aspek + admin + helper coverage)
+Page/slug/canonical/metadata/schema/sitemap(+index)/quality/duplicate/internal-link/orphan/WhatsApp/price/feature-claim/location-claim/noindex/idempotency/limit/hash/robots/breadcrumb/responsive + admin dashboard/pages/publish-noindex-archive + error-page resilience (404/403 tanpa tabel settings).
 
 ### EndToEndTest (5 test) — §29 TEST A–E
 - **TEST A (Mine→Cash)**: raw 1000 → batch (800 in/650 net) → DO net 495 → invoice 109,89jt (deposit 50jt teralokasi + jurnal) → lunasi → PAID; verifikasi stok (200/155), revenue −99jt, AR 0, deposit 0, jurnal alokasi ada, balance global.

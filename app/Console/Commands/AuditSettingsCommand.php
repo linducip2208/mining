@@ -124,6 +124,7 @@ final class AuditSettingsCommand extends Command
             'numbering.do_format', 'numbering.gr_prefix', 'numbering.gr_format', 'numbering.weighbridge_prefix', 'numbering.weighbridge_format',
             'numbering.journal_prefix', 'numbering.journal_format', 'numbering.work_order_prefix', 'numbering.work_order_format', 'pwa.enabled',
             'pwa.name', 'pwa.short_name', 'pwa.description', 'pwa.icon_192', 'pwa.icon_512', 'pwa.theme_color', 'pwa.background_color',
+            'marketing.whatsapp_number', 'marketing.whatsapp_default_message', 'marketing.analytics_enabled', 'marketing.analytics_provider', 'marketing.analytics_id',
             'security.session_timeout', 'security.password_min_length', 'security.password_require_uppercase', 'security.password_require_number',
             'security.password_require_symbol', 'security.max_login_attempts', 'security.lockout_minutes', 'security.force_password_change_days',
             'developer_labels_enabled',

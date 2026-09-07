@@ -104,6 +104,18 @@ ApprovalService::actOnActionId($actionId, $user, 'APPROVE'|'REJECT'|'RETURN', $n
 - `BudgetService::commit*` mengembalikan `null` (no-control) bila mapping/COA
   belum dikonfigurasi — approval tidak boleh mati di fresh install.
 
+## Programmatic SEO Engine
+
+`SeoPageGenerator` (cap 22.000, tier 1–5) → `SeoContentService`
+(deterministik) → `SeoQualityService` (gate PASS/WARNING/FAIL) →
+`SeoInternalLinkService` (related ≤12 + hub pillar, orphan 0) →
+`SeoSitemapService` (index + children, cache, hanya indexable).
+WhatsApp conversion terpusat di `WhatsappService` (Rp12.000.000 konstan,
+nomor ternormalisasi 6281296052010). Rute publik di `routes/seo.php`
+(di-require paling akhir; catch-all mengembalikan 404/410 asli untuk
+non-SEO). Admin di `MarketingSeoController` (permission `marketing.*`).
+Detail: `docs/PSEO_ARCHITECTURE.md`.
+
 ## Alur Bisnis End-to-End
 
 ```mermaid

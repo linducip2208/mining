@@ -81,3 +81,6 @@ Perintah `php artisan alert:scan` memindai 6 kondisi (konfigurable via `alert_ru
 
 ## 18. Data Scope Enforcement
 Filter `company_id`/`site_id` diterapkan otomatis di query index modul transaksional (mining, produksi, timbangan, procurement, sales, faktur, WO, payroll) berdasarkan scope peran user — diuji di `DataScopeTest`.
+
+## 20. Marketing & Programmatic SEO
+Engine pSEO data-driven: katalog fitur/industri/lokasi/use-case/keyword, generator berkapasitas 22.000 dengan quality gate, schema sesuai konten (tanpa rating palsu), sitemap index + children, admin Marketing (dashboard, pages, katalog), CTA WhatsApp terpusat (6281296052010), harga source code mulai Rp12.000.000. Tier 1: 300 halaman indexable, 0 orphan, 0 duplikat. Detail: `docs/PSEO_ARCHITECTURE.md`.

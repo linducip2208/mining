@@ -51,6 +51,7 @@ use App\Http\Controllers\JournalController;
 use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\LoadingPointController;
 use App\Http\Controllers\MaintenanceScheduleController;
+use App\Http\Controllers\MarketingSeoController;
 use App\Http\Controllers\MiningActivityController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OperatorIncentiveController;
@@ -485,6 +486,19 @@ Route::middleware(['auth', 'feature.flags'])->group(function () {
     Route::get('forecast', [ForecastController::class, 'index'])->name('forecast.index')->middleware('permission:forecast.view');
     Route::get('executive', [ExecutiveController::class, 'index'])->name('executive.index')->middleware('permission:executive.view');
 
+    // ===== MARKETING / PROGRAMMATIC SEO =====
+    Route::get('marketing/seo', [MarketingSeoController::class, 'dashboard'])->name('marketing.seo.dashboard')->middleware('permission:marketing.view');
+    Route::get('marketing/seo/pages', [MarketingSeoController::class, 'pages'])->name('marketing.seo.pages')->middleware('permission:marketing.view');
+    Route::get('marketing/seo/pages/{seo_page}', [MarketingSeoController::class, 'show'])->name('marketing.seo.show')->middleware('permission:marketing.view');
+    Route::post('marketing/seo/pages/{seo_page}/publish', [MarketingSeoController::class, 'publish'])->name('marketing.seo.publish')->middleware('permission:marketing.update');
+    Route::post('marketing/seo/pages/{seo_page}/noindex', [MarketingSeoController::class, 'noindex'])->name('marketing.seo.noindex')->middleware('permission:marketing.update');
+    Route::post('marketing/seo/pages/{seo_page}/archive', [MarketingSeoController::class, 'archive'])->name('marketing.seo.archive')->middleware('permission:marketing.update');
+    Route::get('marketing/seo/catalog', [MarketingSeoController::class, 'catalog'])->name('marketing.seo.catalog')->middleware('permission:marketing.view');
+    Route::post('marketing/seo/features/{feature}/toggle', [MarketingSeoController::class, 'toggleFeature'])->name('marketing.seo.feature.toggle')->middleware('permission:marketing.update');
+
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notification.index');
     Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notification.read-all');
 });
+
+// ===== PROGRAMMATIC SEO (public, must stay last) =====
+require __DIR__.'/seo.php';

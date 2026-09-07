@@ -160,6 +160,13 @@ final class SettingCatalog
         $color('pwa.theme_color', 'Warna Tema PWA', 'Warna tema manifest PWA.', 'PWA', '#0f172a');
         $color('pwa.background_color', 'Warna Latar PWA', 'Warna latar manifest PWA.', 'PWA', '#ffffff');
 
+        // Marketing & pSEO conversion.
+        $text('marketing.whatsapp_number', 'Nomor WhatsApp Marketing', 'Nomor WhatsApp untuk CTA, format internasional.', 'Marketing', '6281296052010');
+        $area('marketing.whatsapp_default_message', 'Pesan WhatsApp Default', 'Template pesan dengan placeholder {PAGE_TITLE}, {INTENT}, {CURRENT_URL}.', 'Marketing', 'Halo, saya tertarik dengan Source Code ERP Mining mulai Rp12 juta.');
+        $bool('marketing.analytics_enabled', 'Aktifkan Analytics', 'Aktifkan snippet analytics marketing.', 'Marketing');
+        $text('marketing.analytics_provider', 'Provider Analytics', 'Nama provider analytics.', 'Marketing', 'custom');
+        $text('marketing.analytics_id', 'ID Analytics', 'ID pengukuran analytics.', 'Marketing');
+
         // Core business controls. Existing keys remain unchanged.
         $number('payroll.ptkp_monthly', 'PTKP Bulanan', 'Nilai Penghasilan Tidak Kena Pajak per bulan.', 'Payroll & Pajak', 'currency', 4500000, 'Rp');
         $number('payroll.pph21_rate', 'Tarif PPh 21', 'Tarif PPh 21 default untuk perhitungan payroll.', 'Payroll & Pajak', 'percentage', 5, '%');

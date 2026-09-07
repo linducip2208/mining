@@ -74,6 +74,7 @@ class CoreSeeder extends Seeder
         'ai' => 'AI Copilot',
         'forecast' => 'Forecast & Anomali',
         'executive' => 'Executive Dashboard',
+        'marketing' => 'Marketing & SEO',
     ];
 
     public const ACTIONS = [

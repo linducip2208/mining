@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             TransactionSeeder::class,
             NewModulesSeeder::class,
+            SeoSeeder::class,
         ]);
     }
 }
