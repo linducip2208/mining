@@ -18,11 +18,27 @@
             <label class="text-xs flex items-center gap-2"><input type="checkbox" name="confirm_impact" value="1" required> I confirm the impact above</label>
             <button class="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm">IMPORT</button>
         </form>
-        <div class="flex gap-2 mt-2">
+        <div class="flex gap-2 mt-2 flex-wrap">
             <form method="POST" action="{{ route('bfj.reconcile', $batch) }}">@csrf<button class="px-3 py-2 rounded-lg border text-xs">RECONCILE</button></form>
             <form method="POST" action="{{ route('bfj.rollback', $batch) }}">@csrf<button class="px-3 py-2 rounded-lg border text-xs text-red-600">ROLLBACK</button></form>
             <a href="{{ route('bfj.mapping', $batch) }}" class="px-3 py-2 rounded-lg border text-xs">MASTER MAPPING →</a>
-        </div></div>
+            <a href="{{ route('bfj.acceptance', ['batches' => $batch->id]) }}" class="px-3 py-2 rounded-lg border text-xs">REPORT CARD →</a>
+        </div>
+        <form method="POST" action="{{ route('bfj.close', $batch) }}" class="grid gap-2 mt-3 border-t border-slate-100 pt-3">
+            @csrf
+            <div class="text-xs font-semibold uppercase text-slate-500">Close batch @if($batch->status==='CLOSED')<span class="text-green-700">(CLOSED {{ $batch->closed_at }})</span>@endif</div>
+            <input type="text" name="close_note" placeholder="Close note" class="text-xs border rounded px-2 py-2">
+            <input type="text" name="exception_reason" placeholder="Exception reason (jika ada blocker)" class="text-xs border rounded px-2 py-2">
+            <input type="text" name="exception_approver" placeholder="Exception approver" class="text-xs border rounded px-2 py-2">
+            <button class="px-3 py-2 rounded-lg bg-slate-900 text-white text-xs">CLOSE BATCH</button>
+        </form>
+        <form method="POST" action="{{ route('bfj.signoff', $batch) }}" class="flex gap-2 mt-2">
+            @csrf
+            <select name="role" class="text-xs border rounded px-2 py-2"><option value="prepared">Prepared</option><option value="reviewed">Reviewed</option><option value="finance">Finance</option><option value="warehouse">Warehouse</option><option value="hr">HR</option><option value="management">Management</option></select>
+            <input type="text" name="name" placeholder="Nama" required class="text-xs border rounded px-2 py-2 flex-1">
+            <button class="px-3 py-2 rounded-lg border text-xs">SIGN OFF</button>
+        </form>
+        @if(!empty($batch->signoffs))<div class="text-xs mt-2 text-slate-600">Sign-offs: @foreach($batch->signoffs as $r=>$s)<span class="px-1 bg-slate-100 rounded">{{ $r }}: {{ $s['name'] ?? '?' }}</span> @endforeach</div>@endif</div>
 </div>
 <div class="bg-white rounded-xl border border-slate-200 p-4 mb-4"><h3 class="text-xs font-semibold uppercase text-slate-500 mb-2">Workbook inspector — sheets</h3>
     <table class="w-full text-sm"><thead><tr class="text-left text-xs uppercase text-slate-500"><th>Sheet</th><th>Detected</th><th>Conf</th><th>Rows</th><th>Summary?</th><th>Action</th><th></th></tr></thead>

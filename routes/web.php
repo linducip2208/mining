@@ -566,6 +566,11 @@ Route::middleware(['auth', 'feature.flags'])->group(function () {
     Route::post('bfj-imports/{batch}/import', [BfjImportController::class, 'import'])->name('bfj.import')->middleware('permission:legacy_import.execute');
     Route::post('bfj-imports/{batch}/reconcile', [BfjImportController::class, 'reconcile'])->name('bfj.reconcile')->middleware('permission:legacy_import.review');
     Route::post('bfj-imports/{batch}/rollback', [BfjImportController::class, 'rollback'])->name('bfj.rollback')->middleware('permission:legacy_import.execute');
+    Route::post('bfj-imports/{batch}/close', [BfjImportController::class, 'close'])->name('bfj.close')->middleware('permission:legacy_import.execute');
+    Route::post('bfj-imports/{batch}/signoff', [BfjImportController::class, 'signoff'])->name('bfj.signoff')->middleware('permission:legacy_import.execute');
+    Route::get('bfj-acceptance', [BfjImportController::class, 'acceptance'])->name('bfj.acceptance')->middleware('permission:legacy_import.review');
+    Route::get('bfj-acceptance.json', [BfjImportController::class, 'downloadJson'])->name('bfj.acceptance.json')->middleware('permission:legacy_import.review');
+    Route::get('bfj-acceptance.xlsx', [BfjImportController::class, 'downloadXlsx'])->name('bfj.acceptance.xlsx')->middleware('permission:legacy_import.review');
 
     // ===== MARKETING / PROGRAMMATIC SEO =====
     Route::get('marketing/seo', [MarketingSeoController::class, 'dashboard'])->name('marketing.seo.dashboard')->middleware('permission:marketing.view');

@@ -67,7 +67,7 @@ final class BfjMasterMatcher
                         }
                         try {
                             $r = $cls::query()->get()->first(function ($row) use ($normalized) {
-                                $plate = $row->plate_number ?? $row->code ?? $row->name ?? '';
+                                $plate = $row->plate_no ?? $row->plate_number ?? $row->code ?? $row->name ?? '';
                                 if (! $plate) {
                                     return false;
                                 }

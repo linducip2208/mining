@@ -14,8 +14,11 @@ final class BfjDocumentImporter
     {
         $issues = [];
         $number = BfjNormalizer::squeeze((string) ($row['NOMOR SURAT'] ?? $row['NOMOR'] ?? $row['NO'] ?? ''));
+        if (in_array(mb_strtoupper($number), ['#ERROR!', '#VALUE!', '#N/A', 'ERROR'], true)) {
+            $issues[] = ['code' => 'FORMULA_ERROR', 'severity' => 'ERROR', 'message' => "Nomor surat berisi formula error: {$number}"];
+        }
         $parsed = $number !== '' ? BfjNormalizer::parseLetterNumber($number) : null;
-        if ($number !== '' && ! $parsed) {
+        if ($number !== '' && ! $parsed && ! BfjRealCommon::any($issues, fn ($i) => $i['code'] === 'FORMULA_ERROR')) {
             $issues[] = ['code' => 'NUMBER_PATTERN_VARIANCE', 'severity' => 'WARNING', 'message' => "Nomor tidak berpola standar: {$number}"];
         }
         $date = BfjParsers::parseDate($row['TANGGAL'] ?? null);

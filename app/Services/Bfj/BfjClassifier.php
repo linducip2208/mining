@@ -12,7 +12,54 @@ final class BfjClassifier
         'FINANCE', 'SALES', 'CUSTOMER_DEPOSIT', 'PAYROLL', 'CORRESPONDENCE',
         'INVOICE_REGISTER', 'RECEIPT_REGISTER', 'SPAREPART_MASTER', 'SPAREPART_OPENING',
         'SPAREPART_ISSUE', 'STOCK_CARD', 'STOCK_OPNAME', 'STOCK_REPORT',
+        'SALES_RECAP_MATRIX', 'SALES_RETAIL_MATRIX', 'DEPOSIT_SISA', 'DEPOSIT_RETAIL_CASH',
+        'FINANCE_DETAIL', 'FINANCE_STATEMENT', 'PAYROLL_DAY', 'PAYROLL_RECAP', 'PAYROLL_SECURITY',
+        'LOADING_LOG', 'CUSTOMER_STOCK', 'EMPTY',
     ];
+
+    /** Sheet-name rules take precedence (real BFJ tab names are stable). */
+    public static function sheetNameType(string $sheetName): ?array
+    {
+        $u = mb_strtoupper(trim($sheetName));
+        if ($u === 'SLIP GAJI' || $u === 'SHEET9') {
+            return ['type' => 'EMPTY', 'confidence' => 95, 'is_summary' => false];
+        }
+        if ($u === '' || $u === 'SHEET1' || preg_match('/^SHEET\d+$/', $u)) {
+            return null;
+        }
+        if (str_contains($u, 'SISA DEPOSIT')) {
+            return ['type' => 'DEPOSIT_SISA', 'confidence' => 95, 'is_summary' => true];
+        }
+        if (str_contains($u, 'UANG RITEL')) {
+            return ['type' => 'DEPOSIT_RETAIL_CASH', 'confidence' => 95, 'is_summary' => true];
+        }
+        if (str_contains($u, 'REKAP BFJ') || str_contains($u, 'REKAP MAA')) {
+            return ['type' => 'SALES_RECAP_MATRIX', 'confidence' => 95, 'is_summary' => true];
+        }
+        if (str_contains($u, 'REKAP RITEL') || str_contains($u, 'REKAP DEPOSIT')) {
+            return ['type' => 'SALES_RETAIL_MATRIX', 'confidence' => 95, 'is_summary' => true];
+        }
+        if (str_starts_with($u, 'MUAT BAWAH')) {
+            return ['type' => 'LOADING_LOG', 'confidence' => 95, 'is_summary' => false];
+        }
+        if (str_starts_with($u, 'STOCK PAK') || str_starts_with($u, 'STOK PAK')) {
+            return ['type' => 'CUSTOMER_STOCK', 'confidence' => 95, 'is_summary' => false];
+        }
+        if ($u === 'SECURITY') {
+            return ['type' => 'PAYROLL_SECURITY', 'confidence' => 95, 'is_summary' => true];
+        }
+        if ($u === 'REKAP' || str_starts_with($u, 'COPY OF REKAP')) {
+            return ['type' => 'PAYROLL_RECAP', 'confidence' => 95, 'is_summary' => true];
+        }
+        if (str_contains($u, 'ARUS KAS') && str_contains($u, 'REKAP') || $u === 'LAPORAN REKAP') {
+            return ['type' => 'FINANCE_DETAIL', 'confidence' => 90, 'is_summary' => false];
+        }
+        if (str_starts_with($u, 'LAPORAN ALL') || $u === 'ALL') {
+            return ['type' => 'FINANCE_STATEMENT', 'confidence' => 60, 'is_summary' => true];
+        }
+
+        return null;
+    }
 
     public const SUMMARY_HINTS = ['REKAP', 'RINGKAS', 'SUMMARY', 'TOTAL', 'SISA', 'REPORT', 'LAPORAN', 'REKAPITULASI', 'SLIP GAJI', 'COPY OF'];
 
@@ -21,7 +68,7 @@ final class BfjClassifier
     {
         $u = mb_strtoupper($filename);
         $map = [
-            'LAPORAN KEUANGAN' => 'FINANCE', 'KEUANGAN' => 'FINANCE',
+            'LAPORAN KEUANGAN' => 'FINANCE', 'KEUANGAN' => 'FINANCE', 'KEUANGA' => 'FINANCE', 'ARUS KAS' => 'FINANCE',
             'PENJUALAN' => 'SALES', 'SALES' => 'SALES',
             'DEPOSIT' => 'CUSTOMER_DEPOSIT',
             'GAJI' => 'PAYROLL', 'PAYROLL' => 'PAYROLL',

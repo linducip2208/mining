@@ -8,7 +8,7 @@ class LegacyImportSheet extends BaseModel
 
     protected function casts(): array
     {
-        return ['is_summary' => 'boolean'];
+        return ['is_summary' => 'boolean', 'layout' => 'array'];
     }
 
     public function batch()

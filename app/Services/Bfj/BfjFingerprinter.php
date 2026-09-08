@@ -39,6 +39,7 @@ final class BfjFingerprinter
         return self::row([
             'cust' => $n['customer'] ?? '', 'date' => $n['date'] ?? '', 'ref' => $n['reference'] ?? '',
             'amt' => $n['amount'] ?? '', 'mat' => $n['material'] ?? '',
+            'drv' => $n['driver'] ?? '', 'veh' => $n['vehicle'] ?? '', 'type' => $n['type'] ?? '',
         ]);
     }
 
@@ -46,7 +47,7 @@ final class BfjFingerprinter
     {
         return self::row([
             'date' => $n['date'] ?? '', 'item' => $n['code'] ?? '', 'qty' => $n['qty'] ?? '',
-            'type' => $n['movement'] ?? '', 'equip' => $n['equipment'] ?? '',
+            'type' => $n['movement'] ?? '', 'equip' => $n['equipment'] ?? '', 'name' => $n['name'] ?? '',
         ]);
     }
 

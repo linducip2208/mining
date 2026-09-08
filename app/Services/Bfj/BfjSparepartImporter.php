@@ -45,6 +45,7 @@ final class BfjSparepartImporter
         $normalized = [
             'date' => $date['value'],
             'code' => BfjNormalizer::upper((string) ($row['KODE'] ?? $row['KODE SPAREPART'] ?? '')),
+            'name' => BfjNormalizer::squeeze((string) ($row['NAMA SPAREPART'] ?? $row['NAMA'] ?? '')),
             'qty' => $qty['value'],
             'movement' => $isOpening ? 'OPENING_BALANCE' : $movement,
             'is_opening' => $isOpening,

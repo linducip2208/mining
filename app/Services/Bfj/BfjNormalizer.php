@@ -21,7 +21,11 @@ final class BfjNormalizer
         'ABU BATU' => 'ABU BATU', 'SPLIT 1/1' => 'SPLIT 1/1', 'SPLIT 1/2' => 'SPLIT 1/2',
         'SPLIT 2/3' => 'SPLIT 2/3', 'SPLIT 3/5' => 'SPLIT 3/5', 'SPLIT 5/7' => 'SPLIT 5/7',
         'AGREGAT A' => 'AGREGAT A', 'AGREGAT B' => 'AGREGAT B', 'BATU BELAH' => 'BATU BELAH',
-        'BLASTING' => 'BLASTING', 'QUARRY WES' => 'QUARRY WES',
+        'BLASTING' => 'BLASTING', 'QUARRY WES' => 'QUARRY WES', 'QUARRY WESS' => 'QUARRY WES',
+        'BATU BLASTING' => 'BATU BLASTING', 'BATU UNDERLA' => 'BATU UNDERLA', 'BATU UNDERLAY' => 'BATU UNDERLA',
+        'AG-A' => 'AGREGAT A', 'AG-B' => 'AGREGAT B', '2/3' => 'SPLIT 2/3', 'B-B' => 'BATU BELAH',
+        'B BATU' => 'BATU BELAH', 'A-B' => 'ABU BATU', '1/1' => 'SPLIT 1/1', '1/2' => 'SPLIT 1/2',
+        '3/5' => 'SPLIT 3/5', '5/7' => 'SPLIT 5/7', 'AGR A' => 'AGREGAT A', 'AGR B' => 'AGREGAT B', 'QW' => 'QUARRY WES',
     ];
 
     public static function squeeze(string $v): string
@@ -181,10 +185,55 @@ final class BfjNormalizer
         return ['seq' => $seq, 'doc_type' => $docType, 'division' => $division, 'company' => $company, 'counterparty' => $counterparty, 'month_roman' => $roman, 'year' => ctype_digit($year) ? $year : null];
     }
 
+    /** SISA DEPOSIT label → delivery-sheet customer. Explicit legacy mapping data (reviewable in Master Mapping; never fuzzy-matched). */
+    public const SISA_SHEET_ALIASES = [
+        'BIMO' => 'PAK BIMO',
+        'PAK BIMO' => 'PAK BIMO',
+        'SMJ' => 'SMJ',
+        'SMJ 2000M3' => 'SMJ 2000M3',
+        'ARI PANGLONG PANANG ENIM' => 'ARI BANJAR',
+    ];
+
+    public static function sisaSheet(string $sisaName): string
+    {
+        $u = self::upper($sisaName);
+
+        return self::SISA_SHEET_ALIASES[$u] ?? $u;
+    }
+
+    /** Overtime group label (R6 merged groups) → canonical overtime type. */
+    public static function overtimeType(string $group): ?string
+    {
+        $u = self::upper($group);
+        if (str_contains($u, 'HARI') && str_contains($u, 'LEMBUR') || str_contains($u, 'HARI LEMBUR')) {
+            return 'LEMBUR_HARI_LIBUR';
+        }
+        if (! str_contains($u, 'LEMBUR')) {
+            return null;
+        }
+        if (str_contains($u, 'PAGI')) {
+            return 'LEMBUR_PAGI';
+        }
+        if (str_contains($u, 'SIANG')) {
+            return 'LEMBUR_SIANG';
+        }
+        if (str_contains($u, 'PERTAMA')) {
+            return 'LEMBUR_PERTAMA';
+        }
+        if (str_contains($u, 'SORE')) {
+            return 'LEMBUR_SORE';
+        }
+        if (str_contains($u, 'MALAM')) {
+            return 'LEMBUR_MALAM';
+        }
+
+        return 'LEMBUR_SORE';
+    }
+
     public static function paymentChannel(string $column): string
     {
         $u = self::upper($column);
-        if (str_contains($u, 'ALASEN') || str_contains($u, 'PERSONAL') || str_contains($u, 'PRIBADI') || str_contains($u, 'TALANGAN')) {
+        if (str_contains($u, 'ALASEN') || str_contains($u, 'LASEN') || str_contains($u, 'PERSONAL') || str_contains($u, 'PRIBADI') || str_contains($u, 'TALANGAN')) {
             return 'PERSONAL_CLEARING';
         }
         if (str_contains($u, 'PERUSAHAAN')) {

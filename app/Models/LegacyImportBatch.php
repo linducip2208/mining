@@ -16,6 +16,7 @@ class LegacyImportBatch extends BaseModel
             'cutoffs' => 'array',
             'totals' => 'array',
             'reconciliation' => 'array',
+            'signoffs' => 'array',
             'allow_accounting_posting' => 'boolean',
             'allow_stock_posting' => 'boolean',
             'cutoff_date' => 'date',

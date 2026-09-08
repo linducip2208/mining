@@ -43,6 +43,7 @@ final class BfjDepositImporter
         $normalized['fingerprint'] = BfjFingerprinter::deposit([
             'customer' => $normalized['customer'] ?? '', 'date' => $normalized['date'],
             'reference' => $normalized['legacy_do_number'], 'amount' => $amount, 'material' => $normalized['material'] ?? '',
+            'driver' => $normalized['driver'] ?? '', 'vehicle' => $normalized['vehicle'] ?? '', 'type' => $type,
         ]);
 
         return ['normalized' => $normalized, 'issues' => $issues];
