@@ -7,6 +7,7 @@ use App\Http\Controllers\ApprovalWorkflowController;
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AuditController;
+use App\Http\Controllers\BfjImportController;
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\BudgetController;
 use App\Http\Controllers\CashAccountController;
@@ -550,6 +551,17 @@ Route::middleware(['auth', 'feature.flags'])->group(function () {
     Route::post('imports/{batch}/execute', [ImportController::class, 'execute'])->name('imports.execute')->middleware('permission:legacy_import.execute');
     Route::get('imports/{batch}/errors', [ImportController::class, 'errors'])->name('imports.errors')->middleware('permission:legacy_import.review');
     Route::delete('imports/{batch}', [ImportController::class, 'destroy'])->name('imports.destroy')->middleware('permission:legacy_import.execute');
+
+    // ===== TOOLS: BFJ LEGACY MIGRATION (multi-sheet workbook engine) =====
+    Route::get('bfj-imports', [BfjImportController::class, 'index'])->name('bfj.index')->middleware('permission:legacy_import.review');
+    Route::post('bfj-imports', [BfjImportController::class, 'upload'])->name('bfj.upload')->middleware('permission:legacy_import.execute');
+    Route::get('bfj-imports/{batch}', [BfjImportController::class, 'show'])->name('bfj.show')->middleware('permission:legacy_import.review');
+    Route::get('bfj-imports/{batch}/mapping', [BfjImportController::class, 'mapping'])->name('bfj.mapping')->middleware('permission:legacy_import.review');
+    Route::post('bfj-imports/{batch}/sheet', [BfjImportController::class, 'sheetAction'])->name('bfj.sheet')->middleware('permission:legacy_import.review');
+    Route::post('bfj-imports/{batch}/resolve', [BfjImportController::class, 'resolveMaster'])->name('bfj.resolve')->middleware('permission:legacy_import.execute');
+    Route::post('bfj-imports/{batch}/import', [BfjImportController::class, 'import'])->name('bfj.import')->middleware('permission:legacy_import.execute');
+    Route::post('bfj-imports/{batch}/reconcile', [BfjImportController::class, 'reconcile'])->name('bfj.reconcile')->middleware('permission:legacy_import.review');
+    Route::post('bfj-imports/{batch}/rollback', [BfjImportController::class, 'rollback'])->name('bfj.rollback')->middleware('permission:legacy_import.execute');
 
     // ===== MARKETING / PROGRAMMATIC SEO =====
     Route::get('marketing/seo', [MarketingSeoController::class, 'dashboard'])->name('marketing.seo.dashboard')->middleware('permission:marketing.view');

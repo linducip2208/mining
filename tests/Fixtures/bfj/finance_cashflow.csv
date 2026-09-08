@@ -1,0 +1,5 @@
+TANGGAL,KETERANGAN,MASUK,KELUAR,REKENING
+01/08/2026,SALDO AWAL KAS,5000000,0,KAS
+02/08/2026,Penjualan Transfer ke Rekening Perusahaan,1947400,0,BANK
+03/08/2026,Transfer internal ke kas kecil,0,500000,KAS
+03/08/2026,Transfer internal terima kas kecil,500000,0,KAS KECIL
