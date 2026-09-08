@@ -6,6 +6,7 @@ use App\Models\Item;
 use App\Models\MaintenanceCost;
 use App\Models\MaintenancePart;
 use App\Models\MaintenanceSchedule;
+use App\Models\StockReservation;
 use App\Models\WorkOrder;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -117,6 +118,17 @@ class MaintenanceService
             $part->issue_status = 'ISSUED';
             $part->stock_ledger_id = $ledger->id;
             $part->save();
+
+            // mirror issue onto the WO reservation chain (reserve → issue → return → consumed)
+            $reservation = StockReservation::where('ref_type', 'WORK_ORDER')->where('ref_id', $wo->id)
+                ->where('item_id', $part->item_id)->where('warehouse_id', $warehouseId)
+                ->where('status', 'RESERVED')->first();
+            if ($reservation) {
+                SparepartService::markIssued($reservation, (float) $part->qty, $unitCost);
+                $part->requested_qty = $part->requested_qty ?: $part->qty;
+                $part->reserved_qty = $part->reserved_qty ?: $part->qty;
+                $part->save();
+            }
 
             MaintenanceCost::create([
                 'work_order_id' => $wo->id,

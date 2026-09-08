@@ -64,6 +64,7 @@ const PAGES = [
     { id: 'sparepart', path: '/sparepart' },
     { id: 'sparepart-master', path: '/sparepart/master' },
     { id: 'sparepart-card', path: '/sparepart/card' },
+    { id: 'fleet-lifetime-cost', path: '/fleet/lifetime-cost' },
     { id: 'imports', path: '/imports' },
 ];
 

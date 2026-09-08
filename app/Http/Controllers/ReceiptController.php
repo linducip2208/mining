@@ -7,6 +7,7 @@ use App\Models\CashAccount;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Receipt;
+use App\Models\Setting;
 use App\Services\AuditService;
 use App\Services\NumberingService;
 use App\Services\NumberToWordsService;
@@ -67,9 +68,14 @@ class ReceiptController extends Controller
         if ($payment->status !== 'POSTED') {
             return back()->with('error', 'Kwitansi hanya dapat dibuat dari pembayaran yang sudah POSTED.');
         }
+        // one active kwitansi per payment — duplicates must be voided first
+        $existingActive = Receipt::where('payment_id', $payment->id)->whereNotIn('status', ['VOID'])->first();
+        if ($existingActive) {
+            return back()->with('error', 'Pembayaran ini sudah memiliki kwitansi aktif: '.$existingActive->number.'. Void kwitansi lama dulu bila perlu menerbitkan ulang.');
+        }
 
         $receipt = DB::transaction(function () use ($validated, $payment) {
-            NumberingService::ensure('KWITANSI', (string) \App\Models\Setting::get('numbering.receipt_format', 'KW/{SEQ:4}/{MONTH_ROMAN}/{YEAR}'));
+            NumberingService::ensure('KWITANSI', (string) Setting::get('numbering.receipt_format', 'KW/{SEQ:4}/{MONTH_ROMAN}/{YEAR}'));
             $number = NumberingService::generate('KWITANSI', $payment->company_id);
 
             return Receipt::create([
@@ -146,12 +152,14 @@ class ReceiptController extends Controller
     public function print(Receipt $receipt)
     {
         $this->ensureInScope($receipt);
+        $reprint = $receipt->printed_at !== null;
         $receipt->update(['printed_at' => now()]);
         AuditService::log('PRINT', 'RECEIPT', $receipt->id, Receipt::class, null, ['number' => $receipt->number]);
 
         return view('print.receipt', PrintDocumentService::context([
-            'receipt' => $receipt->load(['customer', 'payment', 'invoice', 'cashAccount', 'company']),
+            'receipt' => $receipt->load(['customer', 'payment.allocations.invoice', 'payment.customer', 'invoice', 'cashAccount', 'company']),
             'terbilang' => NumberToWordsService::rupiah((float) $receipt->amount),
+            'reprint' => $reprint,
         ]));
     }
 }

@@ -61,7 +61,7 @@
             </nav>
             <div>
                 <div class="font-semibold text-white mb-2">Kontak</div>
-                <p>WhatsApp: <a href="https://wa.me/6281296052010" class="text-amber-400 hover:text-amber-300">0812-9605-2010</a></p>
+                <p>WhatsApp: <a href="{{ \App\Services\WhatsappService::link('Halo, saya ingin konsultasi ERP Mining.') }}" class="text-amber-400 hover:text-amber-300">{{ \App\Services\WhatsappService::number() }}</a></p>
                 <p class="mt-1">Senin–Jumat, jam kerja WIB.</p>
             </div>
         </div>

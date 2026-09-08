@@ -2,7 +2,7 @@
 @section('title', ' - Mapping Kolom')
 @section('content')
 <h1 class="text-xl font-bold text-slate-800 mb-1">Mapping Kolom — {{ $def['label'] }}</h1>
-<p class="text-sm text-slate-500 mb-4">Batch #{{ $batch->id }} · petakan header CSV ke field sistem.</p>
+<p class="text-sm text-slate-500 mb-4">Batch #{{ $batch->id }}@if($batch->sheet) · sheet <strong>{{ $batch->sheet }}</strong>@endif · header dipetakan otomatis, bisa diubah.</p>
 
 <form method="POST" action="{{ route('imports.validate', $batch) }}" class="bg-white rounded-xl border border-slate-200 p-5">
     @csrf
@@ -14,7 +14,7 @@
             <select name="map[{{ $h }}]" class="px-3 py-2 rounded-lg border border-slate-200 text-sm min-h-[44px] flex-1">
                 <option value="">(abaikan)</option>
                 @foreach($def['fields'] as $field => $label)
-                <option value="{{ $field }}">{{ $label }}</option>
+                <option value="{{ $field }}" @selected(data_get($autoMap, $h) === $field)>{{ $label }}</option>
                 @endforeach
             </select>
         </div>

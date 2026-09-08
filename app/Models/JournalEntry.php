@@ -2,18 +2,36 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-
-
 class JournalEntry extends BaseModel
 {
     protected $table = 'journal_entries';
+
     protected $guarded = ['id'];
 
-    public function lines() { return $this->hasMany(JournalLine::class); }
-    public function creator() { return $this->belongsTo(User::class, 'created_by'); }
+    public function lines()
+    {
+        return $this->hasMany(JournalLine::class);
+    }
 
-    public function company() { return $this->belongsTo(Company::class); }
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
+
+    public function reversalOf()
+    {
+        return $this->belongsTo(self::class, 'reversal_of_id');
+    }
+
+    public function reversals()
+    {
+        return $this->hasMany(self::class, 'reversal_of_id');
+    }
 
     /**
      * Deep-link ke dokumen sumber (konektivitas UI antar modul).
@@ -37,5 +55,4 @@ class JournalEntry extends BaseModel
             default => null,
         };
     }
-
 }

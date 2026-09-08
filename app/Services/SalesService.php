@@ -83,7 +83,8 @@ class SalesService
                     $soItem->save();
                 }
 
-                // HPP: Dr COGS / Cr Inventory at moving-average cost
+                // HPP: Dr COGS / Cr Inventory at moving-average cost.
+                // Policy for avg_cost = 0 is configurable: BLOCK / WARN / ALLOW.
                 $item = Item::find($line->item_id);
                 $cogsValue = round($finalQty * (float) ($item?->avg_cost ?? 0), 2);
                 if ($cogsValue > 0) {
@@ -94,6 +95,13 @@ class SalesService
                     };
                     $cogsLines[] = ['code' => AccountingService::map('COGS'), 'debit' => $cogsValue, 'memo' => 'HPP '.$deliveryOrder->number];
                     $cogsLines[] = ['code' => AccountingService::map($invMap), 'credit' => $cogsValue, 'memo' => 'Persediaan keluar '.$deliveryOrder->number];
+                } else {
+                    $policy = strtoupper((string) Setting::get('inventory.cogs_zero_cost_policy', 'BLOCK'));
+                    $reason = 'COGS nol untuk '.$item?->code.' ('.$finalQty.' x avg_cost '.($item?->avg_cost ?? 0).')';
+                    if ($policy === 'BLOCK') {
+                        throw new \DomainException('Delivery ditolak: '.$reason.'. Terima stok dengan biaya perolehan dulu atau ubah policy inventory.cogs_zero_cost_policy.');
+                    }
+                    AuditService::log('WARNING', 'SALES', $deliveryOrder->id, $deliveryOrder::class, null, ['event' => 'COGS_ZERO_COST', 'policy' => $policy, 'reason' => $reason]);
                 }
             }
 

@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\ImportService;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
@@ -77,6 +79,11 @@ class AppServiceProvider extends ServiceProvider
             }
 
             return null;
+        });
+
+        // Blade: allow importing services in views (e.g. @if(ImportService::fileSeenBefore(...)))
+        Blade::if('fileImportedBefore', function (string $hash) {
+            return ImportService::fileSeenBefore($hash);
         });
     }
 }

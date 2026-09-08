@@ -21,8 +21,8 @@ class AccountingSeeder extends Seeder
         ['1-1320', 'Persediaan Sparepart', 'ASSET', 'INVENTORY'],
         ['1-1330', 'Persediaan BBM', 'ASSET', 'INVENTORY'],
         ['1-1590', 'Akumulasi Penyusutan', 'ASSET', 'ACCUM_DEP'],
-        ['1-1330', 'Persediaan BBM', 'ASSET', 'INVENTORY'],
         ['1-1400', 'Uang Muka PPN Masukan', 'ASSET', 'TAX'],
+        ['1-1450', 'Pinjaman Karyawan', 'ASSET', 'LOAN_RECEIVABLE'],
         ['1-1500', 'Peralatan & Mesin', 'ASSET', 'FIXED_ASSET'],
         ['1-1600', 'Akumulasi Penyusutan', 'ASSET', 'FIXED_ASSET'],
         ['1-1700', 'Deposit Customer', 'ASSET', 'CUSTOMER_DEPOSIT'],
@@ -31,10 +31,14 @@ class AccountingSeeder extends Seeder
         ['2-1100', 'Hutang Gaji', 'LIABILITY', 'SALARY_PAYABLE'],
         ['2-1200', 'Hutang PPN Keluaran', 'LIABILITY', 'TAX'],
         ['2-1210', 'Hutang PPh 21', 'LIABILITY', 'TAX'],
+        ['2-1220', 'Hutang BPJS Kesehatan', 'LIABILITY', 'BPJS'],
+        ['2-1230', 'Hutang BPJS Ketenagakerjaan', 'LIABILITY', 'BPJS'],
+        ['2-1240', 'Hutang Potongan Lain-lain', 'LIABILITY', 'OTHER_PAYROLL'],
         ['2-1300', 'Hutang Jangka Panjang', 'LIABILITY', 'LOAN'],
         // EQUITY
         ['3-1000', 'Modal Disetor', 'EQUITY', 'CAPITAL'],
         ['3-2000', 'Laba Ditahan', 'EQUITY', 'RETAINED_EARNINGS'],
+        ['3-3000', 'Saldo Awal (Opening Balance)', 'EQUITY', 'OPENING_BALANCE'],
         // REVENUE
         ['4-1000', 'Pendapatan Penjualan', 'REVENUE', 'SALES'],
         ['4-2000', 'Pendapatan Lain-lain', 'REVENUE', 'OTHER'],
@@ -43,6 +47,7 @@ class AccountingSeeder extends Seeder
         ['5-1000', 'Beban Pokok Penjualan', 'EXPENSE', 'COGS'],
         ['5-2000', 'Beban Gaji', 'EXPENSE', 'SALARY'],
         ['5-2100', 'Beban Insentif Operator', 'EXPENSE', 'INCENTIVE'],
+        ['5-2200', 'Beban Lembur', 'EXPENSE', 'OVERTIME'],
         ['5-3000', 'Beban Pemeliharaan', 'EXPENSE', 'MAINTENANCE'],
         ['5-3100', 'Beban Bahan Bakar', 'EXPENSE', 'FUEL'],
         ['5-4000', 'Beban Administrasi Umum', 'EXPENSE', 'ADMIN'],
@@ -68,12 +73,18 @@ class AccountingSeeder extends Seeder
         ['TAX_PPN_OUT', '2-1200', 'PPN keluaran'],
         ['TAX_PPN_IN', '1-1400', 'PPN masukan'],
         ['TAX_PPH21_PAYABLE', '2-1210', 'PPh 21'],
+        ['BPJS_HEALTH_PAYABLE', '2-1220', 'BPJS Kesehatan'],
+        ['BPJS_EMPLOYMENT_PAYABLE', '2-1230', 'BPJS Ketenagakerjaan'],
+        ['OTHER_PAYROLL_PAYABLE', '2-1240', 'Potongan gaji lain-lain'],
+        ['LOAN_RECEIVABLE', '1-1450', 'Pinjaman karyawan'],
+        ['OPENING_BALANCE_EQUITY', '3-3000', 'Saldo awal opening balance'],
         ['SALES_REVENUE', '4-1000', 'Pendapatan penjualan'],
         ['OTHER_REVENUE', '4-2000', 'Pendapatan lain'],
         ['VARIANCE_REVENUE', '4-3000', 'Pendapatan selisih harga'],
         ['VARIANCE_EXPENSE', '5-4100', 'Beban selisih harga'],
         ['COGS', '5-1000', 'HPP'],
         ['SALARY_EXPENSE', '5-2000', 'Beban gaji'],
+        ['OVERTIME_EXPENSE', '5-2200', 'Beban lembur'],
         ['INCENTIVE_EXPENSE', '5-2100', 'Beban insentif'],
         ['MAINTENANCE_EXPENSE', '5-3000', 'Beban pemeliharaan'],
         ['FUEL_EXPENSE', '5-3100', 'Beban BBM'],
@@ -120,6 +131,8 @@ class AccountingSeeder extends Seeder
         Setting::updateOrCreate(['key' => 'budget.enforce'], ['value' => 'warning', 'type' => 'string']);
         Setting::updateOrCreate(['key' => 'hse.severity_levels'], ['value' => json_encode(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL', 'LTI', 'FATALITY']), 'type' => 'json']);
         Setting::updateOrCreate(['key' => 'fuel.dip_threshold_pct'], ['value' => '2', 'type' => 'number']);
+        Setting::updateOrCreate(['key' => 'payroll.overtime_source'], ['value' => 'OVERTIME_REQUEST_ONLY', 'type' => 'string']);
+        Setting::updateOrCreate(['key' => 'inventory.cogs_zero_cost_policy'], ['value' => 'WARN', 'type' => 'string']);
 
         // open fiscal periods for this + next year
         foreach (range(now()->year, now()->year + 1) as $y) {
@@ -131,6 +144,6 @@ class AccountingSeeder extends Seeder
             }
         }
 
-        $this->command?->info('Accounting: ' . ChartOfAccount::count() . ' COA, ' . AccountingMapping::count() . ' mappings, ' . TaxCode::count() . ' tax codes');
+        $this->command?->info('Accounting: '.ChartOfAccount::count().' COA, '.AccountingMapping::count().' mappings, '.TaxCode::count().' tax codes');
     }
 }

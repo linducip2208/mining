@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AccountingMapping;
 use App\Models\Employee;
 use App\Models\OperatorIncentive;
 use App\Models\Overtime;
@@ -13,6 +14,63 @@ use Illuminate\Support\Facades\DB;
 
 class PayrollService
 {
+    /**
+     * Overtime source policies (setting payroll.overtime_source):
+     * - ATTENDANCE_ONLY: only attendance.overtime_minutes is counted.
+     * - OVERTIME_REQUEST_ONLY (default, safe when approval workflow is used):
+     *   only APPROVED Overtime records are counted; attendance minutes ignored
+     *   so the same hours can never be paid twice.
+     * - MERGED_NON_DUPLICATE: per calendar date the two sources are merged
+     *   non-duplicatively (the larger of the two is taken, never the sum).
+     */
+    public static function overtimeSourcePolicy(): string
+    {
+        return strtoupper((string) Setting::get('payroll.overtime_source', 'OVERTIME_REQUEST_ONLY'));
+    }
+
+    /**
+     * Resolve non-duplicated overtime hours for an employee within a period.
+     */
+    public static function overtimeHours(Employee $employee, string $start, string $end): float
+    {
+        $policy = self::overtimeSourcePolicy();
+
+        if ($policy === 'ATTENDANCE_ONLY') {
+            return round($employee->attendances()->whereBetween('date', [$start, $end])->sum('overtime_minutes') / 60, 2);
+        }
+
+        $approvedHours = round((float) Overtime::where('employee_id', $employee->id)
+            ->where('status', 'APPROVED')
+            ->whereBetween('date', [$start, $end])
+            ->sum('hours'), 2);
+
+        if ($policy === 'OVERTIME_REQUEST_ONLY') {
+            return $approvedHours;
+        }
+
+        // MERGED_NON_DUPLICATE: per-date max of (attendance minutes, approved overtime hours)
+        $attendanceByDate = $employee->attendances()
+            ->whereBetween('date', [$start, $end])
+            ->where('overtime_minutes', '>', 0)
+            ->pluck('overtime_minutes', 'date');
+        $approvedByDate = Overtime::where('employee_id', $employee->id)
+            ->where('status', 'APPROVED')
+            ->whereBetween('date', [$start, $end])
+            ->selectRaw('date, SUM(hours) as hours')
+            ->groupBy('date')
+            ->pluck('hours', 'date');
+
+        $dates = $attendanceByDate->keys()->merge($approvedByDate->keys())->unique();
+        $hours = 0.0;
+        foreach ($dates as $date) {
+            $fromAttendance = round(((float) ($attendanceByDate[$date] ?? 0)) / 60, 2);
+            $fromRequest = round((float) ($approvedByDate[$date] ?? 0), 2);
+            $hours += max($fromAttendance, $fromRequest);
+        }
+
+        return round($hours, 2);
+    }
+
     /**
      * Calculate payroll for all active employees of a company for period YYYY-MM.
      * Net = Basic + Allowance + Overtime + Incentive + Bonus - Deduction - Loan - Tax
@@ -45,16 +103,8 @@ class PayrollService
                 $basic = (float) $employee->basic_salary;
                 $earnings[] = ['code' => 'BASIC', 'name' => 'Gaji Pokok', 'amount' => $basic];
 
-                // attendance-based late deduction & overtime
-                $attendances = $employee->attendances()->whereBetween('date', [$start, $end]);
-                $overtimeMinutes = (clone $attendances)->sum('overtime_minutes');
-                $overtimeHours = round($overtimeMinutes / 60, 2);
-
-                // approved overtime records in the same period (wired to payroll)
-                $overtimeHours += round((float) Overtime::where('employee_id', $employee->id)
-                    ->where('status', 'APPROVED')
-                    ->whereBetween('date', [$start, $end])
-                    ->sum('hours'), 2);
+                // overtime per configured source policy (never double-counted)
+                $overtimeHours = self::overtimeHours($employee, $start->toDateString(), $end->toDateString());
 
                 $employeeRules = $employee->payrollRules()->with('component')->get();
                 foreach ($employeeRules as $rule) {
@@ -88,7 +138,19 @@ class PayrollService
                     $incentives->each(fn ($i) => $i->update(['status' => 'INCLUDED_IN_PAYROLL']));
                 }
 
-                // simple PPh21 approximation: 5% of (gross - 54000000/12) if positive — configurable
+                // BPJS contributions on basic salary (disabled unless configured)
+                if (filter_var(Setting::get('payroll.bpjs_enabled', 'false'), FILTER_VALIDATE_BOOL)) {
+                    $health = round($basic * ((float) Setting::get('payroll.bpjs_health_rate', 4) / 100), 2);
+                    $employment = round($basic * ((float) Setting::get('payroll.bpjs_employment_rate', 3.37) / 100), 2);
+                    if ($health > 0) {
+                        $deductions[] = ['code' => 'BPJS_HEALTH', 'name' => 'BPJS Kesehatan', 'amount' => $health];
+                    }
+                    if ($employment > 0) {
+                        $deductions[] = ['code' => 'BPJS_EMPLOYMENT', 'name' => 'BPJS Ketenagakerjaan', 'amount' => $employment];
+                    }
+                }
+
+                // simple PPh21 approximation: rate of (gross - PTKP) if positive — configurable
                 $gross = $basic + collect($earnings)->whereNotIn('code', ['BASIC'])->sum('amount');
                 $ptkp = (float) Setting::get('payroll.ptkp_monthly', 4500000);
                 $taxable = max(0, $gross - $ptkp);
@@ -130,7 +192,27 @@ class PayrollService
     }
 
     /**
-     * Post payroll: Dr Salary Expense, Cr Salary Payable.
+     * Liability mapping per deduction component code.
+     */
+    public static function deductionMappingKey(string $componentCode): string
+    {
+        $code = strtoupper(trim($componentCode));
+
+        return match (true) {
+            $code === 'PPH21' || str_contains($code, 'PPH21') || str_contains($code, 'PPh') => 'TAX_PPH21_PAYABLE',
+            str_contains($code, 'BPJS') && str_contains($code, 'HEALTH') => 'BPJS_HEALTH_PAYABLE',
+            str_contains($code, 'BPJS') && str_contains($code, 'KETENAGAKERJAAN') => 'BPJS_EMPLOYMENT_PAYABLE',
+            str_contains($code, 'BPJS') && str_contains($code, 'EMPLOYMENT') => 'BPJS_EMPLOYMENT_PAYABLE',
+            str_contains($code, 'LOAN') || str_contains($code, 'PINJAMAN') => 'LOAN_RECEIVABLE',
+            default => 'OTHER_PAYROLL_PAYABLE',
+        };
+    }
+
+    /**
+     * Post payroll journal with per-component liability split:
+     * Dr Salary Expense (+ optional Overtime Expense)
+     * Cr Tax Payable / BPJS payables / Loan receivable / Other payable (per component)
+     * Cr Salary Payable (net).
      */
     public static function post(PayrollRun $run): void
     {
@@ -141,11 +223,49 @@ class PayrollService
             [$y, $m] = explode('-', $run->period);
             $date = Carbon::create((int) $y, (int) $m, 1)->endOfMonth()->toDateString();
 
-            $journal = AccountingService::post($run->company_id, $date, [
-                ['code' => AccountingService::map('SALARY_EXPENSE'), 'debit' => $run->total_gross, 'memo' => 'Beban gaji '.$run->period],
-                ['code' => AccountingService::map('TAX_PPH21_PAYABLE'), 'credit' => $run->total_deduction, 'memo' => 'Potongan gaji '.$run->period],
-                ['code' => AccountingService::map('SALARY_PAYABLE'), 'credit' => $run->total_net, 'memo' => 'Gaji dibayar '.$run->period],
-            ], 'PAYROLL', $run->id, $run->number, 'Posting payroll '.$run->period, 'PR');
+            $details = $run->details()->get();
+            $overtimeAmount = 0.0;
+            $expenseByCode = [];
+            $deductionByMapping = [];
+            foreach ($details as $detail) {
+                $components = $detail->components ?? [];
+                foreach (($components['earnings'] ?? []) as $earning) {
+                    $amount = (float) ($earning['amount'] ?? 0);
+                    if (($earning['code'] ?? '') === 'OVERTIME') {
+                        $overtimeAmount += $amount;
+                    } elseif (($earning['code'] ?? '') !== 'BASIC') {
+                        // allowances/bonuses follow salary expense
+                        $expenseByCode['SALARY_EXPENSE'] = ($expenseByCode['SALARY_EXPENSE'] ?? 0) + $amount;
+                    }
+                }
+                foreach (($components['deductions'] ?? []) as $deduction) {
+                    $key = self::deductionMappingKey((string) ($deduction['code'] ?? ''));
+                    $deductionByMapping[$key] = ($deductionByMapping[$key] ?? 0) + (float) ($deduction['amount'] ?? 0);
+                }
+            }
+
+            // Round-trip safety: unclassified remainder keeps the journal balanced.
+            $classified = array_sum($deductionByMapping);
+            $salaryExpense = round($run->total_gross - $overtimeAmount, 2);
+
+            $lines = [];
+            $lines[] = ['code' => AccountingService::map('SALARY_EXPENSE'), 'debit' => $salaryExpense, 'memo' => 'Beban gaji '.$run->period];
+            if ($overtimeAmount > 0 && AccountingMapping::where('code', 'OVERTIME_EXPENSE')->exists()) {
+                $lines[] = ['code' => AccountingService::map('OVERTIME_EXPENSE'), 'debit' => round($overtimeAmount, 2), 'memo' => 'Beban lembur '.$run->period];
+            } else {
+                // Overtime expense mapping not configured: keep it inside salary expense.
+                $salaryExpense += round($overtimeAmount, 2);
+                $lines[0]['debit'] = $salaryExpense;
+            }
+
+            foreach ($deductionByMapping as $key => $amount) {
+                if (round($amount, 2) > 0) {
+                    $lines[] = ['code' => AccountingService::map($key), 'credit' => round($amount, 2), 'memo' => 'Potongan '.strtolower(str_replace('_', ' ', $key)).' '.$run->period];
+                }
+            }
+            $lines[] = ['code' => AccountingService::map('SALARY_PAYABLE'), 'credit' => $run->total_net, 'memo' => 'Gaji dibayar '.$run->period];
+
+            $journal = AccountingService::post($run->company_id, $date, $lines, 'PAYROLL', $run->id, $run->number, 'Posting payroll '.$run->period, 'PR');
 
             $run->journal_entry_id = $journal->id;
             $run->status = 'POSTED';

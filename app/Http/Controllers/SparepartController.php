@@ -260,7 +260,7 @@ class SparepartController extends Controller
                     $validated['warehouse_id'], $item->id, 'SPAREPART_OUT', 0, (float) $validated['qty'],
                     Warehouse::find($validated['warehouse_id'])->company_id, null, null, 'SPAREPART_ISSUE',
                     'SPR-OUT-'.now()->format('YmdHis'), null, $validated['issue_date'],
-                    trim("[{$validated['reason']}] " . (($validated['equipment_id'] ?? null) ? 'EQ:' . $validated['equipment_id'] . ' ' : '') . (($validated['received_by'] ?? null) ? "Diterima: {$validated['received_by']} " : '') . ($validated['notes'] ?? ''))
+                    trim("[{$validated['reason']}] ".(($validated['equipment_id'] ?? null) ? 'EQ:'.$validated['equipment_id'].' ' : '').(($validated['received_by'] ?? null) ? "Diterima: {$validated['received_by']} " : '').($validated['notes'] ?? ''))
                 );
                 AuditService::log('CREATE', 'SPAREPART', $item->id, Item::class, null, ['event' => 'issued', 'qty' => $validated['qty']]);
             }
@@ -306,15 +306,47 @@ class SparepartController extends Controller
             'qty' => 'required|numeric|min:0.0001',
         ]);
         $res = StockReservation::findOrFail($validated['reservation_id']);
-        if ($res->status !== 'RESERVED' || (float) $res->issued_qty < (float) $validated['qty']) {
+        $issued = (float) $res->issued_qty - (float) $res->returned_qty;
+        if ($res->status !== 'RESERVED' || $issued + 0.0001 < (float) $validated['qty']) {
             return back()->with('error', 'Return melebihi qty yang sudah di-issue.');
         }
         $wh = Warehouse::findOrFail($res->warehouse_id);
-        StockService::move($res->warehouse_id, $res->item_id, 'RETURN', (float) $validated['qty'], 0, $wh->company_id, null, $res->id, 'SPAREPART_RETURN', $res->ref_number);
-        $res->increment('returned_qty', (float) $validated['qty']);
-        AuditService::log('UPDATE', 'SPAREPART', $res->id, StockReservation::class, null, ['event' => 'returned', 'qty' => $validated['qty']]);
 
-        return back()->with('success', 'Return dicatat sebagai stock masuk ber-referensi.');
+        try {
+            // Return must be valued at the ORIGINAL issue unit cost snapshot —
+            // never re-valued at today's moving average.
+            $unitCost = SparepartService::returnIssued($res, (float) $validated['qty']);
+            if ($unitCost <= 0) {
+                $unitCost = (float) (StockLedger::where('warehouse_id', $res->warehouse_id)->where('item_id', $res->item_id)
+                    ->whereIn('movement_type', ['MAINTENANCE_USAGE', 'SPAREPART_OUT'])
+                    ->where('ref_id', $res->ref_id)->where('ref_type', $res->ref_type)
+                    ->orderByDesc('id')->value('unit_cost') ?? 0);
+            }
+            StockService::move($res->warehouse_id, $res->item_id, 'RETURN', (float) $validated['qty'], 0, $wh->company_id, null, $res->id, 'SPAREPART_RETURN', $res->ref_number, $unitCost);
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        // mirror return onto the WO parts (consumed = issued - returned)
+        $remaining = (float) $validated['qty'];
+        foreach (MaintenancePart::where('work_order_id', $res->ref_id)->where('item_id', $res->item_id)->where('issue_status', 'ISSUED')->orderBy('id')->get() as $part) {
+            $open = (float) $part->qty - (float) $part->returned_qty;
+            if ($open <= 0) {
+                continue;
+            }
+            $take = min($open, $remaining);
+            $part->returned_qty = (float) $part->returned_qty + $take;
+            $part->consumed_qty = max(0, (float) $part->qty - (float) $part->returned_qty);
+            $part->save();
+            $remaining -= $take;
+            if ($remaining <= 0.0001) {
+                break;
+            }
+        }
+
+        AuditService::log('UPDATE', 'SPAREPART', $res->id, StockReservation::class, null, ['event' => 'returned', 'qty' => $validated['qty'], 'unit_cost' => $unitCost]);
+
+        return back()->with('success', 'Return dicatat sebagai stock masuk ber-referensi (pakai harga issue asli).');
     }
 
     // ============ KARTU STOK ============

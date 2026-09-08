@@ -31,6 +31,14 @@ class SeoAudit extends Command
         $overview = SeoQualityService::overview();
         $this->info("PASS={$pass} WARNING={$warn} FAIL={$fail} | indexable={$overview['indexable']} orphans={$overview['orphans']} dup_titles={$overview['duplicate_titles']} thin={$overview['thin_pages']}");
 
+        $broken = SeoQualityService::brokenInternalLinks();
+        if ($broken !== []) {
+            foreach (array_slice($broken, 0, 10) as $b) {
+                $this->warn("BROKEN LINK {$b['path']} → {$b['link']}: {$b['reason']}");
+            }
+        }
+        $this->info('Broken internal links: '.count($broken));
+
         return $fail > 0 ? self::FAILURE : self::SUCCESS;
     }
 }

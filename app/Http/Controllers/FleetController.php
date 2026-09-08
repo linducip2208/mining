@@ -7,6 +7,8 @@ use App\Models\Company;
 use App\Models\Employee;
 use App\Models\Equipment;
 use App\Models\EquipmentAssignment;
+use App\Models\EquipmentInspection;
+use App\Models\EquipmentMeterLog;
 use App\Models\Shift;
 use App\Models\Site;
 use App\Services\AuditService;
@@ -21,11 +23,9 @@ class FleetController extends Controller
     {
         $from = $request->from ?? now()->startOfMonth()->toDateString();
         $to = $request->to ?? now()->toDateString();
-        $data = FleetService::fleetSummary(
-            $request->company_id ?: null,
-            $request->site_id ?: null,
-            $from, $to
-        );
+        [$companyId, $siteId] = $this->scopedFilters($request);
+        $data = FleetService::fleetSummary($companyId, $siteId, $from, $to);
+
         return view('fleet.dashboard', $data + [
             'from' => $from, 'to' => $to,
             'companies' => Company::pluck('name', 'id')->all(),
@@ -53,15 +53,71 @@ class FleetController extends Controller
         return $this->kpiView($request, 'fleet.cost', 'Biaya Armada');
     }
 
+    /**
+     * PART 13 — unified equipment lifetime cost summary:
+     * fuel + sparepart + maintenance labor + external + other + depreciation,
+     * KPI Cost/HM, Cost/KM, Cost/Ton (N/A when the denominator is invalid).
+     */
+    public function lifetimeCost(Request $request)
+    {
+        $equipmentId = (int) $request->equipment_id;
+        $units = $this->scopedEquipment();
+        $equipment = $equipmentId ? Equipment::find($equipmentId) : $units->first();
+        $summary = $equipment ? FleetService::lifetimeCost($equipment->id) : null;
+
+        return view('fleet.lifetime-cost', [
+            'title' => 'Biaya Sepanjang Masa Unit',
+            'units' => $units,
+            'equipment' => $equipment,
+            'summary' => $summary,
+        ]);
+    }
+
+    /**
+     * Intersect user-selected filters with the RBAC data scope.
+     */
+    protected function scopedFilters(Request $request): array
+    {
+        $user = auth()->user();
+        $companyId = $request->company_id ? (int) $request->company_id : null;
+        $siteId = $request->site_id ? (int) $request->site_id : null;
+        $companies = $user?->accessibleCompanyIds();
+        if ($companies !== null) {
+            if ($companyId === null && count($companies) === 1) {
+                $companyId = $companies[0];
+            }
+            if ($companyId !== null && ! in_array($companyId, $companies)) {
+                abort(403, 'Perusahaan di luar scope akses Anda.');
+            }
+        }
+        if ($siteId !== null) {
+            $site = Site::find($siteId);
+            if ($site && $companies !== null && $site->company_id !== null && ! in_array($site->company_id, $companies)) {
+                abort(403, 'Site di luar scope akses Anda.');
+            }
+        }
+
+        return [$companyId, $siteId];
+    }
+
+    protected function scopedEquipment()
+    {
+        $query = Equipment::orderBy('code');
+        $companies = auth()->user()?->accessibleCompanyIds();
+        if ($companies !== null) {
+            $query->whereIn('company_id', $companies);
+        }
+
+        return $query->get();
+    }
+
     protected function kpiView(Request $request, string $view, string $title)
     {
         $from = $request->from ?? now()->startOfMonth()->toDateString();
         $to = $request->to ?? now()->toDateString();
-        $data = FleetService::fleetSummary(
-            $request->company_id ?: null,
-            $request->site_id ?: null,
-            $from, $to
-        );
+        [$companyId, $siteId] = $this->scopedFilters($request);
+        $data = FleetService::fleetSummary($companyId, $siteId, $from, $to);
+
         return view($view, $data + [
             'title' => $title,
             'from' => $from, 'to' => $to,
@@ -72,11 +128,12 @@ class FleetController extends Controller
 
     public function meters(Request $request)
     {
-        $logs = \App\Models\EquipmentMeterLog::with(['equipment', 'shift', 'operator'])
+        $logs = EquipmentMeterLog::with(['equipment', 'shift', 'operator'])
             ->when($request->equipment_id, fn ($q) => $q->where('equipment_id', $request->equipment_id))
             ->when($request->from, fn ($q) => $q->whereDate('log_date', '>=', $request->from))
             ->when($request->to, fn ($q) => $q->whereDate('log_date', '<=', $request->to))
             ->orderByDesc('log_date')->paginate(20)->withQueryString();
+
         return view('fleet.meters', [
             'logs' => $logs,
             'units' => Equipment::orderBy('code')->get(),
@@ -108,14 +165,16 @@ class FleetController extends Controller
         } catch (\DomainException $e) {
             return back()->withInput()->with('error', $e->getMessage());
         }
+
         return back()->with('success', 'HM/odometer tercatat.');
     }
 
     public function inspections(Request $request)
     {
-        $items = \App\Models\EquipmentInspection::with(['equipment', 'shift', 'inspector'])
+        $items = EquipmentInspection::with(['equipment', 'shift', 'inspector'])
             ->when($request->equipment_id, fn ($q) => $q->where('equipment_id', $request->equipment_id))
             ->orderByDesc('inspection_date')->paginate(20)->withQueryString();
+
         return view('fleet.inspections', [
             'items' => $items,
             'units' => Equipment::orderBy('code')->get(),
@@ -135,7 +194,8 @@ class FleetController extends Controller
         $this->ensureInScope(Equipment::find($validated['equipment_id']));
         $validated['checklist'] = $request->input('checklist', []);
         FleetService::recordInspection($validated);
-        return back()->with('success', 'Inspeksi tersimpan.' . ($validated['result'] === 'FAIL' ? ' Unit otomatis BREAKDOWN.' : ''));
+
+        return back()->with('success', 'Inspeksi tersimpan.'.($validated['result'] === 'FAIL' ? ' Unit otomatis BREAKDOWN.' : ''));
     }
 
     public function assignments(Request $request)
@@ -143,6 +203,7 @@ class FleetController extends Controller
         $items = EquipmentAssignment::with(['equipment', 'employee', 'site', 'shift'])
             ->when($request->date, fn ($q) => $q->whereDate('date', $request->date))
             ->orderByDesc('date')->paginate(20)->withQueryString();
+
         return view('fleet.assignments', [
             'items' => $items,
             'units' => Equipment::whereNotIn('status', ['RETIRED', 'DISPOSED'])->orderBy('code')->get(),
@@ -167,6 +228,7 @@ class FleetController extends Controller
         $this->ensureInScope(Equipment::find($validated['equipment_id']));
         EquipmentAssignment::create($validated + ['status' => 'ASSIGNED', 'created_by' => auth()->id()]);
         AuditService::created('FLEET', EquipmentAssignment::latest()->first());
+
         return back()->with('success', 'Assignment tersimpan.');
     }
 }

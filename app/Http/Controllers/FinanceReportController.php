@@ -2,34 +2,35 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AppliesDataScope;
 use App\Models\ChartOfAccount;
-use App\Models\JournalEntry;
-use App\Models\JournalLine;
 use App\Models\Invoice;
+use App\Models\JournalLine;
 use App\Models\VendorBill;
-use App\Models\TaxCode;
-use App\Models\TaxTransaction;
-use App\Services\AccountingService;
 use Illuminate\Http\Request;
 
 class FinanceReportController extends Controller
 {
+    use AppliesDataScope;
+
     public function trialBalance(Request $request)
     {
         $from = $request->from ?? now()->startOfYear()->toDateString();
         $to = $request->to ?? now()->toDateString();
 
-        $rows = \App\Models\JournalLine::query()
+        $rows = JournalLine::query()
             ->join('journal_entries', 'journal_entries.id', '=', 'journal_lines.journal_entry_id')
             ->join('chart_of_accounts', 'chart_of_accounts.id', '=', 'journal_lines.chart_of_account_id')
             ->where('journal_entries.status', 'POSTED')
             ->whereBetween('journal_entries.journal_date', [$from, $to])
-            ->selectRaw("chart_of_accounts.code, chart_of_accounts.name, chart_of_accounts.type,
+            ->selectRaw('chart_of_accounts.code, chart_of_accounts.name, chart_of_accounts.type,
                 COALESCE(SUM(journal_lines.debit),0) as debit,
-                COALESCE(SUM(journal_lines.credit),0) as credit")
+                COALESCE(SUM(journal_lines.credit),0) as credit')
             ->groupBy('chart_of_accounts.code', 'chart_of_accounts.name', 'chart_of_accounts.type')
-            ->orderBy('chart_of_accounts.code')
-            ->get();
+            ->orderBy('chart_of_accounts.code');
+
+        $this->scopeJournalJoin($rows);
+        $rows = $rows->get();
 
         $totalDebit = $rows->sum('debit');
         $totalCredit = $rows->sum('credit');
@@ -48,13 +49,15 @@ class FinanceReportController extends Controller
         $coa = $coaId ? ChartOfAccount::find($coaId) : null;
 
         if ($coaId) {
-            $lines = \App\Models\JournalLine::query()
+            $lines = JournalLine::query()
                 ->join('journal_entries', 'journal_entries.id', '=', 'journal_lines.journal_entry_id')
                 ->where('journal_entries.status', 'POSTED')
                 ->where('journal_lines.chart_of_account_id', $coaId)
                 ->whereBetween('journal_entries.journal_date', [$from, $to])
-                ->selectRaw("journal_entries.journal_date, journal_entries.number, journal_entries.memo, journal_lines.debit, journal_lines.credit")
-                ->orderBy('journal_entries.journal_date')->get();
+                ->selectRaw('journal_entries.journal_date, journal_entries.number, journal_entries.memo, journal_lines.debit, journal_lines.credit')
+                ->orderBy('journal_entries.journal_date');
+            $this->scopeJournalJoin($lines);
+            $lines = $lines->get();
             $running = 0;
             foreach ($lines as $l) {
                 $running += $l->debit - $l->credit;
@@ -107,8 +110,9 @@ class FinanceReportController extends Controller
     public function arAging(Request $request)
     {
         $invoices = Invoice::with('customer')
-            ->whereIn('status', ['POSTED', 'PARTIALLY_PAID'])
-            ->get();
+            ->whereIn('status', ['POSTED', 'PARTIALLY_PAID']);
+        $this->applyCompanyScope($invoices);
+        $invoices = $invoices->get();
 
         $buckets = [
             'current' => ['label' => 'Belum Jatuh Tempo', 'total' => 0, 'items' => collect()],
@@ -138,8 +142,9 @@ class FinanceReportController extends Controller
     public function apAging(Request $request)
     {
         $bills = VendorBill::with('supplier')
-            ->whereIn('status', ['POSTED', 'PARTIALLY_PAID'])
-            ->get();
+            ->whereIn('status', ['POSTED', 'PARTIALLY_PAID']);
+        $this->applyCompanyScope($bills);
+        $bills = $bills->get();
 
         $buckets = [
             'current' => ['label' => 'Belum Jatuh Tempo', 'total' => 0, 'items' => collect()],
@@ -168,7 +173,7 @@ class FinanceReportController extends Controller
 
     protected function typeBalances(string $type, ?string $from, string $to)
     {
-        $q = \App\Models\JournalLine::query()
+        $q = JournalLine::query()
             ->join('journal_entries', 'journal_entries.id', '=', 'journal_lines.journal_entry_id')
             ->join('chart_of_accounts', 'chart_of_accounts.id', '=', 'journal_lines.chart_of_account_id')
             ->where('journal_entries.status', 'POSTED')
@@ -178,12 +183,24 @@ class FinanceReportController extends Controller
         if ($from) {
             $q->whereDate('journal_entries.journal_date', '>=', $from);
         }
+        $this->scopeJournalJoin($q);
 
-        return $q->selectRaw("chart_of_accounts.code, chart_of_accounts.name,
+        return $q->selectRaw('chart_of_accounts.code, chart_of_accounts.name,
                 COALESCE(SUM(journal_lines.debit),0) as debit, COALESCE(SUM(journal_lines.credit),0) as credit,
-                COALESCE(SUM(journal_lines.debit),0) - COALESCE(SUM(journal_lines.credit),0) as balance")
+                COALESCE(SUM(journal_lines.debit),0) - COALESCE(SUM(journal_lines.credit),0) as balance')
             ->groupBy('chart_of_accounts.code', 'chart_of_accounts.name')
             ->orderBy('chart_of_accounts.code')
             ->get();
+    }
+
+    /**
+     * Data scope on joined journal queries (journal_entries.company_id).
+     */
+    protected function scopeJournalJoin($query): void
+    {
+        $companies = auth()->user()?->accessibleCompanyIds();
+        if ($companies !== null) {
+            $query->whereIn('journal_entries.company_id', $companies);
+        }
     }
 }

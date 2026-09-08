@@ -26,7 +26,11 @@ final class SparepartService
 
     public static function reserved(int $warehouseId, int $itemId): float
     {
-        return (float) StockReservation::where('warehouse_id', $warehouseId)->where('item_id', $itemId)->where('status', 'RESERVED')->sum(DB::raw('qty - issued_qty'));
+        // outstanding reservation = qty - issued (CASE for cross-DB support).
+        // Returned goods are already back in on_hand via the ledger — they are
+        // free stock again, so they must NOT be re-subtracted here.
+        return (float) StockReservation::where('warehouse_id', $warehouseId)->where('item_id', $itemId)->where('status', 'RESERVED')
+            ->sum(DB::raw('CASE WHEN issued_qty > qty THEN 0 ELSE qty - issued_qty END'));
     }
 
     public static function available(int $warehouseId, int $itemId): float
@@ -52,11 +56,15 @@ final class SparepartService
     }
 
     /**
-     * Concurrency-safe reservation (row lock on the reservation + balance check).
+     * Concurrency-safe reservation (row lock on the item + balance check inside lock).
+     * The availability check runs AFTER the lock so two concurrent reservations
+     * for different WOs can never both pass against the same stock.
      */
     public static function reserve(int $warehouseId, int $itemId, WorkOrder $wo, float $qty): StockReservation
     {
         return DB::transaction(function () use ($warehouseId, $itemId, $wo, $qty) {
+            Item::where('id', $itemId)->lockForUpdate()->first();
+
             $available = self::available($warehouseId, $itemId);
             if ($qty > $available + 0.0001) {
                 throw new \DomainException('Stok tersedia tidak cukup untuk reservasi.');
@@ -80,6 +88,33 @@ final class SparepartService
                 'status' => 'RESERVED',
             ]);
         });
+    }
+
+    /**
+     * Mark part of a reservation as issued. Tracks the immutable issue unit
+     * cost (current moving average at issue time) so returns can be valued
+     * at the original issue cost, never re-valued at today's average.
+     */
+    public static function markIssued(StockReservation $reservation, float $qty, float $unitCost): void
+    {
+        $reservation->increment('issued_qty', $qty);
+        if ($reservation->issued_unit_cost === null) {
+            $reservation->update(['issued_unit_cost' => $unitCost]);
+        }
+    }
+
+    /**
+     * Return issued qty back to stock at the ORIGINAL issue unit cost.
+     * consumed_qty = issued_qty - returned_qty (kept consistent here).
+     */
+    public static function returnIssued(StockReservation $reservation, float $qty): float
+    {
+        $unitCost = (float) ($reservation->issued_unit_cost ?? 0);
+        $reservation->increment('returned_qty', $qty);
+        $reservation->refresh();
+        $reservation->update(['consumed_qty' => max(0, (float) $reservation->issued_qty - (float) $reservation->returned_qty)]);
+
+        return $unitCost;
     }
 
     public static function recommendedQty(Item $item, float $available): float

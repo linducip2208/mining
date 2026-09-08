@@ -20,9 +20,11 @@
             <td class="px-4 py-2.5 text-xs">{{ $item->reason }}</td>
             <td class="px-4 py-2.5"><x-status-badge :status="$item->status" /></td>
             <td class="px-4 py-2.5 text-right">
-                @if ($item->status === 'DRAFT')
+                @if (in_array($item->status, ['DRAFT', 'SUBMITTED']))
                 <form action="{{ route('overtimes.approve', $item) }}" method="POST" class="inline">@csrf
                 <button class="text-xs text-green-600 hover:underline">Setujui</button></form>
+                <form action="{{ route('overtimes.reject', $item) }}" method="POST" class="inline ml-2">@csrf
+                <button class="text-xs text-red-600 hover:underline">Tolak</button></form>
                 @endif
             </td>
         </tr>

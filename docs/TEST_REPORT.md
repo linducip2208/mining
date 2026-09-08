@@ -1,54 +1,75 @@
 # Test Report — Mining ERP
 
-Tanggal: 2026-09-07 · Runner: `php artisan test` (PHPUnit 12, SQLite in-memory) + smoke HTTP + ledger check.
+Tanggal: 2026-09-08 · Runner: `php artisan test` (PHPUnit 12, SQLite in-memory).
 
 ## Ringkasan
 
 | Metrik | Hasil |
 |---|---|
-| Total tests | 255 |
-| Passed | 255 |
+| Total tests | 346 |
+| Passed | 346 |
 | Failed | 0 |
-| Assertions | 3250 |
+| Assertions | 3.573 |
+| `npm run build` | PASS |
+| `migrate:fresh --seed` | PASS |
+| `inventory:audit-integrity` | PASS (exit 0) |
+| `accounting:audit-integrity` | PASS (exit 0, 1 warn toleransi opening) |
+| `seo:audit` | PASS — indexable 1.000, orphan 0, broken link 0 |
 | Playwright responsive (17 halaman × 8 viewport) | 136/136 PASS |
 | Trial Balance (data demo) | BALANCED |
 | Stok negatif | 0 baris |
 
 ## Cakupan per File Test
 
-### CriticalFlowTest (16 test)
-Auth (login username, guest redirect), RBAC (403 tanpa permission, 200 dengan permission), privilege escalation (assign role butuh `role.update`, self-deactivate/self-elevate 403), accounting (unbalanced ditolak, posting, reversal, anti double-reverse), inventory (negative stock ditolak, in/out balance), numbering unik, deposit (in/use/refund/overdraft), weighbridge NET, unauthorized approver ditolak.
+### EndToEndTest (5) — mine-to-cash A–E
+TEST A raw→produksi→DO 495t→invoice→deposit→lunas; TEST B PO→GRN→bill→bayar (over-receipt & overpay ditolak); TEST C payroll kalkulasi→post→bayar (double-post ditolak); TEST D issue part→jurnal→double-issue ditolak; TEST E deposit in/use/refund/overdraft. Semua diverifikasi saldo stok, AR/AP 0, jurnal balance.
 
-### DataScopeTest (5 test)
-Filter site & company pada index, **IDOR 403 pada URL record langsung** (mining, SO), create lintas scope 403.
+### SalesCogsTest (4) — COGS/HPP
+avg_cost=0 + policy BLOCK → delivery ditolak; policy WARN → jalan + audit WARNING, tanpa jurnal nol; avg_cost>0 → Dr COGS = net × moving-avg (tepat 50.000); invoice idempoten per SO.
 
-### ApprovalEngineTest (5 test)
-Submit → assign approver, unauthorized ditolak, approve/reject menerapkan status, delegasi dapat bertindak.
+### PayrollOvertimeIntegrationTest (4) — anti double-count
+OVERTIME_REQUEST_ONLY mengabaikan attendance minutes; ATTENDANCE_ONLY sebaliknya; MERGED_NON_DUPLICATE memakai max per tanggal (bukan jumlah: 1h+3h = 3, bukan 4); lembur REJECTED tidak dibayar.
 
-### PasswordChangeTest (3 test)
-Ganti password OK, password lama salah ditolak, user LOCKED tidak bisa login.
+### PayrollAccountingTest (5) — split liability
+PPh21 → hutang PPh21; LOAN → LOAN_RECEIVABLE (tepat 1.000.000, PPh21 tidak tercemar); potongan lain → OTHER_PAYROLL_PAYABLE; jurnal tetap balance dengan potongan campuran; pay() melunasi SALARY_PAYABLE.
 
-### FlowIntegrationTest (7 test) — wiring antar modul
-GRN post → PO PARTIALLY_RECEIVED → COMPLETED; PR via Center → komitmen budget; overtime approve + index (relasi approver); SO submit → approve → reserve (reservasi tercatat); invoice create menawarkan SO COMPLETED tanpa faktur; jadwal → next_due + generate WO sekali; `Setting::get` tahan tanpa tabel.
+### SparepartWorkOrderEndToEndTest (3) — reserve→issue→return→consumed
+reserve menurunkan available; issue memirror issued_qty + jurnal Dr Maint Exp / Cr Inv 200.000; return pakai **harga issue asli** (50.000, bukan avg baru 75.000) + consumed_qty = issued − returned; over-issue ditolak; reservasi konkuren tidak bisa over-allocate.
 
-### PwaTest (4 test)
-Manifest valid + ikon default + display standalone saat enabled; halaman offline publik; service worker & ikon ada di disk.
+### ReceiptPaymentLinkTest (4) — receipt↔payment↔invoice
+kwitansi dari payment POSTED = evidence only (tanpa jurnal kedua); kwitansi ganda per payment ditolak; 1 payment → 2 alokasi invoice (total alokasi ≤ payment); invoice 2 pembayaran parsial → PAID, outstanding = total − alokasi, overpay ditolak.
 
-### SEO suite (25 test: 22 aspek + admin + helper coverage)
-Page/slug/canonical/metadata/schema/sitemap(+index)/quality/duplicate/internal-link/orphan/WhatsApp/price/feature-claim/location-claim/noindex/idempotency/limit/hash/robots/breadcrumb/responsive + admin dashboard/pages/publish-noindex-archive + error-page resilience (404/403 tanpa tabel settings).
+### ReceiptNumberConcurrencyTest (3) — penomoran kwitansi
+100 nomor → 100 unik, seq counter tepat 100, format token benar; reset bulanan kembali ke 000001 (nomor void tidak dipakai ulang); counter spesifik company menang atas counter global.
 
-### EndToEndTest (5 test) — §29 TEST A–E
-- **TEST A (Mine→Cash)**: raw 1000 → batch (800 in/650 net) → DO net 495 → invoice 109,89jt (deposit 50jt teralokasi + jurnal) → lunasi → PAID; verifikasi stok (200/155), revenue −99jt, AR 0, deposit 0, jurnal alokasi ada, balance global.
-- **TEST B (Procure→Pay)**: PO → GRN → stok 10 → **over-receipt via HTTP ditolak** → bill → jurnal 3 baris benar → bayar lunas → AP 0 → overpay ditolak → balance global.
-- **TEST C (Payroll→GL)**: kalkulasi (gross 19jt/potongan 500rb/neto 18,5jt) → post → jurnal benar → double-post ditolak → bayar → salary payable 0 → balance global.
-- **TEST D (Maintenance)**: issue part → stok 10→8 + cost 1jt + jurnal → issue ganda ditolak → balance global.
-- **TEST E (Deposit)**: in 5jt + jurnal → overdraft ditolak → pakai 2jt → refund 1jt → saldo 2jt → balance global.
+### ExcelImportTest (11) — native spreadsheet
+xlsx dibaca native (headers/rows benar); macro-enabled ditolak; multi-sheet pilih by name; auto-map alias (NO. SURAT → number, KODE BARANG → code); parser angka Indonesia (Rp 12.000.000 / 2.000 / 2,5 / (1.500)); tanggal + WARNING ambigu + serial Excel; file hash duplikat peringatan; row fingerprint lintas batch; dry-run tanpa write; OPENING_AR posting jurnal, REGISTER_ONLY tidak.
 
-## Verifikasi Manual Tambahan (dilaksanakan, bukan sekadar klaim)
+### LetterNumberConcurrencyTest
+Reservasi nomor surat konkuren (lock atomic) — 0 duplikat.
 
-- Smoke 39 endpoint via HTTP sebagai superadmin: semua 200.
-- Live IDOR: user sales → `/users` = 403; SO list 200 (scope-nya).
-- Approval E2E via browser: purchasing submit → site_mgr approve → PR APPROVED (sesi sebelumnya).
-- `php artisan alert:scan`: 15 stok kritis → notifikasi terkirim.
-- `npm run build`: sukses.
-- `migrate:fresh` + 7 seeder: sukses berurutan.
+### CriticalFlowTest (16), DataScopeTest (5), ApprovalEngineTest (5)
+Auth/RBAC/IDOR 403, unbalanced journal ditolak, reversal anti double, negative stock ditolak, numbering unik, deposit overdraft ditolak, unauthorized approver ditolak.
+
+### FlowIntegrationTest (7), ModuleFlowTest, ModuleIntegrationTest
+Wiring antar modul: GRN→PO rollup, PR→budget commit, SO submit→approve→reserve, invoice menawarkan SO completed tanpa faktur, schedule→WO generate sekali, HOLD QC memblokir DO.
+
+### Sparepart suite (11), Stock suite (4)
+Master/receipt/issue/return/reservation/low-stock/rekomendasi PR/permission/opname (COUNTING→REVIEW→posting jurnal selisih).
+
+### SEO suite (25) + admin
+Price Rp12 Juta konsisten, WhatsApp 6281296052010 ternormalisasi, orphan 0, canonical, noindex FAIL→demote, sitemap index, robots, breadcrumb, schema tanpa fake rating, idempotency generator, tier cap.
+
+### Payroll/PWA/Docs/Settings/Print suite
+Slip gaji, manifest PWA + ikon, docs routing/konteks, settings label manusia, print branding tanpa hardcode.
+
+## Verifikasi Manual Tambahan
+
+- `php artisan inventory:audit-integrity` → PASS (21 item, 6 gudang, 22 movement; stok negatif 0, yatim 0, duplikat 0, over-reserve 0)
+- `php artisan accounting:audit-integrity` → PASS (521 jurnal seimbang, AR match alokasi+deposit, AP match jurnal, payroll vs status match)
+- `php artisan inventory:reconcile-legacy` → 4 kombinasi item+gudang, variance terjelaskan (movement ERP setelah opening import)
+- `php artisan seo:audit` → PASS=469 WARNING=31 FAIL=0, broken internal links 0
+- `php artisan seo:sitemap` → 1.000 indexable urls di 5 child sitemap
+- `php artisan import:legacy --dry-run` → preview tanpa write
+- `npm run build` → sukses (Vite)
+- `php artisan migrate:status` → tanpa duplikasi, semua Ran

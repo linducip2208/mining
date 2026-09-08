@@ -33,7 +33,7 @@
     @if(request()->anyFilled(['industry', 'feature', 'location']))
     <h2 class="mt-8 text-xl font-bold">Hasil ({{ $results->count() }})</h2>
     @if($results->isEmpty())
-    <p class="mt-2 text-slate-500">Belum ada halaman untuk kombinasi ini. Coba filter lain atau <a href="https://wa.me/6281296052010" class="text-amber-600 font-semibold">tanya via WhatsApp</a>.</p>
+    <p class="mt-2 text-slate-500">Belum ada halaman untuk kombinasi ini. Coba filter lain atau <a href="{{ \App\Services\WhatsappService::link('Halo, saya mencari halaman ERP untuk kebutuhan spesifik.') }}" class="text-amber-600 font-semibold">tanya via WhatsApp</a>.</p>
     @else
     <ul class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         @foreach($results as $r)

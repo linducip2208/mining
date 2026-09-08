@@ -54,9 +54,23 @@ class OvertimeController extends Controller
         if ($overtime->status === 'APPROVED') {
             return back()->with('error', 'Lembur sudah disetujui.');
         }
+        if (! in_array($overtime->status, ['DRAFT', 'SUBMITTED'], true)) {
+            return back()->with('error', 'Hanya lembur DRAFT/SUBMITTED yang dapat disetujui.');
+        }
         $overtime->update(['status' => 'APPROVED', 'approved_by' => auth()->id()]);
         AuditService::log('APPROVE', 'HR', $overtime->id, Overtime::class);
 
         return back()->with('success', 'Lembur disetujui.');
+    }
+
+    public function reject(Overtime $overtime)
+    {
+        if (! in_array($overtime->status, ['DRAFT', 'SUBMITTED'], true)) {
+            return back()->with('error', 'Hanya lembur DRAFT/SUBMITTED yang dapat ditolak.');
+        }
+        $overtime->update(['status' => 'REJECTED']);
+        AuditService::log('REJECT', 'HR', $overtime->id, Overtime::class);
+
+        return back()->with('success', 'Lembur ditolak.');
     }
 }

@@ -196,4 +196,47 @@ final class SeoQualityService
                 });
         })->count();
     }
+
+    /**
+     * Broken internal link audit (PART 51): every href/route reference inside
+     * generated page content must resolve to a published SeoPage or a live
+     * named route. Returns list of [page_id, path, link, reason].
+     *
+     * @return array<int, array{page_id:int, path:string, link:string, reason:string}>
+     */
+    public static function brokenInternalLinks(): array
+    {
+        $knownPaths = SeoPage::query()
+            ->whereIn('status', ['PUBLISHED', 'NOINDEX'])
+            ->pluck('path')
+            ->flip();
+        $broken = [];
+
+        $pages = SeoPage::whereIn('status', ['PUBLISHED', 'NOINDEX'])
+            ->select('id', 'path', 'content')
+            ->get();
+        foreach ($pages as $page) {
+            $content = $page->content ?? [];
+            foreach (($content['related_links'] ?? []) as $link) {
+                $href = $link['path'] ?? $link['href'] ?? null;
+                if (! is_string($href) || $href === '') {
+                    continue;
+                }
+                $path = ltrim(parse_url($href, PHP_URL_PATH) ?? $href, '/');
+                if ($path === '' || $knownPaths->has($path)) {
+                    continue;
+                }
+                // allow named app routes (not pseo)
+                try {
+                    route($path);
+
+                    continue;
+                } catch (\Throwable) {
+                }
+                $broken[] = ['page_id' => $page->id, 'path' => $page->path, 'link' => $href, 'reason' => 'target bukan halaman PSEO terpublikasi atau route yang valid'];
+            }
+        }
+
+        return $broken;
+    }
 }

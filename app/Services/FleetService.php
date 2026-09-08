@@ -4,9 +4,14 @@ namespace App\Services;
 
 use App\Models\Downtime;
 use App\Models\Equipment;
+use App\Models\EquipmentAssignment;
 use App\Models\EquipmentInspection;
 use App\Models\EquipmentMeterLog;
+use App\Models\FuelIssue;
 use App\Models\MaintenanceCost;
+use App\Models\MiningActivity;
+use App\Models\WorkOrder;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -20,7 +25,8 @@ class FleetService
 {
     public static function calendarHours(string $from, string $to): float
     {
-        $days = (int) (\Carbon\Carbon::parse($from)->diffInDays(\Carbon\Carbon::parse($to)) + 1);
+        $days = (int) (Carbon::parse($from)->diffInDays(Carbon::parse($to)) + 1);
+
         return max($days, 0) * 24;
     }
 
@@ -29,10 +35,10 @@ class FleetService
         $calendar = self::calendarHours($from, $to);
 
         $downtime = (float) Downtime::where('equipment_id', $equipmentId)
-            ->whereBetween('start_time', [$from . ' 00:00:00', $to . ' 23:59:59'])
+            ->whereBetween('start_time', [$from.' 00:00:00', $to.' 23:59:59'])
             ->sum('hours');
 
-        $breakdown = (float) \App\Models\WorkOrder::where('equipment_id', $equipmentId)
+        $breakdown = (float) WorkOrder::where('equipment_id', $equipmentId)
             ->where('type', 'BREAKDOWN')
             ->whereBetween('date', [$from, $to])
             ->sum('downtime_hours');
@@ -44,7 +50,7 @@ class FleetService
 
         $operating = (float) ($meters->op ?? 0);
         if ($operating <= 0) {
-            $operating = (float) \App\Models\EquipmentAssignment::where('equipment_id', $equipmentId)
+            $operating = (float) EquipmentAssignment::where('equipment_id', $equipmentId)
                 ->whereBetween('date', [$from, $to])
                 ->sum('working_hours');
         }
@@ -52,7 +58,7 @@ class FleetService
         $available = max($calendar - $downtime, 0);
 
         // costs
-        $fuelCost = (float) \App\Models\FuelIssue::where('equipment_id', $equipmentId)
+        $fuelCost = (float) FuelIssue::where('equipment_id', $equipmentId)
             ->whereBetween('issue_date', [$from, $to])
             ->sum('total_cost');
         $maintCost = (float) MaintenanceCost::whereHas('workOrder', fn ($q) => $q->where('equipment_id', $equipmentId))
@@ -85,11 +91,76 @@ class FleetService
     public static function depreciationForPeriod(int $equipmentId, string $from, string $to): float
     {
         $eq = Equipment::find($equipmentId);
-        if (!$eq || (float) $eq->purchase_cost <= 0 || (int) $eq->useful_life_years <= 0) {
+        if (! $eq || (float) $eq->purchase_cost <= 0 || (int) $eq->useful_life_years <= 0) {
             return 0;
         }
-        $days = (int) (\Carbon\Carbon::parse($from)->diffInDays(\Carbon\Carbon::parse($to)) + 1);
+        $days = (int) (Carbon::parse($from)->diffInDays(Carbon::parse($to)) + 1);
+
         return round((float) $eq->purchase_cost / ((int) $eq->useful_life_years * 365) * $days, 2);
+    }
+
+    /**
+     * PART 13 — unified lifetime (all-time) cost summary for one equipment.
+     * Components: fuel, sparepart, maintenance labor, external service,
+     * other, depreciation (accumulated). KPIs: Cost/HM, Cost/KM, Cost/Ton —
+     * null (shown as N/A) when the denominator is unavailable, never 0.
+     */
+    public static function lifetimeCost(int $equipmentId): array
+    {
+        $eq = Equipment::find($equipmentId);
+
+        $fuelCost = (float) FuelIssue::where('equipment_id', $equipmentId)->sum('total_cost');
+
+        // WO costs: sparepart parts + LABOR + EXTERNAL + OTHER cost rows
+        $woIds = WorkOrder::where('equipment_id', $equipmentId)->pluck('id');
+        $costByType = MaintenanceCost::whereIn('work_order_id', $woIds)
+            ->selectRaw('cost_type, COALESCE(SUM(amount),0) total')
+            ->groupBy('cost_type')
+            ->pluck('total', 'cost_type');
+        $sparepartCost = (float) ($costByType['PART'] ?? 0);
+        $laborCost = (float) ($costByType['LABOR'] ?? 0);
+        $externalCost = (float) ($costByType['EXTERNAL'] ?? 0) + (float) ($costByType['SERVICE'] ?? 0);
+        $otherCost = (float) $costByType->except(['PART', 'LABOR', 'EXTERNAL', 'SERVICE'])->sum();
+
+        // depreciation: straight-line pro-rata from unit creation to today, capped at purchase cost
+        $depr = 0.0;
+        if ($eq && (float) $eq->purchase_cost > 0 && (int) $eq->useful_life_years > 0) {
+            $days = (int) $eq->created_at?->diffInDays(now());
+            $depr = min((float) $eq->purchase_cost, round((float) $eq->purchase_cost / ((int) $eq->useful_life_years * 365) * $days, 2));
+        }
+
+        $totalCost = $fuelCost + $sparepartCost + $laborCost + $externalCost + $otherCost + $depr;
+
+        // lifetime HM/KM from meter logs (max ever reached)
+        $hm = (float) EquipmentMeterLog::where('equipment_id', $equipmentId)->max('hm_end');
+        $km = (float) EquipmentMeterLog::where('equipment_id', $equipmentId)->max('km_end');
+        if ($hm <= 0) {
+            $hm = (float) $eq?->meter_reading;
+        }
+        if ($km <= 0) {
+            $km = (float) $eq?->odometer_km;
+        }
+
+        // lifetime tonnage: production batches tied to this equipment
+        $ton = (float) MiningActivity::where('equipment_id', $equipmentId)
+            ->whereIn('status', ['APPROVED', 'POSTED'])
+            ->sum('tonnage');
+
+        return [
+            'fuel_cost' => round($fuelCost, 2),
+            'sparepart_cost' => round($sparepartCost, 2),
+            'labor_cost' => round($laborCost, 2),
+            'external_cost' => round($externalCost, 2),
+            'other_cost' => round($otherCost, 2),
+            'depreciation' => round($depr, 2),
+            'total_cost' => round($totalCost, 2),
+            'lifetime_hm' => round($hm, 2),
+            'lifetime_km' => round($km, 2),
+            'lifetime_ton' => round($ton, 2),
+            'cost_per_hm' => $hm > 0 ? round($totalCost / $hm, 2) : null,
+            'cost_per_km' => $km > 0 ? round($totalCost / $km, 2) : null,
+            'cost_per_ton' => $ton > 0 ? round($totalCost / $ton, 2) : null,
+        ];
     }
 
     public static function fleetSummary(?int $companyId, ?int $siteId, string $from, string $to): array
@@ -154,6 +225,7 @@ class FleetService
             }
 
             AuditService::created('FLEET', $log);
+
             return $log;
         });
     }
@@ -175,13 +247,14 @@ class FleetService
             // FAIL inspection forces BREAKDOWN status + downtime start
             if (($data['result'] ?? 'PASS') === 'FAIL') {
                 $eq = Equipment::find($data['equipment_id']);
-                if ($eq && !in_array($eq->status, ['BREAKDOWN', 'RETIRED', 'DISPOSED'])) {
+                if ($eq && ! in_array($eq->status, ['BREAKDOWN', 'RETIRED', 'DISPOSED'])) {
                     $eq->status = 'BREAKDOWN';
                     $eq->save();
                 }
             }
 
             AuditService::created('FLEET', $inspection);
+
             return $inspection;
         });
     }

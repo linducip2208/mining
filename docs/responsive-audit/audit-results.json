@@ -1,8 +1,8 @@
 {
-  "generated": "2026-09-07T13:19:26.837Z",
-  "base": "http://127.0.0.1:8000",
+  "generated": "2026-09-08T06:31:38.508Z",
+  "base": "http://miningerp.test",
   "fails": 0,
-  "total": 200,
+  "total": 208,
   "matrix": {
     "login": {
       "mobile-360": "PASS",
@@ -235,6 +235,16 @@
       "desktop-1920": "PASS"
     },
     "sparepart-card": {
+      "mobile-360": "PASS",
+      "mobile-390": "PASS",
+      "mobile-430": "PASS",
+      "tablet-768": "PASS",
+      "tablet-1024": "PASS",
+      "laptop-1366": "PASS",
+      "desktop-1440": "PASS",
+      "desktop-1920": "PASS"
+    },
+    "fleet-lifetime-cost": {
       "mobile-360": "PASS",
       "mobile-390": "PASS",
       "mobile-430": "PASS",

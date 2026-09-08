@@ -204,6 +204,7 @@ Route::middleware(['auth', 'feature.flags'])->group(function () {
     Route::resource('overtimes', OvertimeController::class)->middleware('permission:overtime.view');
     Route::post('leaves/{leave}/approve', [LeaveController::class, 'approve'])->name('leaves.approve')->middleware('permission:leave.approve');
     Route::post('overtimes/{overtime}/approve', [OvertimeController::class, 'approve'])->name('overtimes.approve')->middleware('permission:overtime.approve');
+    Route::post('overtimes/{overtime}/reject', [OvertimeController::class, 'reject'])->name('overtimes.reject')->middleware('permission:overtime.approve');
     Route::resource('payroll-runs', PayrollViewController::class)->middleware('permission:payroll.view');
     Route::post('payroll-runs/{payroll_run}/calculate', [PayrollViewController::class, 'calculate'])->name('payroll.calculate')->middleware('permission:payroll.update');
     Route::post('payroll-runs/{payroll_run}/approve', [PayrollViewController::class, 'approve'])->name('payroll.approve')->middleware('permission:payroll.approve');
@@ -354,6 +355,7 @@ Route::middleware(['auth', 'feature.flags'])->group(function () {
     Route::get('fleet/utilization', [FleetController::class, 'utilization'])->name('fleet.utilization')->middleware('permission:fleet.view');
     Route::get('fleet/downtime', [FleetController::class, 'downtime'])->name('fleet.downtime')->middleware('permission:fleet.view');
     Route::get('fleet/cost', [FleetController::class, 'cost'])->name('fleet.cost')->middleware('permission:fleet.view');
+    Route::get('fleet/lifetime-cost', [FleetController::class, 'lifetimeCost'])->name('fleet.lifetime-cost')->middleware('permission:fleet.view');
     Route::get('fleet/meters', [FleetController::class, 'meters'])->name('fleet.meters')->middleware('permission:fleet.view');
     Route::post('fleet/meters', [FleetController::class, 'storeMeter'])->name('fleet.meters.store')->middleware('permission:fleet.create');
     Route::get('fleet/inspections', [FleetController::class, 'inspections'])->name('fleet.inspections')->middleware('permission:fleet.view');
@@ -546,6 +548,8 @@ Route::middleware(['auth', 'feature.flags'])->group(function () {
     // ===== TOOLS: LEGACY IMPORT =====
     Route::get('imports', [ImportController::class, 'index'])->name('imports.index')->middleware('permission:legacy_import.review');
     Route::post('imports', [ImportController::class, 'upload'])->name('imports.upload')->middleware('permission:legacy_import.execute');
+    Route::get('imports/{batch}/sheet', [ImportController::class, 'sheet'])->name('imports.sheet')->middleware('permission:legacy_import.review');
+    Route::post('imports/{batch}/sheet', [ImportController::class, 'selectSheet'])->name('imports.sheet.select')->middleware('permission:legacy_import.review');
     Route::get('imports/{batch}/map', [ImportController::class, 'map'])->name('imports.map')->middleware('permission:legacy_import.review');
     Route::post('imports/{batch}/map', [ImportController::class, 'validateMap'])->name('imports.validate')->middleware('permission:legacy_import.review');
     Route::post('imports/{batch}/execute', [ImportController::class, 'execute'])->name('imports.execute')->middleware('permission:legacy_import.execute');
