@@ -8,7 +8,6 @@ use App\Models\ComplianceRegister;
 use App\Models\Employee;
 use App\Models\Equipment;
 use App\Models\Site;
-use App\Services\AuditService;
 use App\Services\ComplianceService;
 use Illuminate\Http\Request;
 
@@ -25,6 +24,7 @@ class ComplianceController extends Controller
         $this->applyCompanyScope($items);
         $this->applySiteScope($items);
         $items = $items->orderBy('expiry_date')->paginate(20)->withQueryString();
+
         return view('compliance.index', [
             'items' => $items,
             'types' => ['PERMIT' => 'Izin', 'LICENSE' => 'Lisensi', 'EMP_CERT' => 'Sertifikasi Karyawan', 'EQUIP_CERT' => 'Sertifikasi Alat', 'ENVIRONMENT' => 'Lingkungan', 'CONTRACT' => 'Kontrak', 'OTHER' => 'Lainnya'],
@@ -60,6 +60,7 @@ class ComplianceController extends Controller
             'expiry_date' => 'nullable|date',
             'responsible_id' => 'nullable|exists:employees,id',
             'notes' => 'nullable|max:2000',
+            'attachment' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png|max:10240',
         ]);
         $this->ensureCompanyInScope($validated['company_id'] ?? null);
         $this->ensureSiteInScope($validated['site_id'] ?? null);
@@ -67,7 +68,8 @@ class ComplianceController extends Controller
             $validated['attachment'] = $request->file('attachment')->store('compliance', 'private');
         }
         $reg = ComplianceService::register($validated);
-        return redirect()->route('compliance.index')->with('success', 'Register tersimpan: ' . $reg->number);
+
+        return redirect()->route('compliance.index')->with('success', 'Register tersimpan: '.$reg->number);
     }
 
     public function show(ComplianceRegister $compliance)
@@ -77,7 +79,7 @@ class ComplianceController extends Controller
 
     public function renew(Request $request, ComplianceRegister $compliance)
     {
-        if (!auth()->user()->hasPermission('compliance.update')) {
+        if (! auth()->user()->hasPermission('compliance.update')) {
             abort(403);
         }
         $validated = $request->validate([
@@ -89,7 +91,8 @@ class ComplianceController extends Controller
         } catch (\DomainException $e) {
             return back()->with('error', $e->getMessage());
         }
-        return back()->with('success', 'Diperpanjang hingga ' . $validated['expiry_date'] . '.');
+
+        return back()->with('success', 'Diperpanjang hingga '.$validated['expiry_date'].'.');
     }
 
     public function calendar(Request $request)
@@ -99,6 +102,7 @@ class ComplianceController extends Controller
         $rows = ComplianceService::calendar($from, $to,
             $request->company_id ? (int) $request->company_id : null,
             $request->site_id ? (int) $request->site_id : null);
+
         return view('compliance.calendar', [
             'rows' => $rows, 'from' => $from, 'to' => $to,
             'companies' => Company::pluck('name', 'id')->all(),

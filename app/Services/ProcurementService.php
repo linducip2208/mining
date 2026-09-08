@@ -6,6 +6,7 @@ use App\Models\CashAccount;
 use App\Models\ChartOfAccount;
 use App\Models\GoodsReceipt;
 use App\Models\GoodsReceiptItem;
+use App\Models\PurchaseOrder;
 use App\Models\VendorBill;
 use Illuminate\Support\Facades\DB;
 
@@ -17,8 +18,12 @@ class ProcurementService
     public static function postGoodsReceipt(GoodsReceipt $gr): void
     {
         DB::transaction(function () use ($gr) {
+            $gr = GoodsReceipt::lockForUpdate()->find($gr->id);
             if ($gr->status === 'POSTED') {
                 throw new \DomainException('GRN sudah diposting.');
+            }
+            if ($gr->status === 'CANCELLED') {
+                throw new \DomainException('GRN sudah dibatalkan.');
             }
             $po = $gr->purchaseOrder;
             if (! in_array($po->status, ['APPROVED', 'SUBMITTED', 'PARTIALLY_RECEIVED'])) {
@@ -72,8 +77,24 @@ class ProcurementService
     public static function postVendorBill(VendorBill $bill): void
     {
         DB::transaction(function () use ($bill) {
+            $bill = VendorBill::lockForUpdate()->find($bill->id);
             if ($bill->status === 'POSTED') {
                 throw new \DomainException('Tagihan sudah diposting.');
+            }
+            if ($bill->status === 'CANCELLED') {
+                throw new \DomainException('Tagihan sudah dibatalkan.');
+            }
+
+            // cumulative over-billing: total seluruh tagihan PO (non-cancelled)
+            // tidak boleh melebihi subtotal PO — bukan hanya tagihan ini saja
+            if ($bill->purchase_order_id) {
+                $poSubtotal = (float) PurchaseOrder::where('id', $bill->purchase_order_id)->value('subtotal');
+                $billed = (float) VendorBill::where('purchase_order_id', $bill->purchase_order_id)
+                    ->whereNotIn('status', ['CANCELLED'])
+                    ->sum('subtotal');
+                if ($billed > $poSubtotal + 0.01) {
+                    throw new \DomainException('Total tagihan PO (Rp '.number_format($billed, 0, ',', '.').') melebihi subtotal PO (Rp '.number_format($poSubtotal, 0, ',', '.').') — over-billing ditolak.');
+                }
             }
 
             $lines = [];
@@ -138,6 +159,11 @@ class ProcurementService
     public static function payVendorBill(VendorBill $bill, float $amount, $date, ?int $cashAccountId, ?string $referenceNo = null): void
     {
         DB::transaction(function () use ($bill, $amount, $date, $cashAccountId) {
+            $bill = VendorBill::lockForUpdate()->find($bill->id);
+            // hanya tagihan yang benar-benar membentuk hutang (POSTED) yang boleh dibayar
+            if (! in_array($bill->status, ['POSTED', 'PARTIALLY_PAID'])) {
+                throw new \DomainException('Hanya tagihan POSTED / PARTIALLY_PAID yang dapat dibayar (status saat ini: '.$bill->status.').');
+            }
             $outstanding = (float) $bill->total - (float) $bill->paid_amount;
             if ($amount > $outstanding + 0.001) {
                 throw new \DomainException('Pembayaran melebihi outstanding tagihan.');

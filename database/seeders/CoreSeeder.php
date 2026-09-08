@@ -155,6 +155,7 @@ class CoreSeeder extends Seeder
         ['printer.manage', 'Printer & Perangkat - Kelola', 'printer', 'manage'],
         ['printer.test', 'Printer & Perangkat - Test Print', 'printer', 'test'],
         ['document.reprint', 'Dokumen - Cetak Ulang', 'document', 'reprint'],
+        ['document.download', 'Dokumen - Unduh Lampiran', 'document', 'export'],
         ['weighbridge.reprint', 'Timbangan - Cetak Ulang', 'weighbridge', 'reprint'],
         ['user.activate', 'Pengguna - Aktivasi', 'user', 'activate'],
         ['user.deactivate', 'Pengguna - Nonaktif', 'user', 'activate'],

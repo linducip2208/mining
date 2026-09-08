@@ -1,15 +1,12 @@
 <?php
 
 namespace App\Http\Controllers;
-use App\Http\Controllers\Concerns\AppliesDataScope;
 
-use App\Models\Company;
-use App\Models\CsrActivity;
-use App\Models\CsrProgram;
-use App\Models\Document;
+use App\Http\Controllers\Concerns\AppliesDataScope;
 use App\Models\Division;
+use App\Models\Document;
+use App\Models\DocumentDownload;
 use App\Services\AuditService;
-use App\Services\NumberingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -25,6 +22,10 @@ class DocumentController extends Controller
             ->when($request->status, fn ($q) => $q->where('status', $request->status))
             ->when($request->q, fn ($q) => $q->where('subject', 'like', "%{$request->q}%")->orWhere('number', 'like', "%{$request->q}%"))
             ->when($request->expiring, fn ($q) => $q->whereNotNull('expiry_date')->whereDate('expiry_date', '<=', now()->addDays(30)))
+            ->when(! is_null($companies = auth()->user()?->accessibleCompanyIds()), fn ($q) => $q->whereIn('company_id', $companies))
+            ->when(! is_null($divisions = auth()->user()?->accessibleDivisionIds()), fn ($q) => $q->where(function ($w) use ($divisions) {
+                $w->whereIn('division_id', $divisions)->orWhereNull('division_id');
+            }))
             ->orderByDesc('date')->paginate(20)->withQueryString();
 
         return view('documents.index', [
@@ -50,10 +51,10 @@ class DocumentController extends Controller
         $this->ensureCompanyInScope($validated['company_id'] ?? null);
 
         $document = DB::transaction(function () use ($validated, $request) {
-            $division = isset($validated['division_id']) ? \App\Models\Division::find($validated['division_id']) : null;
+            $division = isset($validated['division_id']) ? Division::find($validated['division_id']) : null;
             $divisionCode = strtoupper(substr($division?->code ?? 'GEN', 0, 4));
             $seq = $this->nextLetterSeq($divisionCode);
-            $romanMonth = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'][now()->month - 1];
+            $romanMonth = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'][now()->month - 1];
             $validated['number'] = sprintf('%03d/%s/%s/%d', $seq, $divisionCode, $romanMonth, now()->year);
 
             if ($request->hasFile('file')) {
@@ -64,11 +65,13 @@ class DocumentController extends Controller
                 $validated['file_size'] = $file->getSize();
             }
             $validated['created_by'] = auth()->id();
+
             return Document::create($validated);
         });
 
         AuditService::created('DOCUMENT', $document);
-        return redirect()->route('documents.index')->with('success', 'Dokumen tersimpan: ' . $document->number);
+
+        return redirect()->route('documents.index')->with('success', 'Dokumen tersimpan: '.$document->number);
     }
 
     public function show(Document $document)
@@ -85,13 +88,15 @@ class DocumentController extends Controller
     {
         $document->update(['status' => 'APPROVED', 'approved_by' => auth()->id()]);
         AuditService::log('APPROVE', 'DOCUMENT', $document->id, Document::class);
+
         return back()->with('success', 'Dokumen disetujui.');
     }
 
     public function download(Document $document)
     {
-        \App\Models\DocumentDownload::create(['document_id' => $document->id, 'user_id' => auth()->id()]);
+        DocumentDownload::create(['document_id' => $document->id, 'user_id' => auth()->id()]);
         AuditService::log('EXPORT', 'DOCUMENT', $document->id, Document::class, null, ['download' => $document->file_name]);
+
         return Storage::disk('private')->download($document->file_path, $document->file_name);
     }
 
@@ -103,13 +108,16 @@ class DocumentController extends Controller
                 ->where('year', now()->year)
                 ->lockForUpdate()
                 ->first();
-            if (!$row) {
+            if (! $row) {
                 DB::table('letter_sequences')->insert(['division_code' => $divisionCode, 'year' => now()->year, 'last_seq' => 1, 'created_at' => now(), 'updated_at' => now()]);
+
                 return 1;
             }
             DB::table('letter_sequences')->where('id', $row->id)->update(['last_seq' => $row->last_seq + 1, 'updated_at' => now()]);
+
             return $row->last_seq + 1;
         });
+
         return $seq;
     }
 
@@ -129,6 +137,7 @@ class DocumentController extends Controller
         if ($request->hasFile('file')) {
             $rules['file'] = 'file|max:10240|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png';
         }
+
         return $request->validate($rules);
     }
 }

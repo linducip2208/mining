@@ -45,6 +45,22 @@ final class WhatsappService
     }
 
     /**
+     * Human-readable display number, e.g. "0812-9605-2010", from the
+     * configured marketing number (settings-driven, never hardcoded in views).
+     */
+    public static function displayNumber(): string
+    {
+        $digits = self::number();
+        if (str_starts_with($digits, '62') && strlen($digits) >= 11) {
+            $local = '0'.substr($digits, 2);
+
+            return substr($local, 0, 4).'-'.substr($local, 4, 4).'-'.substr($local, 8);
+        }
+
+        return $digits;
+    }
+
+    /**
      * @param  array{source?:string, page?:string, cluster?:string, intent?:string}  $attribution
      */
     public static function link(string $message, array $attribution = []): string

@@ -1,5 +1,5 @@
 {{-- Hero: H1 unik + subheadline + harga + CTA. --}}
-@props(['page', 'hero'])
+@props(['page', 'hero', 'content' => []])
 <section class="bg-[#0f172a] text-white overflow-hidden">
     <div class="max-w-6xl mx-auto px-4 pt-12 pb-10 md:pt-16 md:pb-14 grid gap-8 md:grid-cols-[1.4fr_1fr] items-center">
         <div class="min-w-0">
@@ -11,7 +11,7 @@
                 <x-marketing.whatsapp-cta :page="$page" label="Tanya Source Code ERP Mining" position="hero" type="whatsapp" />
                 <a href="/cari-solusi" class="inline-flex items-center justify-center min-h-[48px] px-6 rounded-xl border border-white/25 text-white font-semibold hover:bg-white/10">Minta Demo</a>
             </div>
-            <p class="mt-3 text-xs text-slate-400">Respons jam kerja · WhatsApp 0812-9605-2010</p>
+            <p class="mt-3 text-xs text-slate-400">Respons jam kerja · WhatsApp {{ \App\Services\WhatsappService::displayNumber() }}</p>
         </div>
         <div class="hidden md:block">
             <div class="rounded-2xl bg-white/5 border border-white/10 p-6">

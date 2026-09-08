@@ -4,12 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Company;
 use App\Models\Item;
-use App\Models\Site;
-use App\Models\Warehouse;
-use App\Models\StockLedger;
 use App\Models\StockTransfer;
-use App\Models\StockAdjustment;
+use App\Models\Warehouse;
 use App\Services\AuditService;
+use App\Services\NumberingService;
 use App\Services\StockService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +18,9 @@ class StockTransferController extends Controller
     {
         $items = StockTransfer::with(['fromWarehouse', 'toWarehouse', 'items'])
             ->when($request->status, fn ($q) => $q->where('status', $request->status))
+            ->when(! is_null($companies = auth()->user()?->accessibleCompanyIds()), fn ($q) => $q->whereIn('company_id', $companies))
             ->orderByDesc('id')->paginate(20)->withQueryString();
+
         return view('stock.transfer.index', ['items' => $items, 'transfer' => null, 'statuses' => ['DRAFT', 'SUBMITTED', 'APPROVED', 'POSTED', 'CANCELLED']]);
     }
 
@@ -47,7 +47,7 @@ class StockTransferController extends Controller
 
         $transfer = DB::transaction(function () use ($validated) {
             $transfer = StockTransfer::create([
-                'number' => \App\Services\NumberingService::generate('TRF'),
+                'number' => NumberingService::generate('TRF'),
                 'company_id' => auth()->user()->accessibleCompanyIds()[0] ?? Company::value('id'),
                 'from_warehouse_id' => $validated['from_warehouse_id'],
                 'to_warehouse_id' => $validated['to_warehouse_id'],
@@ -59,10 +59,12 @@ class StockTransferController extends Controller
             foreach ($validated['lines'] as $line) {
                 $transfer->items()->create(['item_id' => $line['item_id'], 'qty' => $line['qty']]);
             }
+
             return $transfer;
         });
 
         AuditService::created('STOCK', $transfer);
+
         return redirect()->route('stock-transfers.index')->with('success', 'Transfer dibuat.');
     }
 
@@ -73,7 +75,7 @@ class StockTransferController extends Controller
 
     public function post(StockTransfer $stock_transfer)
     {
-        if (!in_array($stock_transfer->status, ['DRAFT', 'APPROVED'])) {
+        if (! in_array($stock_transfer->status, ['DRAFT', 'APPROVED'])) {
             return back()->with('error', 'Status tidak dapat diposting.');
         }
 
@@ -90,6 +92,7 @@ class StockTransferController extends Controller
         }
 
         AuditService::log('POST', 'STOCK', $stock_transfer->id, StockTransfer::class, null, ['number' => $stock_transfer->number]);
+
         return back()->with('success', 'Transfer diposting.');
     }
 }

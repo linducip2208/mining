@@ -11,8 +11,10 @@ use App\Models\HseCorrectiveAction;
 use App\Models\HsePermit;
 use App\Models\HseReport;
 use App\Models\Site;
+use App\Services\ApprovalService;
 use App\Services\AuditService;
 use App\Services\HseService;
+use App\Services\NumberingService;
 use Illuminate\Http\Request;
 
 class HseController extends Controller
@@ -28,6 +30,7 @@ class HseController extends Controller
             $request->site_id ? (int) $request->site_id : null,
             $from, $to
         );
+
         return view('hse.dashboard', $data + [
             'from' => $from, 'to' => $to,
             'companies' => Company::pluck('name', 'id')->all(),
@@ -41,8 +44,9 @@ class HseController extends Controller
             ->when($request->kind, fn ($q) => $q->where('kind', $request->kind))
             ->when($request->status, fn ($q) => $q->where('status', $request->status))
             ->when($request->site_id, fn ($q) => $q->where('site_id', $request->site_id))
-            ->when(!is_null($sites = auth()->user()?->accessibleSiteIds()), fn ($w) => $w->whereIn('site_id', $sites))
+            ->when(! is_null($sites = auth()->user()?->accessibleSiteIds()), fn ($w) => $w->whereIn('site_id', $sites))
             ->orderByDesc('occurred_at')->paginate(20)->withQueryString();
+
         return view('hse.reports.index', [
             'items' => $items,
             'kinds' => ['INCIDENT' => 'Insiden', 'NEAR_MISS' => 'Near Miss', 'HAZARD' => 'Laporan Bahaya'],
@@ -79,6 +83,8 @@ class HseController extends Controller
             'immediate_action' => 'nullable|max:5000',
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
+            'photo' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf|max:5120',
+            'evidence_file' => 'nullable|file|mimes:pdf,doc,docx,xlsx,jpg,jpeg,png|max:10240',
         ]);
         $this->ensureCompanyInScope($validated['company_id'] ?? null);
         $this->ensureSiteInScope($validated['site_id'] ?? null);
@@ -86,7 +92,8 @@ class HseController extends Controller
             $validated['photo'] = $request->file('photo')->store('hse', 'private');
         }
         $report = HseService::report($validated);
-        return redirect()->route('hse.reports.show', $report)->with('success', 'Laporan tersimpan: ' . $report->number);
+
+        return redirect()->route('hse.reports.show', $report)->with('success', 'Laporan tersimpan: '.$report->number);
     }
 
     public function showReport(HseReport $hse_report)
@@ -109,12 +116,13 @@ class HseController extends Controller
         } catch (\DomainException $e) {
             return back()->with('error', $e->getMessage());
         }
+
         return back()->with('success', 'Corrective action ditambahkan.');
     }
 
     public function investigate(Request $request, HseReport $hse_report)
     {
-        if (!auth()->user()->hasPermission('hse.update')) {
+        if (! auth()->user()->hasPermission('hse.update')) {
             abort(403);
         }
         $validated = $request->validate([
@@ -126,12 +134,13 @@ class HseController extends Controller
         } catch (\DomainException $e) {
             return back()->with('error', $e->getMessage());
         }
+
         return back()->with('success', 'Investigasi tersimpan — root cause tercatat.');
     }
 
     public function verifyAction(HseCorrectiveAction $action)
     {
-        if (!auth()->user()->hasPermission('hse.close')) {
+        if (! auth()->user()->hasPermission('hse.close')) {
             abort(403);
         }
         try {
@@ -139,16 +148,18 @@ class HseController extends Controller
         } catch (\DomainException $e) {
             return back()->with('error', $e->getMessage());
         }
+
         return back()->with('success', 'Action terverifikasi.');
     }
 
-    public function closeAction(Request $request, \App\Models\HseCorrectiveAction $action)
+    public function closeAction(Request $request, HseCorrectiveAction $action)
     {
-        if (!auth()->user()->hasPermission('hse.close') && !auth()->user()->hasPermission('hse.update')) {
+        if (! auth()->user()->hasPermission('hse.close') && ! auth()->user()->hasPermission('hse.update')) {
             abort(403);
         }
         $validated = $request->validate([
             'evidence' => 'required|max:5000',
+            'evidence_file' => 'nullable|file|mimes:pdf,doc,docx,xlsx,jpg,jpeg,png|max:10240',
         ]);
         $file = $request->hasFile('evidence_file') ? $request->file('evidence_file')->store('hse', 'private') : null;
         try {
@@ -156,6 +167,7 @@ class HseController extends Controller
         } catch (\DomainException $e) {
             return back()->with('error', $e->getMessage());
         }
+
         return back()->with('success', 'Action ditutup dengan evidence.');
     }
 
@@ -164,7 +176,8 @@ class HseController extends Controller
         if (in_array($hse_report->status, ['CLOSED', 'CANCELLED'])) {
             return back()->with('error', 'Status tidak valid.');
         }
-        \App\Services\ApprovalService::submit('HSE', 'HSE_CLOSE', $hse_report);
+        ApprovalService::submit('HSE', 'HSE_CLOSE', $hse_report);
+
         return back()->with('success', $hse_report->fresh()->status === 'SUBMITTED'
             ? 'Penutupan kasus diajukan ke approval center.'
             : 'Kasus ditutup.');
@@ -177,6 +190,7 @@ class HseController extends Controller
         $this->applyCompanyScope($items);
         $this->applySiteScope($items);
         $items = $items->orderByDesc('valid_from')->paginate(20)->withQueryString();
+
         return view('hse.permits.index', [
             'items' => $items,
             'statuses' => ['DRAFT', 'APPROVED', 'ACTIVE', 'EXPIRED', 'CLOSED', 'REJECTED'],
@@ -202,12 +216,13 @@ class HseController extends Controller
         ]);
         $this->ensureCompanyInScope($validated['company_id'] ?? null);
         $permit = HsePermit::create($validated + [
-            'number' => \App\Services\NumberingService::generate('PTW'),
+            'number' => NumberingService::generate('PTW'),
             'status' => 'DRAFT',
             'created_by' => auth()->id(),
         ]);
         AuditService::created('HSE', $permit);
-        return back()->with('success', 'Permit dibuat: ' . $permit->number);
+
+        return back()->with('success', 'Permit dibuat: '.$permit->number);
     }
 
     public function approvePermit(HsePermit $permit)
@@ -215,7 +230,8 @@ class HseController extends Controller
         if ($permit->status !== 'DRAFT') {
             return back()->with('error', 'Status tidak valid.');
         }
-        \App\Services\ApprovalService::submit('HSE', 'HSE_PERMIT', $permit);
+        ApprovalService::submit('HSE', 'HSE_PERMIT', $permit);
+
         return back()->with('success', $permit->fresh()->status === 'SUBMITTED'
             ? 'Permit diajukan ke approval center.'
             : 'Permit disetujui.');
@@ -228,6 +244,7 @@ class HseController extends Controller
         $this->applyCompanyScope($items);
         $this->applySiteScope($items);
         $items = $items->orderByDesc('activity_date')->paginate(20)->withQueryString();
+
         return view('hse.activities.index', [
             'items' => $items,
             'kinds' => ['INSPECTION' => 'Inspeksi', 'TOOLBOX' => 'Toolbox Meeting', 'TRAINING' => 'Training', 'PPE_CHECK' => 'Cek APD'],
@@ -250,6 +267,7 @@ class HseController extends Controller
         $this->ensureCompanyInScope($validated['company_id'] ?? null);
         $activity = HseActivity::create($validated + ['created_by' => auth()->id()]);
         AuditService::created('HSE', $activity);
+
         return back()->with('success', 'Kegiatan tercatat.');
     }
 }

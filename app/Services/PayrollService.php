@@ -217,6 +217,7 @@ class PayrollService
     public static function post(PayrollRun $run): void
     {
         DB::transaction(function () use ($run) {
+            $run = PayrollRun::lockForUpdate()->find($run->id);
             if ($run->status !== 'APPROVED') {
                 throw new \DomainException('Payroll harus APPROVED sebelum posting.');
             }
@@ -283,6 +284,7 @@ class PayrollService
     public static function pay(PayrollRun $run, ?int $cashAccountId): void
     {
         DB::transaction(function () use ($run, $cashAccountId) {
+            $run = PayrollRun::lockForUpdate()->find($run->id);
             if ($run->status !== 'POSTED') {
                 throw new \DomainException('Payroll belum diposting.');
             }

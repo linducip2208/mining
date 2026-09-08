@@ -6,10 +6,10 @@ Tanggal: 2026-09-08 · Runner: `php artisan test` (PHPUnit 12, SQLite in-memory)
 
 | Metrik | Hasil |
 |---|---|
-| Total tests | 346 |
-| Passed | 346 |
+| Total tests | 424 |
+| Passed | 424 |
 | Failed | 0 |
-| Assertions | 3.573 |
+| Assertions | 3.742 |
 | `npm run build` | PASS |
 | `migrate:fresh --seed` | PASS |
 | `inventory:audit-integrity` | PASS (exit 0) |
@@ -73,3 +73,21 @@ Slip gaji, manifest PWA + ikon, docs routing/konteks, settings label manusia, pr
 - `php artisan import:legacy --dry-run` → preview tanpa write
 - `npm run build` → sukses (Vite)
 - `php artisan migrate:status` → tanpa duplikasi, semua Ran
+
+
+## Sesi hardening ASTRA (2026-09-08)
+
+69 test baru, semua PASS:
+
+- FuelLifecycleTest (6): receipt/journal, negative-tank block, issue LPH+cost, double-post, CRITICAL anomaly + notifikasi, transfer antar tangki
+- TireLifecycleTest (7): install/remove/rotate/repair + slot & double-mount guards
+- BudgetControlTest (7): block/warn enforce, override permission, commitment, actuals dari jurnal
+- HseWorkflowTest (11): lifecycle report->action->verify->close, notifikasi severity, permit expiry
+- PaymentAllocationTest (7): FIFO lintas invoice, partial, overpay ditolak, jurnal balanced
+- DepositLedgerTest (7): signed walk, adjustment +/-, material-credit terpisah, no-trace on failure
+- StockIntegrityTest (9): ticket sekali pakai, reservasi enforced, company-match, dispatch guards
+- ProcurementGuardTest (4): cumulative over-bill, pay-only-posted, unique supplier invoice
+- ProductionYieldTest (4): yield mustahil ditolak, posting stok+jurnal, double-post
+- WeighbridgeGuardTest (5): override POSTED/zero-net ditolak, before-after audit, post net>0
+- SparepartReturnReversalTest (2): reversal jurnal + WO cost turun, issue ke WO closed ditolak
+

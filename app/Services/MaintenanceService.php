@@ -92,6 +92,9 @@ class MaintenanceService
                 throw new \DomainException('Sparepart sudah diterbitkan.');
             }
             $wo = $part->workOrder;
+            if (in_array($wo->status, ['COMPLETED', 'CLOSED', 'CANCELLED'])) {
+                throw new \DomainException('Work order sudah '.$wo->status.' — sparepart tidak dapat diterbitkan.');
+            }
             $warehouseId = $part->warehouse_id;
             if (! $warehouseId) {
                 throw new \DomainException('Warehouse sparepart belum ditentukan.');
@@ -149,5 +152,29 @@ class MaintenanceService
 
             AuditService::log('UPDATE', 'MAINTENANCE', $wo->id, WorkOrder::class, null, ['part_issued' => $part->item_id, 'qty' => $part->qty]);
         });
+    }
+
+    /**
+     * Reverse the maintenance journal when issued parts are returned.
+     * Dr Inventory Sparepart / Cr Maintenance Expense at the ORIGINAL issue cost.
+     */
+    public static function reversePartJournal(int $workOrderId, float $amount, string $workOrderNumber): void
+    {
+        if ($amount <= 0) {
+            return;
+        }
+        AccountingService::post(
+            WorkOrder::find($workOrderId)->company_id,
+            now()->toDateString(),
+            [
+                ['code' => AccountingService::map('INVENTORY_SPAREPART'), 'debit' => $amount, 'memo' => 'Retur sparepart WO '.$workOrderNumber],
+                ['code' => AccountingService::map('MAINTENANCE_EXPENSE'), 'credit' => $amount, 'memo' => 'Retur sparepart WO '.$workOrderNumber],
+            ],
+            'MAINTENANCE_PART_RETURN',
+            $workOrderId,
+            $workOrderNumber,
+            'Reversal beban sparepart WO '.$workOrderNumber,
+            'MNT'
+        );
     }
 }

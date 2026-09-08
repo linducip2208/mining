@@ -16,7 +16,7 @@
     </ol>
 </nav>
 
-<x-marketing.hero :page="$page" :hero="$content['hero']" />
+<x-marketing.hero :page="$page" :hero="$content['hero']" :content="$content" />
 <x-marketing.problem-solution :problems="$content['problems']" :solution="$content['solution']" />
 <x-marketing.workflow :steps="$content['workflow']" />
 <x-marketing.feature-grid :features="$content['features']" />

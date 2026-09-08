@@ -6,6 +6,7 @@ use App\Models\Item;
 use App\Models\Setting;
 use App\Models\StockLedger;
 use App\Models\StockReservation;
+use App\Models\Warehouse;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -33,9 +34,21 @@ class StockService
     ): StockLedger {
         return DB::transaction(function () use ($warehouseId, $itemId, $movementType, $qtyIn, $qtyOut, $companyId, $siteId, $refId, $refType, $refNumber, $unitCost, $trxDate, $notes) {
             $item = Item::lockForUpdate()->find($itemId);
-            if (!$item) {
+            if (! $item) {
                 throw new \InvalidArgumentException('Item tidak ditemukan.');
             }
+
+            $warehouse = Warehouse::find($warehouseId);
+            if (! $warehouse) {
+                throw new \InvalidArgumentException('Gudang tidak ditemukan.');
+            }
+            if ($companyId && (int) $warehouse->company_id !== (int) $companyId) {
+                throw new \InvalidArgumentException('Gudang tidak termasuk dalam perusahaan tersebut.');
+            }
+            if ($siteId && $warehouse->site_id && (int) $warehouse->site_id !== (int) $siteId) {
+                throw new \InvalidArgumentException('Gudang tidak termasuk dalam situs tersebut.');
+            }
+            $companyId = $companyId ?? $warehouse->company_id;
 
             if ($qtyOut > 0) {
                 $available = self::balance($warehouseId, $itemId);
@@ -43,18 +56,24 @@ class StockService
                     ->where('item_id', $itemId)
                     ->where('status', 'RESERVED')
                     ->sum('qty');
-                if (!$companyId) {
-                    $companyId = StockLedger::where('warehouse_id', $warehouseId)->value('company_id');
-                }
 
-                if ($available - $qtyOut < -0.0001) {
-                    if (!filter_var(Setting::get(self::NEGATIVE_ALLOWED_SETTING, 'false'), FILTER_VALIDATE_BOOL)) {
-                        throw new \DomainException("Stok tidak cukup untuk {$item->code} - {$item->name}. Tersedia: {$available}, Diminta: {$qtyOut}.");
+                // stock reserved for other documents is protected: this move may
+                // only consume the unreserved portion of the balance
+                $freeStock = $available - max(0, $reserved - self::reservedFor($warehouseId, $itemId, $refType, $refId));
+                if ($freeStock - $qtyOut < -0.0001) {
+                    if (! filter_var(Setting::get(self::NEGATIVE_ALLOWED_SETTING, 'false'), FILTER_VALIDATE_BOOL)) {
+                        throw new \DomainException("Stok tidak cukup untuk {$item->code} - {$item->name}. Tersedia: {$available}, Terpesan: {$reserved}, Diminta: {$qtyOut}.");
                     }
                 }
             }
 
             if ($unitCost === null && $qtyIn > 0) {
+                $unitCost = $item->avg_cost ?: $item->standard_cost;
+            }
+            // cost-basis snapshot on OUT: every outbound row carries the
+            // moving-average value at move time (COGS / production input /
+            // maintenance cost all read from this snapshot, never prices later)
+            if ($unitCost === null && $qtyOut > 0) {
                 $unitCost = $item->avg_cost ?: $item->standard_cost;
             }
 
@@ -107,22 +126,44 @@ class StockService
             ->value('bal');
     }
 
+    /**
+     * Qty reserved by the reference document itself — it does not compete
+     * with other consumers (a DO consuming its own reservation is expected).
+     */
+    protected static function reservedFor(int $warehouseId, int $itemId, ?string $refType, $refId): float
+    {
+        if (! $refType || ! $refId) {
+            return 0;
+        }
+
+        return (float) StockReservation::where('warehouse_id', $warehouseId)
+            ->where('item_id', $itemId)
+            ->where('status', 'RESERVED')
+            ->where('ref_type', $refType)
+            ->where('ref_id', $refId)
+            ->sum('qty');
+    }
+
     public static function reserve(int $warehouseId, int $itemId, string $refType, $refId, ?string $refNumber, float $qty): StockReservation
     {
-        $available = self::balance($warehouseId, $itemId)
-            - StockReservation::where('warehouse_id', $warehouseId)->where('item_id', $itemId)->where('status', 'RESERVED')->sum('qty');
-        if ($qty > $available + 0.0001) {
-            throw new \DomainException('Stok tersedia tidak cukup untuk reservasi.');
-        }
-        return StockReservation::create([
-            'warehouse_id' => $warehouseId,
-            'item_id' => $itemId,
-            'ref_type' => $refType,
-            'ref_id' => $refId,
-            'ref_number' => $refNumber,
-            'qty' => $qty,
-            'status' => 'RESERVED',
-        ]);
+        return DB::transaction(function () use ($warehouseId, $itemId, $refType, $refId, $refNumber, $qty) {
+            StockReservation::where('warehouse_id', $warehouseId)->where('item_id', $itemId)->where('status', 'RESERVED')->lockForUpdate()->get();
+            $available = self::balance($warehouseId, $itemId)
+                - StockReservation::where('warehouse_id', $warehouseId)->where('item_id', $itemId)->where('status', 'RESERVED')->sum('qty');
+            if ($qty > $available + 0.0001) {
+                throw new \DomainException('Stok tersedia tidak cukup untuk reservasi.');
+            }
+
+            return StockReservation::create([
+                'warehouse_id' => $warehouseId,
+                'item_id' => $itemId,
+                'ref_type' => $refType,
+                'ref_id' => $refId,
+                'ref_number' => $refNumber,
+                'qty' => $qty,
+                'status' => 'RESERVED',
+            ]);
+        });
     }
 
     public static function releaseReservations(string $refType, $refId): void

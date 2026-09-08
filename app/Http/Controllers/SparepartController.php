@@ -7,6 +7,7 @@ use App\Http\Controllers\Concerns\ExportsCsv;
 use App\Models\Equipment;
 use App\Models\Item;
 use App\Models\ItemCategory;
+use App\Models\MaintenanceCost;
 use App\Models\MaintenancePart;
 use App\Models\PurchaseRequest;
 use App\Models\SparepartCompatibility;
@@ -313,22 +314,25 @@ class SparepartController extends Controller
         $wh = Warehouse::findOrFail($res->warehouse_id);
 
         try {
+            $returnQty = (float) $validated['qty'];
             // Return must be valued at the ORIGINAL issue unit cost snapshot —
             // never re-valued at today's moving average.
-            $unitCost = SparepartService::returnIssued($res, (float) $validated['qty']);
+            $unitCost = SparepartService::returnIssued($res, $returnQty);
             if ($unitCost <= 0) {
                 $unitCost = (float) (StockLedger::where('warehouse_id', $res->warehouse_id)->where('item_id', $res->item_id)
                     ->whereIn('movement_type', ['MAINTENANCE_USAGE', 'SPAREPART_OUT'])
                     ->where('ref_id', $res->ref_id)->where('ref_type', $res->ref_type)
                     ->orderByDesc('id')->value('unit_cost') ?? 0);
             }
-            StockService::move($res->warehouse_id, $res->item_id, 'RETURN', (float) $validated['qty'], 0, $wh->company_id, null, $res->id, 'SPAREPART_RETURN', $res->ref_number, $unitCost);
+            StockService::move($res->warehouse_id, $res->item_id, 'RETURN', $returnQty, 0, $wh->company_id, null, $res->id, 'SPAREPART_RETURN', $res->ref_number, $unitCost);
+            $returnCost = round($unitCost * $returnQty, 2);
         } catch (\DomainException $e) {
             return back()->with('error', $e->getMessage());
         }
 
         // mirror return onto the WO parts (consumed = issued - returned)
-        $remaining = (float) $validated['qty'];
+        $remaining = $returnQty;
+        $reversedCost = 0.0;
         foreach (MaintenancePart::where('work_order_id', $res->ref_id)->where('item_id', $res->item_id)->where('issue_status', 'ISSUED')->orderBy('id')->get() as $part) {
             $open = (float) $part->qty - (float) $part->returned_qty;
             if ($open <= 0) {
@@ -339,8 +343,30 @@ class SparepartController extends Controller
             $part->consumed_qty = max(0, (float) $part->qty - (float) $part->returned_qty);
             $part->save();
             $remaining -= $take;
+            $reversedCost += round((float) $part->unit_cost * $take, 2);
             if ($remaining <= 0.0001) {
                 break;
+            }
+        }
+
+        // reverse the maintenance journal for the returned value so GL expense
+        // matches consumed = issued - returned
+        if ($reversedCost > 0 && $res->ref_type === 'WORK_ORDER') {
+            try {
+                MaintenanceService::reversePartJournal((int) $res->ref_id, $reversedCost, (string) $res->ref_number);
+                MaintenanceCost::create([
+                    'work_order_id' => $res->ref_id,
+                    'cost_type' => 'PART_RETURN',
+                    'amount' => -$reversedCost,
+                    'notes' => 'Retur sparepart ke gudang',
+                ]);
+                $wo = WorkOrder::find($res->ref_id);
+                if ($wo) {
+                    $wo->actual_cost = (float) $wo->costs()->sum('amount');
+                    $wo->save();
+                }
+            } catch (\DomainException|\InvalidArgumentException $e) {
+                return back()->with('warning', 'Return stok tercatat, namun reversal jurnal gagal: '.$e->getMessage());
             }
         }
 

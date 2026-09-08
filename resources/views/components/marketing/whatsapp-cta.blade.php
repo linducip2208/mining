@@ -13,7 +13,7 @@
 @endphp
 <a href="{{ $href }}" target="_blank" rel="noopener"
     data-cta-position="{{ $position }}" data-cta-type="{{ $type }}" data-cta-page="{{ $page?->id }}"
-    aria-label="{{ $label }} via WhatsApp 0812-9605-2010"
+    aria-label="{{ $label }} via WhatsApp {{ WhatsappService::displayNumber() }}"
     @class([
         'inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-semibold transition-colors',
         'min-h-[44px] px-4 text-sm' => $compact,

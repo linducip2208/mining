@@ -4,21 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Models\ApprovalRequest;
 use App\Models\CustomerDeposit;
+use App\Models\Employee;
+use App\Models\FuelIssue;
 use App\Models\Invoice;
 use App\Models\Item;
-use App\Models\StockLedger;
-use App\Models\StockReservation;
-use App\Models\MiningActivity;
-use App\Models\PurchaseRequest;
-use App\Models\ProductionBatch;
-use App\Models\SalesOrder;
-use App\Models\WeighbridgeTicket;
-use App\Models\WorkOrder;
 use App\Models\JournalEntry;
-use App\Models\Employee;
-use App\Models\VendorBill;
+use App\Models\MiningActivity;
 use App\Models\PriceVariance;
+use App\Models\ProductionBatch;
+use App\Models\StockpileSurvey;
+use App\Models\WorkOrder;
 use App\Services\AccountingService;
+use App\Services\FleetService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -119,8 +116,35 @@ class DashboardController extends Controller
 
         $variances = PriceVariance::where('approval_status', 'PENDING')->latest()->limit(5)->get();
 
-        $fuel = \App\Models\FuelIssue::where('status', 'POSTED')->whereBetween('issue_date', [$from, $to])->when($siteId, fn ($q) => $q->where('site_id', $siteId))->selectRaw('COALESCE(SUM(liter),0) liter')->first();
-        $fleet = \App\Services\FleetService::fleetSummary(null, $siteId, $from, $to);
+        $fuel = FuelIssue::where('status', 'POSTED')->whereBetween('issue_date', [$from, $to])->when($siteId, fn ($q) => $q->where('site_id', $siteId))->selectRaw('COALESCE(SUM(liter),0) liter')->first();
+        $fuelTrend = FuelIssue::selectRaw('DATE(issue_date) d, COALESCE(SUM(liter),0) t')
+            ->where('status', 'POSTED')
+            ->whereDate('issue_date', '>=', today()->subDays(13))
+            ->when($siteId, fn ($q) => $q->where('site_id', $siteId))
+            ->groupBy('d')->orderBy('d')->get();
+        $fleet = FleetService::fleetSummary(null, $siteId, $from, $to);
+
+        // riil: efisiensi BBM = liter per ton produksi (bukan angka statis)
+        $produksiUntukFuel = (float) MiningActivity::whereBetween('date', [$from, $to])
+            ->when($siteId, fn ($q) => $q->where('site_id', $siteId))
+            ->whereIn('status', ['APPROVED', 'POSTED'])->sum('tonnage');
+        $fuelPerTon = $produksiUntukFuel > 0 ? round((float) $fuel->liter / $produksiUntukFuel, 3) : null;
+
+        // riil: variansi stockpile dari survei terakhir yang menunggu investigasi
+        $latestSurvey = StockpileSurvey::whereIn('status', ['INVESTIGATE', 'PENDING', 'APPROVED'])
+            ->when($siteId, fn ($q) => $q->whereHas('stockpile', fn ($w) => $w->where('site_id', $siteId)))
+            ->orderByDesc('survey_date')->first();
+        $stockpileVariancePct = $latestSurvey ? (float) $latestSurvey->variance_pct : null;
+
+        // riil: tren produksi vs periode sebelumnya (14 hari vs 14 hari sebelumnya)
+        $prevProdTrend = (float) MiningActivity::selectRaw('COALESCE(SUM(tonnage),0) t')
+            ->whereBetween('date', [today()->subDays(27), today()->subDays(14)])
+            ->when($siteId, fn ($q) => $q->where('site_id', $siteId))
+            ->when($pitId, fn ($q) => $q->where('pit_id', $pitId))
+            ->whereIn('status', ['APPROVED', 'POSTED'])->value('t');
+        $prodTrendPct = $prevProdTrend > 0
+            ? round((((float) $prodTrend->sum('t') - $prevProdTrend) / $prevProdTrend) * 100, 1)
+            : null;
 
         return view('dashboard', compact(
             'produksiHariIni', 'produksiBulanIni', 'outputCrusher', 'tonnagePerSite',
@@ -130,7 +154,8 @@ class DashboardController extends Controller
             'employeeActive', 'hadir',
             'woOpen', 'downtime',
             'pendingApprovals',
-            'prodTrend', 'salesTrend', 'revExpTrend', 'variances', 'fuel', 'fleet'
+            'prodTrend', 'salesTrend', 'revExpTrend', 'variances', 'fuel', 'fleet', 'fuelTrend',
+            'fuelPerTon', 'stockpileVariancePct', 'prodTrendPct'
         ));
     }
 }

@@ -1,10 +1,9 @@
 <?php
 
 namespace App\Http\Controllers;
-use App\Http\Controllers\Concerns\AppliesDataScope;
 
+use App\Http\Controllers\Concerns\AppliesDataScope;
 use App\Models\CashAccount;
-use App\Models\Company;
 use App\Models\Customer;
 use App\Models\CustomerDeposit;
 use App\Services\AuditService;
@@ -47,7 +46,7 @@ class CustomerDepositController extends Controller
         ]);
 
         $this->ensureCompanyInScope($validated['company_id'] ?? null);
-        $this->ensureInScope(\App\Models\Customer::find($validated['customer_id']));
+        $this->ensureInScope(Customer::find($validated['customer_id']));
 
         try {
             $deposit = DepositService::depositIn(
@@ -64,7 +63,8 @@ class CustomerDepositController extends Controller
         }
 
         AuditService::created('FINANCE', $deposit);
-        return back()->with('success', 'Deposit diterima: Rp ' . number_format($validated['amount'], 0, ',', '.'));
+
+        return back()->with('success', 'Deposit diterima: Rp '.number_format($validated['amount'], 0, ',', '.'));
     }
 
     public function refund(Request $request)
@@ -78,7 +78,7 @@ class CustomerDepositController extends Controller
         ]);
 
         $this->ensureCompanyInScope($validated['company_id'] ?? null);
-        $this->ensureInScope(\App\Models\Customer::find($validated['customer_id']));
+        $this->ensureInScope(Customer::find($validated['customer_id']));
 
         try {
             DepositService::refund(
@@ -87,7 +87,7 @@ class CustomerDepositController extends Controller
                 (float) $validated['amount'],
                 $validated['deposit_date'],
                 (int) $validated['cash_account_id'],
-                'REFUND-' . now()->format('YmdHis')
+                'REFUND-'.now()->format('YmdHis')
             );
         } catch (\DomainException $e) {
             return back()->with('error', $e->getMessage());
@@ -98,7 +98,11 @@ class CustomerDepositController extends Controller
 
     public function statement(Customer $customer)
     {
-        $ledger = CustomerDeposit::where('customer_id', $customer->id)->orderBy('deposit_date')->orderBy('id')->get();
+        $this->ensureInScope($customer);
+
+        $ledger = CustomerDeposit::where('customer_id', $customer->id)
+            ->when(! is_null($companies = auth()->user()?->accessibleCompanyIds()), fn ($q) => $q->whereIn('company_id', $companies))
+            ->orderBy('deposit_date')->orderBy('id')->get();
         $balance = DepositService::balance($customer->id);
 
         return view('sales.deposit.statement', [

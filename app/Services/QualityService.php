@@ -4,10 +4,13 @@ namespace App\Services;
 
 use App\Models\CoaDocument;
 use App\Models\DeliveryOrder;
+use App\Models\MiningActivity;
+use App\Models\ProductionBatch;
 use App\Models\ProductSpecification;
 use App\Models\QcSample;
 use App\Models\QcTest;
 use App\Models\QualityHold;
+use App\Models\Stockpile;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -30,6 +33,7 @@ class QualityService
             ->where(function ($q) use ($date) {
                 $q->whereNull('expiry_date')->orWhereDate('expiry_date', '>=', $date);
             });
+
         return (clone $base)->where('customer_id', $customerId)->first()
             ?? (clone $base)->whereNull('customer_id')->where('site_id', $siteId)->first()
             ?? (clone $base)->whereNull('customer_id')->whereNull('site_id')->first();
@@ -49,7 +53,24 @@ class QualityService
             'created_by' => auth()->id() ?? 1,
         ]);
         AuditService::created('QUALITY', $sample);
+
         return $sample;
+    }
+
+    /**
+     * Resolve the site of the sampled source so site-specific specs apply.
+     */
+    protected static function siteFromSource(QcSample $sample): ?int
+    {
+        $source = match ($sample->source_type) {
+            'PRODUCTION_BATCH' => ProductionBatch::find($sample->source_id),
+            'STOCKPILE' => Stockpile::find($sample->source_id),
+            'DELIVERY_ORDER' => DeliveryOrder::find($sample->source_id),
+            'MINING_ACTIVITY' => MiningActivity::find($sample->source_id),
+            default => null,
+        };
+
+        return $source?->site_id;
     }
 
     /**
@@ -60,7 +81,7 @@ class QualityService
         return DB::transaction(function () use ($sampleId, $parameterId, $value, $notes) {
             $sample = QcSample::with('tests')->findOrFail($sampleId);
             $spec = $sample->item_id
-                ? self::applicableSpec($sample->item_id, $sample->customer_id, null, $sample->sample_date->toDateString())
+                ? self::applicableSpec($sample->item_id, $sample->customer_id, self::siteFromSource($sample), $sample->sample_date->toDateString())
                 : null;
             $line = $spec?->lines->firstWhere('quality_parameter_id', $parameterId);
 
@@ -89,7 +110,7 @@ class QualityService
                     'item_id' => $sample->item_id,
                     'customer_id' => $sample->customer_id,
                     'qc_sample_id' => $sample->id,
-                    'reason' => 'Uji gagal: parameter #' . $parameterId . ' = ' . $value,
+                    'reason' => 'Uji gagal: parameter #'.$parameterId.' = '.$value,
                     'status' => 'HOLD',
                     'created_by' => auth()->id() ?? 1,
                 ]);
@@ -101,6 +122,7 @@ class QualityService
             }
 
             AuditService::log('UPDATE', 'QUALITY', $sample->id, QcSample::class, null, ['test' => $parameterId, 'result' => $result]);
+
             return $test;
         });
     }
@@ -112,6 +134,7 @@ class QualityService
     {
         $so = $do->salesOrder;
         $itemIds = $do->items->pluck('item_id')->all();
+
         return QualityHold::where('status', 'HOLD')
             ->whereNull('special_approval_by')
             ->where(function ($q) use ($do, $so, $itemIds) {
@@ -132,7 +155,7 @@ class QualityService
     {
         $holds = self::blockingHolds($do);
         if ($holds->isNotEmpty()) {
-            throw new \DomainException('Delivery ditahan QC (' . $holds->pluck('number')->implode(', ') . '). Release hold atau minta special approval.');
+            throw new \DomainException('Delivery ditahan QC ('.$holds->pluck('number')->implode(', ').'). Release hold atau minta special approval.');
         }
     }
 
@@ -149,6 +172,7 @@ class QualityService
             'created_by' => auth()->id() ?? 1,
         ]);
         AuditService::created('QUALITY', $hold);
+
         return $hold;
     }
 
@@ -181,7 +205,7 @@ class QualityService
     {
         $sample = QcSample::with('tests.parameter')->findOrFail($sampleId);
         if ($sample->status !== 'PASS') {
-            throw new \DomainException('CoA hanya dapat diterbitkan untuk sampel PASS (status: ' . $sample->status . ').');
+            throw new \DomainException('CoA hanya dapat diterbitkan untuk sampel PASS (status: '.$sample->status.').');
         }
         if ($sample->tests->isEmpty() || $sample->tests->contains(fn ($t) => $t->result !== 'PASS')) {
             throw new \DomainException('CoA ditolak: masih ada hasil uji yang belum PASS.');
@@ -206,6 +230,7 @@ class QualityService
             'created_by' => auth()->id() ?? 1,
         ]);
         AuditService::created('QUALITY', $coa);
+
         return $coa;
     }
 }

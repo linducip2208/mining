@@ -14,7 +14,6 @@ use App\Models\Pit;
 use App\Models\Shift;
 use App\Models\Site;
 use App\Models\WeighbridgeTicket;
-use App\Services\AuditService;
 use App\Services\DispatchService;
 use Illuminate\Http\Request;
 
@@ -27,6 +26,9 @@ class DispatchController extends Controller
         $date = $request->date ?? today()->toDateString();
         $siteId = $request->integer('site_id') ?: null;
         $shiftId = $request->integer('shift_id') ?: null;
+        if ($siteId) {
+            $this->ensureSiteInScope($siteId);
+        }
 
         $summary = $siteId
             ? DispatchService::shiftSummary($siteId, $date, $shiftId)
@@ -34,6 +36,7 @@ class DispatchController extends Controller
 
         $active = DispatchTrip::with(['truck', 'driver', 'loader', 'loadingPoint', 'dumpingPoint'])
             ->when($siteId, fn ($q) => $q->where('site_id', $siteId))
+            ->when(is_null($siteId) && ! is_null($sites = auth()->user()?->accessibleSiteIds()), fn ($w) => $w->whereIn('site_id', $sites))
             ->whereDate('trip_date', $date)
             ->whereNotIn('status', ['COMPLETED', 'CANCELLED'])
             ->orderBy('start_time')->get();
@@ -53,8 +56,9 @@ class DispatchController extends Controller
             ->when($request->status, fn ($q) => $q->where('status', $request->status))
             ->when($request->site_id, fn ($q) => $q->where('site_id', $request->site_id))
             ->when($request->date, fn ($q) => $q->whereDate('trip_date', $request->date))
-            ->when(!is_null($sites = auth()->user()?->accessibleSiteIds()), fn ($w) => $w->whereIn('site_id', $sites))
+            ->when(! is_null($sites = auth()->user()?->accessibleSiteIds()), fn ($w) => $w->whereIn('site_id', $sites))
             ->orderByDesc('trip_date')->orderByDesc('id')->paginate(20)->withQueryString();
+
         return view('dispatch.trips.index', [
             'items' => $items,
             'statuses' => ['PLANNED', 'LOADING', 'HAULING', 'DUMPED', 'COMPLETED', 'CANCELLED'],
@@ -98,48 +102,58 @@ class DispatchController extends Controller
         $this->ensureCompanyInScope($validated['company_id'] ?? null);
         $this->ensureSiteInScope($validated['site_id'] ?? null);
         $trip = DispatchService::assign($validated);
-        return redirect()->route('dispatch.trips.show', $trip)->with('success', 'Trip dibuat: ' . $trip->number);
+
+        return redirect()->route('dispatch.trips.show', $trip)->with('success', 'Trip dibuat: '.$trip->number);
     }
 
     public function show(DispatchTrip $dispatch_trip)
     {
+        $this->ensureSiteInScope($dispatch_trip->site_id);
+
         return view('dispatch.trips.show', [
             'trip' => $dispatch_trip->load(['truck', 'driver', 'loader', 'shift', 'pit', 'loadingPoint', 'dumpingPoint', 'route', 'ticket']),
             'tickets' => WeighbridgeTicket::whereIn('status', ['COMPLETE', 'VALIDATED'])
+                ->when(! is_null($sites = auth()->user()?->accessibleSiteIds()), fn ($w) => $w->whereIn('site_id', $sites))
                 ->orderByDesc('id')->limit(50)->get(),
         ]);
     }
 
     public function stamp(Request $request, DispatchTrip $dispatch_trip)
     {
+        $this->ensureSiteInScope($dispatch_trip->site_id);
         $validated = $request->validate(['phase' => 'required|in:LOADING,HAULING,DUMPED,COMPLETED']);
         try {
             DispatchService::stamp($dispatch_trip, $validated['phase']);
         } catch (\DomainException|\InvalidArgumentException $e) {
             return back()->with('error', $e->getMessage());
         }
-        return back()->with('success', 'Trip maju ke fase ' . $validated['phase'] . '.');
+
+        return back()->with('success', 'Trip maju ke fase '.$validated['phase'].'.');
     }
 
     public function linkTicket(Request $request, DispatchTrip $dispatch_trip)
     {
+        $this->ensureSiteInScope($dispatch_trip->site_id);
         $validated = $request->validate(['weighbridge_ticket_id' => 'required|exists:weighbridge_tickets,id']);
         try {
             DispatchService::linkTicket($dispatch_trip, WeighbridgeTicket::find($validated['weighbridge_ticket_id']));
         } catch (\DomainException $e) {
             return back()->with('error', $e->getMessage());
         }
+
         return back()->with('success', 'Tiket tertaut — tonase dari timbangan.');
     }
 
     public function cancel(Request $request, DispatchTrip $dispatch_trip)
     {
+        $this->ensureSiteInScope($dispatch_trip->site_id);
         $validated = $request->validate(['reason' => 'nullable|max:500']);
         try {
             DispatchService::cancel($dispatch_trip, $validated['reason'] ?? null);
         } catch (\DomainException $e) {
             return back()->with('error', $e->getMessage());
         }
+
         return back()->with('success', 'Trip dibatalkan.');
     }
 }

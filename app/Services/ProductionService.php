@@ -2,15 +2,9 @@
 
 namespace App\Services;
 
-use App\Models\GoodsReceipt;
+use App\Models\Crusher;
 use App\Models\Item;
-use App\Models\MaintenanceCost;
-use App\Models\MaintenancePart;
 use App\Models\ProductionBatch;
-use App\Models\PurchaseOrder;
-use App\Models\VendorBill;
-use App\Models\WorkOrder;
-use App\Services\SalesService as SalesServiceAlias;
 use Illuminate\Support\Facades\DB;
 
 class ProductionService
@@ -25,6 +19,7 @@ class ProductionService
     public static function post(ProductionBatch $batch): void
     {
         DB::transaction(function () use ($batch) {
+            $batch = ProductionBatch::lockForUpdate()->find($batch->id);
             if ($batch->status === 'POSTED') {
                 throw new \DomainException('Batch sudah diposting.');
             }
@@ -32,14 +27,25 @@ class ProductionService
                 throw new \DomainException('Batch harus APPROVED sebelum posting.');
             }
 
+            $totalInputTonnage = (float) $batch->inputs->sum('tonnage');
+            $totalNetOutput = (float) $batch->net_output;
+            if ($totalInputTonnage > 0 && $totalNetOutput > $totalInputTonnage * 1.01) {
+                throw new \DomainException(
+                    'Yield tidak masuk akal: output bersih '.$totalNetOutput.' ton > input '.$totalInputTonnage.' ton. Periksa data input/output batch.'
+                );
+            }
+            if ($totalInputTonnage <= 0) {
+                throw new \DomainException('Batch tanpa input bahan baku tidak dapat diposting.');
+            }
+
             $totalInputCost = 0.0;
             foreach ($batch->inputs as $input) {
                 $wh = $input->warehouse_id;
-                if (!$wh) {
-                    $crusher = \App\Models\Crusher::find($batch->crusher_id);
+                if (! $wh) {
+                    $crusher = Crusher::find($batch->crusher_id);
                     $wh = $crusher?->warehouse_id;
                 }
-                if (!$wh) {
+                if (! $wh) {
                     throw new \DomainException('Warehouse sumber input tidak dikonfigurasi.');
                 }
                 $ledger = StockService::move(
@@ -63,11 +69,11 @@ class ProductionService
 
             foreach ($batch->outputs as $output) {
                 $wh = $output->warehouse_id;
-                if (!$wh) {
-                    $crusher = \App\Models\Crusher::find($batch->crusher_id);
+                if (! $wh) {
+                    $crusher = Crusher::find($batch->crusher_id);
                     $wh = $crusher?->warehouse_id;
                 }
-                if (!$wh) {
+                if (! $wh) {
                     throw new \DomainException('Warehouse output tidak dikonfigurasi.');
                 }
                 StockService::move(
@@ -95,7 +101,7 @@ class ProductionService
                     'PRODUCTION_BATCH',
                     $batch->number,
                     $batch->date->toDateString(),
-                    'Output crusher ' . $batch->number
+                    'Output crusher '.$batch->number
                 );
             }
 
@@ -122,11 +128,11 @@ class ProductionService
             if ($totalInputCost > 0 && $batch->net_output > 0) {
                 $fgValue = round($outputCostPerTon * $batch->net_output, 2);
                 $journal = AccountingService::post($batch->company_id, $batch->date->toDateString(), [
-                    ['code' => AccountingService::map('INVENTORY_FG'), 'debit' => $fgValue, 'memo' => 'Hasil produksi ' . $batch->number],
-                    ['code' => AccountingService::map('INVENTORY_RAW'), 'credit' => $fgValue, 'memo' => 'Konsumsi bahan baku ' . $batch->number],
-                ], 'PRODUCTION', $batch->id, $batch->number, 'Posting produksi ' . $batch->number, 'PRD');
+                    ['code' => AccountingService::map('INVENTORY_FG'), 'debit' => $fgValue, 'memo' => 'Hasil produksi '.$batch->number],
+                    ['code' => AccountingService::map('INVENTORY_RAW'), 'credit' => $fgValue, 'memo' => 'Konsumsi bahan baku '.$batch->number],
+                ], 'PRODUCTION', $batch->id, $batch->number, 'Posting produksi '.$batch->number, 'PRD');
 
-                $batch->notes = trim(($batch->notes ? $batch->notes . ' ' : '') . '[journal:' . $journal->number . ']');
+                $batch->notes = trim(($batch->notes ? $batch->notes.' ' : '').'[journal:'.$journal->number.']');
             }
 
             $batch->status = 'POSTED';

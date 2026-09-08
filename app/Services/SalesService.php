@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\CashAccount;
+use App\Models\DeliveryOrder;
 use App\Models\Invoice;
 use App\Models\Item;
 use App\Models\Payment;
@@ -24,6 +25,18 @@ class SalesService
             // idempotency: a completed DO can never post stock twice
             if (in_array($deliveryOrder->status, ['COMPLETED', 'CANCELLED'])) {
                 throw new \DomainException('Surat jalan sudah '.strtolower($deliveryOrder->status).' — posting ganda ditolak.');
+            }
+            // ticket must be consumable and not used by another DO — locked so
+            // two concurrent completions cannot post the same ticket twice
+            $lockedTicket = WeighbridgeTicket::lockForUpdate()->find($ticket->id);
+            if (! $lockedTicket) {
+                throw new \DomainException('Tiket timbangan tidak ditemukan.');
+            }
+            if (! in_array($lockedTicket->status, ['COMPLETE', 'VALIDATED'])) {
+                throw new \DomainException('Tiket timbangan sudah dikonsumsi / tidak valid (status: '.$lockedTicket->status.').');
+            }
+            if (DeliveryOrder::where('weighbridge_ticket_id', $lockedTicket->id)->where('id', '!=', $deliveryOrder->id)->exists()) {
+                throw new \DomainException('Tiket timbangan sudah terpakai oleh surat jalan lain.');
             }
             // quality gate: active HOLD blocks delivery (unless released / special-approved)
             QualityService::assertDeliveryClear($deliveryOrder);
@@ -112,11 +125,11 @@ class SalesService
             StockService::consumeReservations('DO', $deliveryOrder->id);
 
             $deliveryOrder->status = 'COMPLETED';
-            $deliveryOrder->weighbridge_ticket_id = $ticket->id;
+            $deliveryOrder->weighbridge_ticket_id = $lockedTicket->id;
             $deliveryOrder->save();
 
-            $ticket->status = 'POSTED';
-            $ticket->save();
+            $lockedTicket->status = 'POSTED';
+            $lockedTicket->save();
 
             $remaining = $so->items()->sum('qty') - $so->items()->sum('qty_delivered');
             $so->status = $remaining <= 0.0001 ? 'COMPLETED' : 'PARTIALLY_DELIVERED';
@@ -228,7 +241,7 @@ class SalesService
     /**
      * Customer payment: allocate to invoices FIFO; posts journal.
      */
-    public static function receivePayment(int $companyId, int $customerId, float $amount, $date, string $method, ?int $cashAccountId, ?string $referenceNo = null, array $invoiceIds = []): Payment
+    public static function receivePayment(int $companyId, int $customerId, float $amount, $date, string $method, ?int $cashAccountId = null, ?string $referenceNo = null, array $invoiceIds = []): Payment
     {
         return DB::transaction(function () use ($companyId, $customerId, $amount, $date, $method, $cashAccountId, $referenceNo, $invoiceIds) {
             $payment = Payment::create([

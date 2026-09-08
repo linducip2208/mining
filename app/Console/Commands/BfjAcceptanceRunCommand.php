@@ -86,6 +86,7 @@ class BfjAcceptanceRunCommand extends Command
         Storage::disk('local')->makeDirectory('reports');
         Storage::disk('local')->put('reports/bfj-acceptance.json', json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
         $this->writeXlsx($result);
+        $this->writeMarkdown($result);
 
         $this->printSummary($result);
 
@@ -142,6 +143,71 @@ class BfjAcceptanceRunCommand extends Command
         $path = Storage::disk('local')->path('reports/BFJ_Acceptance_Summary.xlsx');
         BfjExcelWriter::write($path, $sheets);
         $this->line('XLSX: '.$path);
+    }
+
+    private function writeMarkdown(array $result): void
+    {
+        // Real measured numbers from this run only — no placeholders, no invented figures.
+        $row = function (string $k) use ($result): array {
+            $s = $result[$k] ?? [];
+
+            return [
+                'rows' => $s['rows'] ?? 0,
+                'valid' => $s['valid'] ?? 0,
+                'warning' => $s['warning'] ?? 0,
+                'error' => $s['error'] ?? 0,
+                'duplicate' => $s['duplicate'] ?? 0,
+                'match' => $s['match'] ?? 0,
+                'variance' => $s['variance'] ?? 0,
+                'unexplained' => $s['unexplained'] ?? 0,
+                'critical_errors' => $s['critical_errors'] ?? 0,
+            ];
+        };
+        $line = function (string $scope, string $label) use ($row): string {
+            $r = $row($scope);
+
+            return sprintf(
+                '| %s | %d | %d | %d | %d | %d | %d | %d | %d | %d |',
+                $label, $r['rows'], $r['valid'], $r['warning'], $r['error'], $r['duplicate'], $r['match'], $r['variance'], $r['unexplained'], $r['critical_errors']
+            );
+        };
+        $tests = $result['tests']['pass'] ?? null;
+        $inv = $result['integrity']['inventory']['pass'] ?? null;
+        $acc = $result['integrity']['accounting']['pass'] ?? null;
+        $pass = fn ($v) => $v === null ? 'N/A' : ($v ? 'PASS' : 'FAIL');
+        $batches = collect($result['files']['batches'] ?? [])->map(fn ($b) => '- batch #'.($b['batch'] ?? $b['id'] ?? '?').' ('.($b['file'] ?? '?').', `'.substr((string) ($b['hash'] ?? $b['sha256'] ?? ''), 0, 12).'…`, '.($b['sheets'] ?? '?').' sheets)')->implode("\n");
+        $mm = collect($result['master_mapping']['by_entity'] ?? [])->flatMap(fn ($st, $ent) => collect(is_array($st) ? $st : [])->map(fn ($c, $s) => '- '.$ent.' / '.$s.': '.$c))->implode("\n");
+
+        $md = '# BFJ Final Execution Report'."\n\n";
+        $md .= 'Generated: '.now()->toDateTimeString().' · duration '.$result['duration_s'].'s · command `php artisan bfj:acceptance-run`'."\n\n";
+        $md .= '## Verdict'."\n\n";
+        $md .= '- Acceptance: **'.$result['overall_status'].'**'."\n";
+        $md .= '- Go-live: **'.$result['go_live'].'**'."\n";
+        $md .= '- Files recognized: '.($result['files']['recognized'] ?? '?').'/'.($result['files']['expected'] ?? '?')."\n\n";
+        $md .= '## Batches executed'."\n\n".($batches !== '' ? $batches : '_none_')."\n\n";
+        $md .= '## Rows by domain'."\n\n";
+        $md .= '| Domain | Rows | Valid | Warnings | Errors | Duplicates | Match | Variance | Unexplained | Critical |'."\n";
+        $md .= '|---|---|---|---|---|---|---|---|---|---|'."\n";
+        foreach (['sales' => 'Sales', 'deposit' => 'Deposit', 'finance' => 'Finance', 'payroll' => 'Payroll', 'documents' => 'Documents', 'spareparts' => 'Spareparts'] as $k => $label) {
+            $md .= $line($k, $label)."\n";
+        }
+        $md .= "\n".'## Master mapping'."\n\n";
+        $md .= '- Total: '.($result['master_mapping']['total'] ?? '?').' · resolved: '.($result['master_mapping']['resolved'] ?? '?').' · unresolved: '.($result['master_mapping']['unresolved'] ?? '?')."\n\n";
+        $md .= ($mm !== '' ? $mm : '_no mapping detail_')."\n\n";
+        $md .= '## Integrity & quality gates'."\n\n";
+        $md .= '- Tests: '.$pass($tests)."\n";
+        $md .= '- Inventory integrity: '.$pass($inv)."\n";
+        $md .= '- Accounting integrity: '.$pass($acc)."\n\n";
+        $md .= '## Blockers'."\n\n";
+        $unexp = (int) ($row('sales')['unexplained'] + $row('deposit')['unexplained'] + $row('finance')['unexplained'] + $row('payroll')['unexplained'] + $row('spareparts')['unexplained']);
+        $crit = (int) ($row('sales')['critical_errors'] + $row('deposit')['critical_errors'] + $row('finance')['critical_errors'] + $row('payroll')['critical_errors'] + $row('spareparts')['critical_errors']);
+        $md .= '- Unexplained variance rows: '.$unexp."\n";
+        $md .= '- Critical error rows: '.$crit."\n";
+        $md .= '- Unresolved masters: '.($result['master_mapping']['unresolved'] ?? '?')."\n\n";
+        $md .= '> Safety posture: sales/deposit HISTORY_ONLY, finance RECONCILIATION_ONLY, payroll PAYROLL_RECONCILIATION, invoice REGISTER_ONLY, receipt HISTORY_ONLY. No live stock/accounting posting without Finance authorization + explicit confirm flag.'."\n";
+
+        file_put_contents(base_path('docs/BFJ_FINAL_EXECUTION_REPORT.md'), $md);
+        $this->line('Markdown: '.base_path('docs/BFJ_FINAL_EXECUTION_REPORT.md'));
     }
 
     private function printSummary(array $r): void

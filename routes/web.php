@@ -160,7 +160,7 @@ Route::middleware(['auth', 'feature.flags'])->group(function () {
     Route::post('users/{user}/roles', [UserController::class, 'assignRoles'])->name('users.assign-roles')->middleware('permission:user.assign_role');
 
     Route::get('roles', [RoleController::class, 'index'])->name('role.index')->middleware('permission:role.view');
-    Route::get('roles/{role}', [RoleController::class, 'show'])->name('role.show')->whereNumber('role');
+    Route::get('roles/{role}', [RoleController::class, 'show'])->name('role.show')->whereNumber('role')->middleware('permission:role.view');
     Route::put('roles/{role}/permissions', [RoleController::class, 'updatePermissions'])->name('role.update-permissions')->middleware('permission:role.update');
     Route::resource('roles', RoleController::class)->except(['index', 'show'])->names(['create' => 'role.create', 'store' => 'role.store', 'edit' => 'role.edit', 'update' => 'role.update', 'destroy' => 'role.destroy'])->middleware('permission:role.create');
 
@@ -281,7 +281,7 @@ Route::middleware(['auth', 'feature.flags'])->group(function () {
     Route::get('deposits', [CustomerDepositController::class, 'index'])->name('deposit.index')->middleware('permission:deposit.view');
     Route::post('deposits/in', [CustomerDepositController::class, 'depositIn'])->name('deposit.in')->middleware('permission:deposit.create');
     Route::post('deposits/refund', [CustomerDepositController::class, 'refund'])->name('deposit.refund')->middleware('permission:deposit.create');
-    Route::get('deposits/{customer}/statement', [CustomerDepositController::class, 'statement'])->name('deposit.statement');
+    Route::get('deposits/{customer}/statement', [CustomerDepositController::class, 'statement'])->name('deposit.statement')->middleware('permission:deposit.view');
     Route::resource('price-lists', PriceListController::class)->middleware('permission:price.view');
     Route::post('price-lists/{price_list}/approve', [PriceListController::class, 'approve'])->name('price-lists.approve')->middleware('permission:price.approve');
     Route::get('price-variances', [PriceVarianceController::class, 'index'])->name('price_variance.index')->middleware('permission:price_variance.view');
@@ -325,7 +325,7 @@ Route::middleware(['auth', 'feature.flags'])->group(function () {
     Route::get('transactions/{documentType}/{document}/print', [TransactionPrintController::class, 'print'])->name('transactions.print')->middleware('permission:document.print');
     Route::get('transactions/{documentType}/{document}/pdf', [TransactionPrintController::class, 'pdf'])->name('transactions.pdf')->middleware('permission:document.pdf');
     Route::post('documents/{document}/approve', [DocumentController::class, 'approve'])->name('documents.approve')->middleware('permission:document.approve');
-    Route::get('documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download');
+    Route::get('documents/{document}/download', [DocumentController::class, 'download'])->name('documents.download')->middleware('permission:document.download');
     Route::resource('csr', CsrController::class)->middleware('permission:csr.view');
     Route::post('csr/{csr}/approve', [CsrController::class, 'approve'])->name('csr.approve')->middleware('permission:csr.approve');
     Route::post('csr/{csr}/activities', [CsrController::class, 'addActivity'])->name('csr.activities.add')->middleware('permission:csr.update');

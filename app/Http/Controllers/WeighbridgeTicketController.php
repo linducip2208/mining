@@ -163,6 +163,10 @@ class WeighbridgeTicketController extends Controller
             return back()->with('error', 'Override berat dinonaktifkan oleh pengaturan sistem.');
         }
 
+        if (in_array($weighbridge_ticket->status, ['POSTED', 'VOID', 'CANCELLED'])) {
+            return back()->with('error', 'Tiket sudah '.$weighbridge_ticket->status.' — berat tidak dapat dioverride lagi.');
+        }
+
         $validated = $request->validate([
             'gross' => 'required|numeric|min:0',
             'tare' => 'required|numeric|min:0',
@@ -173,16 +177,22 @@ class WeighbridgeTicketController extends Controller
             return back()->with('error', 'Tare tidak boleh lebih besar dari gross.');
         }
 
+        $net = round($validated['gross'] - $validated['tare'], 4);
+        if ($net <= 0) {
+            return back()->with('error', 'Hasil override menghasilkan netto 0 — tidak diizinkan.');
+        }
+
+        $before = ['gross' => $weighbridge_ticket->gross, 'tare' => $weighbridge_ticket->tare, 'net' => $weighbridge_ticket->net];
         $weighbridge_ticket->update([
             'gross' => $validated['gross'],
             'tare' => $validated['tare'],
-            'net' => round($validated['gross'] - $validated['tare'], 4),
+            'net' => $net,
             'weight_overridden' => true,
             'override_reason' => $validated['override_reason'],
         ]);
 
-        AuditService::log('OVERRIDE', 'WEIGHBRIDGE', $weighbridge_ticket->id, WeighbridgeTicket::class, null, [
-            'override' => ['gross' => $validated['gross'], 'tare' => $validated['tare'], 'net' => $weighbridge_ticket->net],
+        AuditService::log('OVERRIDE', 'WEIGHBRIDGE', $weighbridge_ticket->id, WeighbridgeTicket::class, $before, [
+            'gross' => $validated['gross'], 'tare' => $validated['tare'], 'net' => $net,
         ], $validated['override_reason']);
 
         return back()->with('success', 'Berat dioverride dengan alasan tercatat.');
@@ -190,11 +200,23 @@ class WeighbridgeTicketController extends Controller
 
     public function postTicket(WeighbridgeTicket $weighbridge_ticket)
     {
-        if (! in_array($weighbridge_ticket->status, ['COMPLETE', 'VALIDATED'])) {
-            return back()->with('error', 'Ticket belum lengkap.');
+        $posted = DB::transaction(function () use ($weighbridge_ticket) {
+            $ticket = WeighbridgeTicket::lockForUpdate()->find($weighbridge_ticket->id);
+            if (! in_array($ticket->status, ['COMPLETE', 'VALIDATED'])) {
+                return null;
+            }
+            if ((float) $ticket->net <= 0) {
+                return null;
+            }
+            $ticket->update(['status' => 'POSTED']);
+            AuditService::log('POST', 'WEIGHBRIDGE', $ticket->id, WeighbridgeTicket::class, null, ['ticket' => $ticket->ticket_no, 'net' => $ticket->net]);
+
+            return $ticket;
+        });
+
+        if (! $posted) {
+            return back()->with('error', 'Ticket belum lengkap atau netto 0 — tidak dapat diposting.');
         }
-        $weighbridge_ticket->update(['status' => 'POSTED']);
-        AuditService::log('POST', 'WEIGHBRIDGE', $weighbridge_ticket->id, WeighbridgeTicket::class, null, ['ticket' => $weighbridge_ticket->ticket_no, 'net' => $weighbridge_ticket->net]);
 
         return back()->with('success', 'Ticket diposting.');
     }

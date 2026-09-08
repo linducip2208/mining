@@ -38,6 +38,16 @@ return [
             'report' => false,
         ],
 
+        // private documents (employee files, permits, letter attachments):
+        // never web-servable through the storage symlink
+        'private' => [
+            'driver' => 'local',
+            'root' => storage_path('app/documents'),
+            'serve' => false,
+            'throw' => false,
+            'report' => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
